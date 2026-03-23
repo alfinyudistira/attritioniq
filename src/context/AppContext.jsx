@@ -135,39 +135,109 @@ const COLUMN_ALIASES = {
   CommuteDistance:  ["commutedistance", "commute", "jarak_tempuh", "jarak", "jarak_rumah", "distance"]
 };
 
+const EXTRA_ALIASES = {
+  Age: ["umur_karyawan","usia_karyawan","age_year","usia_tahun","thn_umur","years_old"],
+  MonthlySalary: ["gaji_perbulan","salary_permonth","income_monthly","pay","takehome","take_home","salary_idr"],
+  Department: ["team","tim","unit","organization","org","fungsi"],
+  AttritionStatus: ["keluar","resign","cabut","out","leave","exit_status"],
+  JobSatisfaction: ["kepuasan_score","job_rate","feeling","mood","happy_score"],
+};
+
+Object.keys(EXTRA_ALIASES).forEach(key => {
+  COLUMN_ALIASES[key] = [
+    ...(COLUMN_ALIASES[key] || []),
+    ...EXTRA_ALIASES[key]
+  ];
+});
+
 function smartParseNumber(val) {
   if (typeof val === 'number') return val;
   if (!val || String(val).trim() === "") return "";
-  
-  let cleanStr = String(val).replace(/[^\d.,-]/g, '').trim();
-  
+
+  let str = String(val).toLowerCase().trim();
+
+  if (str.endsWith("k")) return Number(str.replace("k","")) * 1000;
+  if (str.endsWith("m")) return Number(str.replace("m","")) * 1_000_000;
+  if (str.endsWith("jt")) return Number(str.replace("jt","")) * 1_000_000;
+  if (str.endsWith("rb")) return Number(str.replace("rb","")) * 1000;
+
+  let cleanStr = str.replace(/[^\d.,-]/g, '');
+
   if (cleanStr.includes('.') && !cleanStr.includes(',')) {
     const parts = cleanStr.split('.');
     if (parts.length > 2 || parts[parts.length - 1].length === 3) {
       cleanStr = cleanStr.replace(/\./g, '');
     }
   }
-  if (cleanStr.includes(',')) {
-    cleanStr = cleanStr.replace(/,/g, '');
-  }
-  
+
+  cleanStr = cleanStr.replace(/,/g, '');
+
   const num = Number(cleanStr);
-  return isNaN(num) ? String(val).trim() : num;
+  return isNaN(num) ? str : num;
 }
 
 function normalizeHeader(h) {
   return h.toLowerCase().replace(/[\s_\-\.]+/g, "").trim();
 }
 
+function similarity(a, b) {
+  const s1 = a.toLowerCase();
+  const s2 = b.toLowerCase();
+  let matches = 0;
+  for (let i = 0; i < Math.min(s1.length, s2.length); i++) {
+    if (s1[i] === s2[i]) matches++;
+  }
+  return matches / Math.max(s1.length, s2.length);
+}
+
 function mapHeader(raw) {
   const norm = normalizeHeader(raw);
+
   for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
     if (normalizeHeader(canonical) === norm) return canonical;
     if (aliases.some(a => normalizeHeader(a) === norm)) return canonical;
   }
-  return raw; 
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
+    for (const alias of aliases) {
+      const score = similarity(norm, normalizeHeader(alias));
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = canonical;
+      }
+    }
+  }
+
+  if (bestScore > 0.7) return bestMatch;
+
+  return raw;
 }
 
+function enrichRow(row) {
+  const enriched = { ...row };
+
+  if (enriched.Age) {
+    enriched.Generation = getGeneration(enriched.Age);
+  }
+
+  if (enriched.MonthlySalary) {
+    if (enriched.MonthlySalary > 5000) enriched.SalaryLevel = "High";
+    else if (enriched.MonthlySalary > 3000) enriched.SalaryLevel = "Medium";
+    else enriched.SalaryLevel = "Low";
+  }
+
+  if (enriched.JobSatisfaction) {
+    enriched.SatisfactionLabel =
+      enriched.JobSatisfaction <= 2 ? "Low" :
+      enriched.JobSatisfaction <= 4 ? "Medium" : "High";
+  }
+
+  return enriched;
+}
+         
 export function parseCSV(text) {
   const results = Papa.parse(text.trim(), {
     header: true,
@@ -176,18 +246,18 @@ export function parseCSV(text) {
   });
 
   return results.data
-    .map(row => {
-      const cleanRow = {};
-      for (const key in row) {
-        
-        cleanRow[key] = smartParseNumber(row[key]);
-      }
-      
-      if (cleanRow.EmployeeID) cleanRow.EmployeeID = String(cleanRow.EmployeeID);
-      return cleanRow;
-    })
-    .filter(r => r.EmployeeID); 
-}
+  .map(row => {
+    const cleanRow = {};
+    for (const key in row) {
+      cleanRow[key] = smartParseNumber(row[key]);
+    }
+
+    if (cleanRow.EmployeeID) cleanRow.EmployeeID = String(cleanRow.EmployeeID);
+
+    return enrichRow(cleanRow);
+  })
+  .filter(r => r.EmployeeID);   
+}  
 
 const LS_COMPANY_KEY = "attritioniq_company";
 const LS_DATA_KEY    = "attritioniq_data";
@@ -232,9 +302,40 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
+  const computed = useMemo(() => {
+  if (!data || data.length === 0) return [];
+
+  return data.map(d => {
+    let riskScore = 0;
+
+    if (d.OvertimeStatus === "Yes") riskScore += 2;
+    if (d.JobSatisfaction <= 2) riskScore += 2;
+    if (d.YearsAtCompany < 1) riskScore += 2;
+
+    let riskLevel = "Low";
+    if (riskScore >= 5) riskLevel = "High";
+    else if (riskScore >= 3) riskLevel = "Medium";
+
+    return {
+      ...d,
+      RiskScore: riskScore,
+      RiskLevel: riskLevel,
+      RiskColor:
+        riskLevel === "High" ? "#ef4444" :
+        riskLevel === "Medium" ? "#eab308" :
+        "#22c55e"
+    };
+  });
+}, [data]);
+
     const contextValue = useMemo(() => ({
-    company, setCompany, data, setData, resetWorkspace
-  }), [company, data, setCompany, setData, resetWorkspace]);
+  company,
+  setCompany,
+  data,
+  setData,
+  computed,
+  resetWorkspace
+}), [company, data, computed, setCompany, setData, resetWorkspace]);
 
   return (
     <AppContext.Provider value={contextValue}>
