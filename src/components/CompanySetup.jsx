@@ -7,17 +7,23 @@ export default function CompanySetup({ onSave }) {
     currency: "USD",
     salaryCliff: 5000,
     replacementMultiplier: 1.5,
+    employeeCount: "",
+    avgWorkHoursPerWeek: 40,
   });
-
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
   const valid = form.name.trim().length > 0;
+
+  const CURRENCY_SYMBOLS = { USD: "$", IDR: "Rp", EUR: "€", GBP: "£", SGD: "S$" };
+  const currSymbol = CURRENCY_SYMBOLS[form.currency] || "$";
 
   const fields = [
     { label: "Company Name", key: "name", type: "text", placeholder: "e.g. Pulse Digital" },
     { label: "Industry", key: "industry", type: "select", opts: ["Manufacturing","Retail","Technology","Healthcare","Finance","Services","Other"] },
     { label: "Currency", key: "currency", type: "select", opts: ["USD","IDR","EUR","GBP","SGD"] },
-    { label: "Salary Safety Cliff (monthly)", key: "salaryCliff", type: "number", placeholder: "5000" },
+    { label: `Salary Safety Cliff (${currSymbol}/month)`, key: "salaryCliff", type: "number", placeholder: form.currency === "IDR" ? "5000000" : "5000", tooltip: "The minimum monthly salary threshold. Employees below this are statistically at higher attrition risk." },
     { label: "Replacement Cost Multiplier (×annual salary)", key: "replacementMultiplier", type: "number", placeholder: "1.5", tooltip: "Cost to replace 1 employee = annual salary × this multiplier. Industry standard: 1.5× (conservative) to 3× (specialist roles). Covers recruiting, onboarding, lost productivity." },
+    { label: "Total Employees (optional)", key: "employeeCount", type: "number", placeholder: "e.g. 250", tooltip: "Used to calculate org-wide cost projections in M6 ROI Calculator." },
+    { label: "Avg Work Hours / Week", key: "avgWorkHoursPerWeek", type: "number", placeholder: "40", tooltip: "Standard work hours per week at your company. Used by M7 Fatigue Radar to detect burnout risk." },
   ];
 
   return (
@@ -95,6 +101,27 @@ export default function CompanySetup({ onSave }) {
           </div>
         ))}
 
+{/* Currency preview */}
+        <div style={{
+          background: "#f8fafc", borderRadius: 10, padding: "10px 14px",
+          border: "1.5px solid #e2e8f0", marginBottom: 14,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontSize: 18 }}>💱</span>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>
+              Currency Preview
+            </div>
+            <div style={{ fontSize: 13, color: "#0f172a", marginTop: 2 }}>
+              Salary cliff will display as{" "}
+              <strong style={{ color: "#f59e0b" }}>
+                {currSymbol}{Number(form.salaryCliff || 0).toLocaleString()}
+              </strong>
+              {" "}across all modules
+            </div>
+          </div>
+        </div>
+        
         <button
           onClick={() => valid && onSave(form)}
           style={{
