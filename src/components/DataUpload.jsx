@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useApp, parseCSV, SAMPLE_DATA } from "../context/AppContext";
 
 const CSV_TEMPLATE = `EmployeeID,FirstName,LastName,Department,MonthlySalary,OvertimeStatus,JobSatisfaction,AttritionStatus,YearsAtCompany,Age
@@ -10,35 +10,65 @@ export default function DataUpload() {
   const [dragging, setDragging] = useState(false);
   const [msg, setMsg] = useState("");
   const [mappingInfo, setMappingInfo] = useState(null);
+  const [fileInfo, setFileInfo] = useState(null);
+  const [parsing, setParsing] = useState(false);
   const fileRef = useRef();
 
-  const handleFile = (file) => {
+  const handleFile = useCallback((file) => {
     if (!file) return;
+    setParsing(true);
+    setMsg("");
+    setMappingInfo(null);
+    setFileInfo({
+      name: file.name,
+      size: (file.size / 1024).toFixed(1) + " KB",
+    });
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const text = e.target.result;
         const parsed = parseCSV(text);
+
         if (parsed.length === 0) {
           setMsg("❌ No valid rows found. Check that your CSV has an EmployeeID column (or similar).");
           setMappingInfo(null);
+          setParsing(false);
           return;
         }
-        // Detect which columns were found
+
         const requiredCols = ["EmployeeID","FirstName","LastName","Department","MonthlySalary","OvertimeStatus","JobSatisfaction","AttritionStatus","YearsAtCompany","Age"];
         const foundCols = requiredCols.filter(c => parsed[0][c] !== undefined);
         const missingCols = requiredCols.filter(c => parsed[0][c] === undefined);
 
+        // Smart suggestions for missing cols
+        const suggestions = {
+          EmployeeID: "Try: 'ID', 'NIK', 'NIP', 'EmpCode'",
+          MonthlySalary: "Try: 'Salary', 'Gaji', 'Pay', 'Income'",
+          OvertimeStatus: "Try: 'Overtime', 'OT', 'Lembur'",
+          JobSatisfaction: "Try: 'Satisfaction', 'Score', 'Rating'",
+          AttritionStatus: "Try: 'Status', 'Attrition', 'Employment Status'",
+          YearsAtCompany: "Try: 'Tenure', 'Years', 'Masa Kerja'",
+        };
+
         setData(parsed);
         setMsg(`✅ ${parsed.length} employees loaded — synced across all modules`);
-        setMappingInfo({ found: foundCols.length, missing: missingCols, total: requiredCols.length });
+        setMappingInfo({
+          found: foundCols.length,
+          foundCols,
+          missing: missingCols,
+          total: requiredCols.length,
+          suggestions,
+        });
+        setParsing(false);
       } catch (err) {
         setMsg("❌ Parse error. Please check your CSV format.");
         setMappingInfo(null);
+        setParsing(false);
       }
     };
     reader.readAsText(file);
-  };
+  }, [setData]);
 
   const downloadTemplate = () => {
     const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
@@ -95,14 +125,62 @@ export default function DataUpload() {
         <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
       </div>
 
+      {/* Parsing indicator */}
+      {parsing && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ width: "60%", height: "100%", background: "#f59e0b", borderRadius: 3, animation: "pulse 1s infinite" }} />
+          </div>
+          <span style={{ fontSize: 11, color: "#94a3b8" }}>Parsing...</span>
+        </div>
+      )}
+
+      {/* File info */}
+      {fileInfo && !parsing && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", borderRadius: 8, padding: "6px 12px", border: "1px solid #e2e8f0" }}>
+          <span style={{ fontSize: 14 }}>📄</span>
+          <span style={{ fontSize: 11, color: "#475569", fontWeight: 600 }}>{fileInfo.name}</span>
+          <span style={{ fontSize: 10, color: "#94a3b8", marginLeft: "auto" }}>{fileInfo.size}</span>
+        </div>
+      )}
+
+      {/* Status message */}
       {msg && (
-        <div style={{ marginTop: 8, fontSize: 12, color: msg.startsWith("✅") ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
+        <div style={{ marginTop: 6, fontSize: 12, color: msg.startsWith("✅") ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
           {msg}
         </div>
       )}
-      {mappingInfo && mappingInfo.missing.length > 0 && (
-        <div style={{ marginTop: 6, background: "#fffbeb", borderRadius: 8, padding: "8px 12px", border: "1px solid #fde68a", fontSize: 11, color: "#92400e" }}>
-          ⚠️ {mappingInfo.found}/{mappingInfo.total} columns matched. Missing: <strong>{mappingInfo.missing.join(", ")}</strong> — these fields will default to empty/zero.
+
+      {/* Column mapping preview */}
+      {mappingInfo && (
+        <div style={{ marginTop: 10 }}>
+          {/* Found columns */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
+            {mappingInfo.foundCols.map(col => (
+              <span key={col} style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>
+                ✓ {col}
+              </span>
+            ))}
+            {mappingInfo.missing.map(col => (
+              <span key={col} style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>
+                ✗ {col}
+              </span>
+            ))}
+          </div>
+
+          {/* Missing col suggestions */}
+          {mappingInfo.missing.length > 0 && (
+            <div style={{ background: "#fffbeb", borderRadius: 8, padding: "10px 12px", border: "1px solid #fde68a" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+                ⚠️ {mappingInfo.found}/{mappingInfo.total} columns matched — missing fields default to empty/zero
+              </div>
+              {mappingInfo.missing.map(col => mappingInfo.suggestions[col] && (
+                <div key={col} style={{ fontSize: 10, color: "#78350f", marginBottom: 2 }}>
+                  <strong>{col}:</strong> {mappingInfo.suggestions[col]}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
