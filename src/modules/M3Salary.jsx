@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useCurrency, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Detect salary cliff from data ──
 function detectCliff(data, manualCliff) {
@@ -31,7 +31,7 @@ function detectCliff(data, manualCliff) {
 }
 
 // ── Mini scatter plot ──
-function SalaryScatter({ data, cliff, highlightBelow = true }) {
+function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" }) {
   if (!data || data.length === 0) return null;
   const salaries = data.map(d => d.MonthlySalary).filter(Boolean);
   const maxS = Math.max(...salaries, cliff + 1000);
@@ -55,7 +55,7 @@ function SalaryScatter({ data, cliff, highlightBelow = true }) {
       <line x1={pad.l} y1={pad.t + H} x2={pad.l + W} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
       {/* Cliff line */}
       <line x1={cliffX} y1={pad.t} x2={cliffX} y2={pad.t + H} stroke="#f59e0b" strokeWidth={2} strokeDasharray="5,3" />
-      <text x={cliffX + 3} y={pad.t + 10} fontSize={8} fill="#b45309" fontWeight="700">${(cliff / 1000).toFixed(1)}k cliff</text>
+      <text x={cliffX + 3} y={pad.t + 10} fontSize={8} fill="#b45309" fontWeight="700">{currSymbol}{(cliff / 1000).toFixed(1)}k cliff</text>
       {/* Zone labels */}
       <text x={pad.l + 4} y={pad.t + H - 4} fontSize={7} fill="#ef4444" fontWeight="700">⚠ DANGER ZONE</text>
       <text x={cliffX + 4} y={pad.t + H - 4} fontSize={7} fill="#16a34a" fontWeight="700">✓ SAFE ZONE</text>
@@ -82,7 +82,7 @@ function SalaryScatter({ data, cliff, highlightBelow = true }) {
 }
 
 // ── Salary distribution bar chart ──
-function SalaryDistribution({ data, cliff }) {
+function SalaryDistribution({ data, cliff, currSymbol = "$" }) {
   const buckets = {};
   const step = 500;
   data.forEach(e => {
@@ -110,8 +110,8 @@ function SalaryDistribution({ data, cliff }) {
             <rect x={x} y={H - pad.b - riskH} width={bW} height={riskH}
               fill={isBelow ? "#ef4444" : "#22c55e"} rx={2} opacity={0.9} />
             <text x={x + bW / 2} y={H - 6} textAnchor="middle" fontSize={7} fill="#94a3b8">
-              ${(Number(sal) / 1000).toFixed(1)}k
-            </text>
+  {currSymbol}{(Number(sal) / 1000).toFixed(1)}k
+</text>
           </g>
         );
       })}
@@ -119,6 +119,64 @@ function SalaryDistribution({ data, cliff }) {
     </svg>
   );
 }
+
+// ── Salary Health Bar per employee ──
+function SalaryHealthBar({ salary, cliff, currSymbol }) {
+  const pct = Math.min(100, Math.round((salary / cliff) * 100));
+  const color = pct >= 100 ? "#22c55e" : pct >= 80 ? "#f59e0b" : "#ef4444";
+  const label = pct >= 100 ? "Safe" : pct >= 80 ? "Near Cliff" : "Danger";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ width: 50, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3 }} />
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color }}>{label}</span>
+    </div>
+  );
+}
+
+// ── Dept Salary Radar (SVG) ──
+function DeptSalaryRadar({ depts, cliff, currSymbol }) {
+  if (!depts || depts.length === 0) return null;
+  const n = Math.min(depts.length, 6);
+  const sliced = depts.slice(0, n);
+  const size = 200;
+  const cx = size / 2, cy = size / 2, r = size * 0.35;
+  const points = sliced.map((_, i) => {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+    return { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r };
+  });
+  const dataPoints = sliced.map((d, i) => {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+    const ratio = Math.min(1, (d.avgSal || 0) / cliff);
+    return { x: cx + Math.cos(angle) * r * ratio, y: cy + Math.sin(angle) * r * ratio };
+  });
+  const polygon = dataPoints.map(p => `${p.x},${p.y}`).join(" ");
+  const grid = points.map(p => `${p.x},${p.y}`).join(" ");
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${size} ${size}`}>
+      <polygon points={grid} fill="none" stroke="#e2e8f0" strokeWidth={1} />
+      <polygon points={polygon} fill="#f59e0b22" stroke="#f59e0b" strokeWidth={2} />
+      {sliced.map((d, i) => (
+        <g key={i}>
+          <line x1={cx} y1={cy} x2={points[i].x} y2={points[i].y} stroke="#f1f5f9" strokeWidth={1} />
+          <text x={points[i].x} y={points[i].y + (points[i].y > cy ? 12 : -4)}
+            textAnchor="middle" fontSize={8} fill="#475569" fontWeight="700">
+            {d.dept.split(" ")[0]}
+          </text>
+          <text x={dataPoints[i].x} y={dataPoints[i].y - 4}
+            textAnchor="middle" fontSize={7} fill="#f59e0b" fontWeight="700">
+            {currSymbol}{Math.round((d.avgSal || 0) / 1000)}k
+          </text>
+        </g>
+      ))}
+      <circle cx={cx} cy={cy} r={3} fill="#f59e0b" />
+      <text x={cx} y={cy - 8} textAnchor="middle" fontSize={7} fill="#94a3b8">cliff: {currSymbol}{Math.round(cliff / 1000)}k</text>
+    </svg>
+  );
+}
+
 
 // ── AI Insight ──
 async function fetchSalaryAI(stats, company) {
@@ -155,7 +213,9 @@ Under 160 words. Direct and actionable. No bullet points.`
 
 // ── MAIN M3 COMPONENT ──
 export default function M3Salary() {
-  const { company, data } = useApp();
+    const { company, data } = useApp();
+  const { fmt, config: cfg } = useCurrency();
+  const currSymbol = cfg?.symbol || "$";
   const src = data.length > 0 ? data : SAMPLE_DATA;
   const manualCliff = company?.salaryCliff || 5000;
   const currency = company?.currency || "USD";
@@ -232,13 +292,13 @@ export default function M3Salary() {
     setAiLoading(false);
   }, [stats, company]);
 
-  const fmt = v => `$${Number(v).toLocaleString()}`;
-
-  const TABS = [
+    const TABS = [
     { id: "overview", label: "📊 Overview" },
     { id: "employee", label: "👤 Employee Gap Table" },
     { id: "simulator", label: "🧪 Adjustment Simulator" },
     { id: "market", label: "📈 Market Comparison" },
+    { id: "health", label: "🩺 Salary Health" },
+    { id: "radar", label: "🕸 Dept Radar" },
   ];
 
   return (
@@ -318,7 +378,7 @@ export default function M3Salary() {
             <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Salary vs Satisfaction Map</div>
               <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 10 }}>Red zone = danger · Green zone = safe · Size = at-risk</div>
-              <SalaryScatter data={src} cliff={cliff} />
+              <SalaryScatter data={src} cliff={cliff} currSymbol={currSymbol} />
               <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
                 {[{ l: "Resigned", c: "#ef4444" }, { l: "High Risk", c: "#f59e0b" }, { l: "Active", c: "#22c55e" }].map(x => (
                   <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -332,7 +392,7 @@ export default function M3Salary() {
             <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Salary Distribution</div>
               <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 10 }}>Red bars = danger zone · Green bars = safe zone</div>
-              <SalaryDistribution data={src} cliff={cliff} />
+              <SalaryDistribution data={src} cliff={cliff} currSymbol={currSymbol} />
               <div style={{ marginTop: 10, background: "#fef2f2", borderRadius: 8, padding: "8px 12px", border: "1px solid #fecaca" }}>
                 <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 700 }}>
                   💡 ${fmt(stats.avgGap)}/mo avg gap · Fix costs ${fmt(Math.round(stats.totalBudgetNeeded / 12))}/mo total
@@ -370,6 +430,21 @@ export default function M3Salary() {
               })}
             </div>
           </div>
+
+          // ── Salary Health Bar per employee ──
+function SalaryHealthBar({ salary, cliff, currSymbol }) {
+  const pct = Math.min(100, Math.round((salary / cliff) * 100));
+  const color = pct >= 100 ? "#22c55e" : pct >= 80 ? "#f59e0b" : "#ef4444";
+  const label = pct >= 100 ? "Safe" : pct >= 80 ? "Near Cliff" : "Danger";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ width: 50, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3 }} />
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color }}>{label}</span>
+    </div>
+  );
+}
 
           {/* AI Insight */}
           <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
@@ -604,6 +679,135 @@ export default function M3Salary() {
               })}
             </div>
           </div>
+
+{/* ── TAB: SALARY HEALTH ── */}
+      {activeTab === "health" && (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🩺 Individual Salary Health</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>
+              Each employee scored against the {currSymbol}{cliff.toLocaleString()} salary cliff · Red = immediate risk
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    {["Employee","Department","Monthly Salary","vs Cliff","Health","Status"].map(h => (
+                      <th key={h} style={{ padding: "8px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...src].sort((a, b) => (a.MonthlySalary || 0) - (b.MonthlySalary || 0)).map((e, i) => {
+                    const gap = cliff - (e.MonthlySalary || 0);
+                    const isBelow = gap > 0;
+                    return (
+                      <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: isBelow ? "#fff5f5" : "#fff" }}>
+                        <td style={{ padding: "7px 10px", fontWeight: 600, color: "#1e293b" }}>{e.FirstName} {e.LastName}</td>
+                        <td style={{ padding: "7px 10px", color: "#475569" }}>{e.Department}</td>
+                        <td style={{ padding: "7px 10px", fontWeight: 700, color: isBelow ? "#ef4444" : "#16a34a" }}>{fmt(e.MonthlySalary || 0)}</td>
+                        <td style={{ padding: "7px 10px", fontSize: 11 }}>
+                          {isBelow
+                            ? <span style={{ color: "#ef4444", fontWeight: 700 }}>−{fmt(gap)}</span>
+                            : <span style={{ color: "#16a34a", fontWeight: 700 }}>+{fmt(Math.abs(gap))}</span>}
+                        </td>
+                        <td style={{ padding: "7px 10px" }}>
+                          <SalaryHealthBar salary={e.MonthlySalary || 0} cliff={cliff} currSymbol={currSymbol} />
+                        </td>
+                        <td style={{ padding: "7px 10px" }}>
+                          <span style={{
+                            background: e.AttritionStatus === "Resigned" ? "#fef2f2" : e.AttritionStatus === "High Risk" ? "#fffbeb" : "#f0fdf4",
+                            color: e.AttritionStatus === "Resigned" ? "#ef4444" : e.AttritionStatus === "High Risk" ? "#f59e0b" : "#22c55e",
+                            padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700
+                          }}>{e.AttritionStatus}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Summary stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12 }}>
+            {[
+              { label: "Below Cliff", value: src.filter(e => (e.MonthlySalary || 0) < cliff).length, color: "#ef4444", icon: "⚠️", sub: "employees at risk" },
+              { label: "Above Cliff", value: src.filter(e => (e.MonthlySalary || 0) >= cliff).length, color: "#22c55e", icon: "✅", sub: "employees stable" },
+              { label: "Avg Gap (below)", value: fmt(Math.round(src.filter(e => (e.MonthlySalary||0) < cliff).reduce((s,e) => s + (cliff - (e.MonthlySalary||0)), 0) / Math.max(1, src.filter(e => (e.MonthlySalary||0) < cliff).length)), true), color: "#f59e0b", icon: "📉", sub: "avg monthly gap" },
+              { label: "Total Fix Budget", value: fmt(src.filter(e => (e.MonthlySalary||0) < cliff).reduce((s,e) => s + (cliff - (e.MonthlySalary||0)), 0) * 12, true), color: "#8b5cf6", icon: "💰", sub: "annual cost to fix all" },
+            ].map((k, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22` }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{k.icon}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: DEPT RADAR ── */}
+      {activeTab === "radar" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🕸 Dept Salary Radar</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>
+              Each axis = department · Distance from center = avg salary vs cliff
+            </div>
+            <DeptSalaryRadar depts={stats.depts} cliff={cliff} currSymbol={currSymbol} />
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 14 }}>📊 Dept Risk Ranking</div>
+            {[...stats.depts].sort((a, b) => a.avgSal - b.avgSal).map((d, i) => {
+              const pct = Math.min(100, Math.round((d.avgSal / cliff) * 100));
+              const color = pct >= 100 ? "#22c55e" : pct >= 80 ? "#f59e0b" : "#ef4444";
+              return (
+                <div key={i} style={{ marginBottom: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{d.dept}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color }}>{fmt(Math.round(d.avgSal), true)}/mo</span>
+                  </div>
+                  <div style={{ height: 8, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.5s ease" }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+                    <span style={{ fontSize: 10, color: "#94a3b8" }}>{d.below} below cliff</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color }}>{pct}% of cliff</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Export dept plan */}
+          <div style={{ gridColumn: "1 / -1", background: "#fff", borderRadius: 14, padding: "16px 20px", border: "1.5px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>📋 Export Department Adjustment Plan</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Download full salary adjustment plan as CSV</div>
+            </div>
+            <button
+              onClick={() => {
+                const headers = ["Department","Employees Below Cliff","Avg Current Salary","Target (Cliff)","Avg Gap","Monthly Budget","Annual Budget","Priority"];
+                const rows = stats.depts.map(d => {
+                  const priority = Number(d.belowPct) > 70 ? "Urgent" : Number(d.belowPct) > 40 ? "High" : "Monitor";
+                  return [d.dept, d.below, Math.round(d.avgSal), cliff, d.gap > 0 ? d.gap : 0, d.below * (d.gap || 0), d.below * (d.gap || 0) * 12, priority].join(",");
+                });
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+                a.download = `salary_adjustment_plan_${Date.now()}.csv`; a.click();
+              }}
+              style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              ⬇ Export Plan CSV
+            </button>
+          </div>
+        </div>
+      )}
+        
 
           {/* Competitor Subsidy Warning */}
           <div style={{ background: "#fef2f2", borderRadius: 14, padding: "18px 20px", border: "2px solid #fecaca" }}>
