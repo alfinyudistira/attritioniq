@@ -39,12 +39,10 @@ const MODULE_DETAILS = {
 function AppShell() {
   const { company, setCompany, data, computed, resetWorkspace } = useContext(AppContext);
   const { appConfig, updateConfig } = useContext(AppContext);
-  const insight = useGlobalInsight(computed);
-function useGlobalInsight(data) {
-  return useMemo(() => {
-    if (!data || data.length === 0) return null;
-    const total = data.length;
-    const highRisk = data.filter(d => d.RiskLevel === "High").length;
+    const insight = useMemo(() => {
+    if (!computed || computed.length === 0) return null;
+    const total = computed.length;
+    const highRisk = computed.filter(d => d.RiskLevel === "High").length;
     const riskRate = (highRisk / total) * 100;
     let status = "";
     let color = "#475569";
@@ -59,8 +57,8 @@ function useGlobalInsight(data) {
       color = appConfig.colors.low;
     }
     return { total, highRisk, riskRate, status, color };
-  }, [data, appConfig]);
-}
+  }, [computed, appConfig]);
+
   const [active, setActive]           = useState("m1");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -224,10 +222,9 @@ function useGlobalInsight(data) {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "10px 8px" }}>
-          {MODULES.map(m => (
-      const isDisabled = !data.length && m.id !== "m1";
-
-    return (
+                    {MODULES.map(m => {
+            const isDisabled = !data.length && m.id !== "m1";
+            return (
             <button
               key={m.id}
               onClick={() => !isDisabled && setActive(m.id)}
@@ -284,30 +281,30 @@ function useGlobalInsight(data) {
               : "No data — upload CSV or use sample data"}
                 </div>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {insight && (
-  <div style={{
-    background: insight.color + "22",
-    border: `1px solid ${insight.color}55`,
-    borderRadius: 20,
-    padding: "4px 11px",
-    fontSize: 10,
-    color: insight.color,
-    fontWeight: 700,
-    whiteSpace: "nowrap"
-  }}>
-    {insight.status} · {insight.highRisk} high risk
-  </div>
-)}
-                ✓ Synced · all modules
-              </div>
-            )}
-onClick={() => setShowConfigModal(true)}
-    style={{ background: "#f1f5f9", border: "none", borderRadius: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18 }}
-    title="Settings"
-  >
-    ⚙️
-  </button>     
+                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              {insight && (
+                <div style={{
+                  background: insight.color + "22",
+                  border: `1px solid ${insight.color}55`,
+                  borderRadius: 20,
+                  padding: "4px 11px",
+                  fontSize: 10,
+                  color: insight.color,
+                  fontWeight: 700,
+                  whiteSpace: "nowrap"
+                }}>
+                  {insight.status} · {insight.highRisk} High Risk
+                </div>
+              )}
+              
+              <button 
+                onClick={() => setShowConfigModal(true)}
+                style={{ background: "#f1f5f9", border: "none", borderRadius: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18 }}
+                title="Settings"
+              >
+                ⚙️
+              </button>
+
             <div style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14 }}>
               {company.name.charAt(0).toUpperCase()}
             </div>
