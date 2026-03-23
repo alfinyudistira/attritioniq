@@ -371,6 +371,7 @@ export default function M1Dashboard() {
                         <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskColor || "#22c55e" }}>{d.RiskPct || 0}%</span>
                       </div>
                     </td>
+                    <td style={{ padding: "7px 10px", textAlign: "center" }}> 
                       <button onClick={() => setEditingEmp(d)}
                         style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 12, color: "#64748b", transition: "all 0.15s" }}
                         onMouseEnter={e => { e.target.style.background = "#fffbeb"; e.target.style.borderColor = "#f59e0b"; }}
