@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
+import Papa from "papaparse";
+
 
 export const AppContext = createContext(null);
 
@@ -118,20 +120,40 @@ export function getScoreColor(score, maxScore = 5, inverse = false) {
 
 // ── Fuzzy CSV column mapper ──
 const COLUMN_ALIASES = {
-  EmployeeID:       ["employeeid","employee_id","emp_id","id","empid","employee id"],
-  FirstName:        ["firstname","first_name","first","nama depan","nama"],
-  LastName:         ["lastname","last_name","last","nama belakang"],
-  Department:       ["department","dept","divisi","division","bagian"],
-  MonthlySalary:    ["monthlysalary","monthly_salary","salary","gaji","gaji_bulanan","sal","monthly salary","gaji bulanan"],
-  OvertimeStatus:   ["overtimestatus","overtime_status","overtime","lembur","ot","over time"],
-  JobSatisfaction:  ["jobsatisfaction","job_satisfaction","satisfaction","kepuasan","satisf","job satisfaction"],
-  AttritionStatus:  ["attritionstatus","attrition_status","attrition","status","statusattrisi"],
-  YearsAtCompany:   ["yearsatcompany","years_at_company","tenure","lama_kerja","years","masa kerja","yearsemployed"],
-  Age:              ["age","umur","usia"],
-  PerformanceScore: ["performancescore", "performance", "kinerja", "skor_kinerja", "rating"],
-  WorkModel:        ["workmodel", "work_model", "tipe_kerja", "remote", "onsite"],
-  CommuteDistance:  ["commutedistance", "commute", "jarak_tempuh", "jarak"]
+  EmployeeID:       ["employeeid", "employee_id", "emp_id", "id", "empid", "employee id", "idkaryawan", "id pegawai", "no_pegawai", "nik"],
+  FirstName:        ["firstname", "first_name", "first", "namadepan", "nama", "name", "nama_awal", "nama_karyawan"],
+  LastName:         ["lastname", "last_name", "last", "namabelakang", "marga", "surname"],
+  Department:       ["department", "dept", "divisi", "division", "bagian", "departemen", "unit_kerja", "div"],
+  MonthlySalary:    ["monthlysalary", "monthly_salary", "salary", "gaji", "gaji_bulanan", "sal", "monthly salary", "gaji bulanan", "pendapatan", "upah", "gajih", "base_salary"],
+  OvertimeStatus:   ["overtimestatus", "overtime_status", "overtime", "lembur", "ot", "over time", "status_lembur", "suka_lembur"],
+  JobSatisfaction:  ["jobsatisfaction", "job_satisfaction", "satisfaction", "kepuasan", "satisf", "job satisfaction", "kepuasan_kerja", "skor_puas"],
+  AttritionStatus:  ["attritionstatus", "attrition_status", "attrition", "status", "statusattrisi", "status_keluar", "turnover", "status_karyawan"],
+  YearsAtCompany:   ["yearsatcompany", "years_at_company", "tenure", "lama_kerja", "years", "masa kerja", "yearsemployed", "masa_bakti", "pengalaman_di_sini"],
+  Age:              ["age", "umur", "usia", "thn", "tahun_lahir"],
+  PerformanceScore: ["performancescore", "performance", "kinerja", "skor_kinerja", "rating", "nilai_kinerja", "kpi"],
+  WorkModel:        ["workmodel", "work_model", "tipe_kerja", "remote", "onsite", "wfa", "wfh", "wfo", "sistem_kerja"],
+  CommuteDistance:  ["commutedistance", "commute", "jarak_tempuh", "jarak", "jarak_rumah", "distance"]
 };
+
+function smartParseNumber(val) {
+  if (typeof val === 'number') return val;
+  if (!val || String(val).trim() === "") return "";
+  
+  let cleanStr = String(val).replace(/[^\d.,-]/g, '').trim();
+  
+  if (cleanStr.includes('.') && !cleanStr.includes(',')) {
+    const parts = cleanStr.split('.');
+    if (parts.length > 2 || parts[parts.length - 1].length === 3) {
+      cleanStr = cleanStr.replace(/\./g, '');
+    }
+  }
+  if (cleanStr.includes(',')) {
+    cleanStr = cleanStr.replace(/,/g, '');
+  }
+  
+  const num = Number(cleanStr);
+  return isNaN(num) ? String(val).trim() : num;
+}
 
 function normalizeHeader(h) {
   return h.toLowerCase().replace(/[\s_\-\.]+/g, "").trim();
@@ -143,26 +165,28 @@ function mapHeader(raw) {
     if (normalizeHeader(canonical) === norm) return canonical;
     if (aliases.some(a => normalizeHeader(a) === norm)) return canonical;
   }
-  return raw; // keep unknown columns as-is
+  return raw; 
 }
 
 export function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
-  const headers = rawHeaders.map(mapHeader);
+  const results = Papa.parse(text.trim(), {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => mapHeader(header),
+  });
 
-  return lines.slice(1)
-    .filter(line => line.trim().length > 0)
-    .map(line => {
-      const vals = line.split(",").map(v => v.trim().replace(/^"|"$/g, ""));
-      const obj = {};
-      headers.forEach((h, i) => {
-        const v = vals[i] ?? "";
-        obj[h] = isNaN(v) || v === "" ? v : Number(v);
-      });
-      return obj;
+  return results.data
+    .map(row => {
+      const cleanRow = {};
+      for (const key in row) {
+        
+        cleanRow[key] = smartParseNumber(row[key]);
+      }
+      
+      if (cleanRow.EmployeeID) cleanRow.EmployeeID = String(cleanRow.EmployeeID);
+      return cleanRow;
     })
-    .filter(r => r.EmployeeID);
+    .filter(r => r.EmployeeID); 
 }
 
 const LS_COMPANY_KEY = "attritioniq_company";
@@ -208,8 +232,12 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
+    const contextValue = useMemo(() => ({
+    company, setCompany, data, setData, resetWorkspace
+  }), [company, data, setCompany, setData, resetWorkspace]);
+
   return (
-    <AppContext.Provider value={{ company, setCompany, data, setData, resetWorkspace }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );
