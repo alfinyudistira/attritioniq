@@ -120,23 +120,38 @@ export function ScatterPlot({ data, cliffValue = 5000, width = 300, height = 160
 
 export function GaugeChart({ value = 0, size = 160 }) {
   const pct = Math.min(100, Math.max(0, value));
-  const angle = (pct / 100) * Math.PI;
-  const cx = size / 2, cy = size * 0.62;
-  const r = size * 0.38;
-  const startX = cx - r, startY = cy;
-  const endX = cx + Math.cos(Math.PI - angle) * r;
-  const endY = cy - Math.sin(angle) * r;
-  const lg = angle > Math.PI / 2 ? 1 : 0;
   const color = pct >= 75 ? "#ef4444" : pct >= 50 ? "#f59e0b" : pct >= 25 ? "#3b82f6" : "#22c55e";
-
+  const cx = size / 2;
+  const cy = size * 0.65;
+  const r = size * 0.38;
+  const strokeW = Math.max(10, size * 0.09);
+  const trackX1 = cx - r;
+  const trackY1 = cy;
+  const trackX2 = cx + r;
+  const trackY2 = cy;
+  const valueAngle = Math.PI - (pct / 100) * Math.PI;
+  const valX = cx + r * Math.cos(valueAngle);
+  const valY = cy - r * Math.sin(valueAngle);
+  const largeArc = pct > 50 ? 1 : 0;
   return (
-    <svg width={size} height={size * 0.7} viewBox={`0 0 ${size} ${size * 0.7}`}>
-      <path d={`M${startX},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`} fill="none" stroke="#f1f5f9" strokeWidth={12} strokeLinecap="round" />
+    <svg width={size} height={size * 0.72} viewBox={`0 0 ${size} ${size * 0.72}`}>
+      <path
+        d={`M${trackX1},${trackY1} A${r},${r} 0 0 1 ${trackX2},${trackY2}`}
+        fill="none" stroke="#f1f5f9" strokeWidth={strokeW} strokeLinecap="round"
+      />
       {pct > 0 && (
-        <path d={`M${startX},${cy} A${r},${r} 0 ${lg} 1 ${endX},${endY}`} fill="none" stroke={color} strokeWidth={12} strokeLinecap="round" />
+        <path
+          d={`M${trackX1},${trackY1} A${r},${r} 0 ${largeArc} 1 ${valX},${valY}`}
+          fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="round"
+        />
       )}
-      <text x={cx} y={cy - 8} textAnchor="middle" fontSize={size * 0.2} fontWeight="800" fill={color}>{pct.toFixed(0)}%</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fontSize={size * 0.09} fill="#64748b">Flight Risk</text>
+      <circle cx={valX} cy={valY} r={strokeW * 0.55} fill={color} />
+      <text x={cx} y={cy - r * 0.1} textAnchor="middle" fontSize={size * 0.2} fontWeight="800" fill={color}>
+        {pct.toFixed(0)}%
+      </text>
+      <text x={cx} y={cy + r * 0.22} textAnchor="middle" fontSize={size * 0.09} fill="#64748b">
+        Flight Risk
+      </text>
     </svg>
   );
 }
