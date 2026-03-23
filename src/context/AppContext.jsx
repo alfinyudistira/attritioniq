@@ -1,9 +1,38 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 
 export const AppContext = createContext(null);
 
 export function useApp() {
   return useContext(AppContext);
+}
+
+// ── Currency config ──
+const CURRENCY_CONFIG = {
+  USD: { symbol: "$", locale: "en-US", name: "US Dollar" },
+  IDR: { symbol: "Rp", locale: "id-ID", name: "Indonesian Rupiah" },
+  EUR: { symbol: "€", locale: "de-DE", name: "Euro" },
+  GBP: { symbol: "£", locale: "en-GB", name: "British Pound" },
+  SGD: { symbol: "S$", locale: "en-SG", name: "Singapore Dollar" },
+};
+
+export function getCurrencyConfig(currency = "USD") {
+  return CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.USD;
+}
+
+export function formatCurrency(value, currency = "USD", compact = false) {
+  const cfg = getCurrencyConfig(currency);
+  const num = Number(value) || 0;
+  if (compact) {
+    if (currency === "IDR") {
+      if (num >= 1_000_000_000) return `${cfg.symbol}${(num / 1_000_000_000).toFixed(1)}M`;
+      if (num >= 1_000_000) return `${cfg.symbol}${(num / 1_000_000).toFixed(1)}jt`;
+      if (num >= 1_000) return `${cfg.symbol}${(num / 1_000).toFixed(0)}rb`;
+    } else {
+      if (num >= 1_000_000) return `${cfg.symbol}${(num / 1_000_000).toFixed(1)}M`;
+      if (num >= 1_000) return `${cfg.symbol}${(num / 1_000).toFixed(0)}K`;
+    }
+  }
+  return `${cfg.symbol}${num.toLocaleString(cfg.locale)}`;
 }
 
 export const SAMPLE_DATA = [
@@ -71,27 +100,97 @@ export function getStatusColor(status) {
   return "#22c55e";
 }
 
-export function parseCSV(text) {
-  const lines = text.trim().split("\n");
-  const headers = lines[0].split(",").map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const vals = line.split(",").map(v => v.trim());
-    const obj = {};
-    headers.forEach((h, i) => {
-      const v = vals[i] ?? "";
-      obj[h] = isNaN(v) || v === "" ? v : Number(v);
-    });
-    return obj;
-  }).filter(r => r.EmployeeID);
+// ── Fuzzy CSV column mapper ──
+const COLUMN_ALIASES = {
+  EmployeeID:       ["employeeid","employee_id","emp_id","id","empid","employee id"],
+  FirstName:        ["firstname","first_name","first","nama depan","nama"],
+  LastName:         ["lastname","last_name","last","nama belakang"],
+  Department:       ["department","dept","divisi","division","bagian"],
+  MonthlySalary:    ["monthlysalary","monthly_salary","salary","gaji","gaji_bulanan","sal","monthly salary","gaji bulanan"],
+  OvertimeStatus:   ["overtimestatus","overtime_status","overtime","lembur","ot","over time"],
+  JobSatisfaction:  ["jobsatisfaction","job_satisfaction","satisfaction","kepuasan","satisf","job satisfaction"],
+  AttritionStatus:  ["attritionstatus","attrition_status","attrition","status","statusattrisi"],
+  YearsAtCompany:   ["yearsatcompany","years_at_company","tenure","lama_kerja","years","masa kerja","yearsemployed"],
+  Age:              ["age","umur","usia"],
+};
+
+function normalizeHeader(h) {
+  return h.toLowerCase().replace(/[\s_\-\.]+/g, "").trim();
 }
 
+function mapHeader(raw) {
+  const norm = normalizeHeader(raw);
+  for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
+    if (normalizeHeader(canonical) === norm) return canonical;
+    if (aliases.some(a => normalizeHeader(a) === norm)) return canonical;
+  }
+  return raw; // keep unknown columns as-is
+}
+
+export function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  const headers = rawHeaders.map(mapHeader);
+
+  return lines.slice(1)
+    .filter(line => line.trim().length > 0)
+    .map(line => {
+      const vals = line.split(",").map(v => v.trim().replace(/^"|"$/g, ""));
+      const obj = {};
+      headers.forEach((h, i) => {
+        const v = vals[i] ?? "";
+        obj[h] = isNaN(v) || v === "" ? v : Number(v);
+      });
+      return obj;
+    })
+    .filter(r => r.EmployeeID);
+}
+
+const LS_COMPANY_KEY = "attritioniq_company";
+const LS_DATA_KEY    = "attritioniq_data";
+
 export function AppProvider({ children }) {
-  const [company, setCompany] = useState(null);
-  const [data, setData] = useState([]);
-  const handleData = useCallback((rows) => setData(rows), []);
+  const [company, setCompanyState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LS_COMPANY_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  const [data, setDataState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LS_DATA_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const setCompany = useCallback((c) => {
+    setCompanyState(c);
+    try {
+      if (c) localStorage.setItem(LS_COMPANY_KEY, JSON.stringify(c));
+      else localStorage.removeItem(LS_COMPANY_KEY);
+    } catch {}
+  }, []);
+
+  const setData = useCallback((rows) => {
+    setDataState(rows);
+    try {
+      if (rows && rows.length > 0) localStorage.setItem(LS_DATA_KEY, JSON.stringify(rows));
+      else localStorage.removeItem(LS_DATA_KEY);
+    } catch {}
+  }, []);
+
+  const resetWorkspace = useCallback(() => {
+    setCompanyState(null);
+    setDataState([]);
+    try {
+      localStorage.removeItem(LS_COMPANY_KEY);
+      localStorage.removeItem(LS_DATA_KEY);
+    } catch {}
+  }, []);
 
   return (
-    <AppContext.Provider value={{ company, setCompany, data, setData: handleData }}>
+    <AppContext.Provider value={{ company, setCompany, data, setData, resetWorkspace }}>
       {children}
     </AppContext.Provider>
   );
