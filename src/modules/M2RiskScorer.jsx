@@ -420,11 +420,13 @@ export default function M2RiskScorer() {
               </InputField>
 
               <InputField label="Department">
-                {deptOptions.map(d => (
-                    <option key={d}>{d}</option>
-                  ))}
-                </select>
-              </InputField>
+  <select value={emp.department} onChange={e => set("department", e.target.value)} style={selectStyle}>
+    {deptOptions.map(d => (
+      <option key={d}>{d}</option>
+    ))}
+  </select>
+</InputField>
+
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <InputField label={`Monthly Salary (${cfg?.symbol || "$"})`}>
