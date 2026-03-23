@@ -1,5 +1,5 @@
-import { useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { AppProvider, AppContext } from "./context/AppContext";
+import { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { AppProvider, AppContext, useCurrency } from "./context/AppContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
 import M1Dashboard from "./modules/M1Dashboard";
@@ -12,6 +12,14 @@ import M7FatigueRadar from "./modules/M7FatigueRadar";
 import M8TalentMatch from "./modules/M8TalentMatch";
 import M9PulseSurvey from "./modules/M9PulseSurvey";
 import ComingSoon from "./modules/ComingSoon";
+
+// Inject toast animation
+const toastStyle = document.createElement("style");
+toastStyle.textContent = `@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }`;
+if (!document.head.querySelector("[data-toast-style]")) {
+  toastStyle.setAttribute("data-toast-style", "1");
+  document.head.appendChild(toastStyle);
+}
 
 const MODULES = [
   { id: "m1", label: "Attrition Dashboard",   icon: "📊", short: "M1", live: true },
@@ -37,7 +45,8 @@ const MODULE_DETAILS = {
 };
 
 function AppShell() {
-  const { company, setCompany, data, computed, resetWorkspace, appConfig, updateConfig } = useContext(AppContext);
+  const { company, setCompany, data, computed, resetWorkspace, appConfig, updateConfig, notifications } = useContext(AppContext);
+  const { fmt } = useCurrency();
     const insight = useMemo(() => {
     if (!computed || computed.length === 0) return null;
     const total = computed.length;
@@ -82,6 +91,27 @@ function AppShell() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
 
+{/* ── Notification Toasts ── */}
+      <div style={{
+        position: "fixed", bottom: 24, right: 24,
+        zIndex: 9999, display: "flex", flexDirection: "column", gap: 8,
+        pointerEvents: "none",
+      }}>
+        {notifications.map(n => (
+          <div key={n.id} style={{
+            background: n.type === "error" ? "#fef2f2" : n.type === "success" ? "#f0fdf4" : "#f8fafc",
+            border: `1.5px solid ${n.type === "error" ? "#fecaca" : n.type === "success" ? "#bbf7d0" : "#e2e8f0"}`,
+            color: n.type === "error" ? "#dc2626" : n.type === "success" ? "#16a34a" : "#475569",
+            borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 600,
+            boxShadow: "0 4px 20px rgba(15,23,42,0.12)",
+            animation: "slideIn 0.25s ease",
+            maxWidth: 320,
+          }}>
+            {n.type === "success" ? "✅ " : n.type === "error" ? "❌ " : "ℹ️ "}{n.msg}
+          </div>
+        ))}
+      </div>
+      
       {/* ── Reset Confirm Modal ── */}
       {showResetConfirm && (
         <div style={{
@@ -276,7 +306,7 @@ function AppShell() {
             </div>
             <div style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8" }}>
               {insight
-              ? `${insight.total} employees · ${company.name} company · ${insight.highRisk} high risk · ${insight.riskRate.toFixed(0)}% risk`
+              ? `${insight.total} employees · ${company.name} · ${insight.highRisk} high risk · ${insight.riskRate.toFixed(0)}% · cliff ${fmt(company.salaryCliff || 0, true)}`
               : "No data — upload CSV or use sample data"}
                 </div>
           </div>
