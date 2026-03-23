@@ -624,6 +624,80 @@ export default function M3Salary() {
         </div>
       )}
 
+                   { label: "Total Fix Budget", value: fmt(src.filter(e => (e.MonthlySalary||0) < cliff).reduce((s,e) => s + (cliff - (e.MonthlySalary||0)), 0) * 12, true), color: "#8b5cf6", icon: "💰", sub: "annual cost to fix all" },
+            ].map((k, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22` }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{k.icon}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: DEPT RADAR ── */}
+      {activeTab === "radar" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🕸 Dept Salary Radar</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>
+              Each axis = department · Distance from center = avg salary vs cliff
+            </div>
+            <DeptSalaryRadar depts={stats.depts} cliff={cliff} currSymbol={currSymbol} />
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 14 }}>📊 Dept Risk Ranking</div>
+            {[...stats.depts].sort((a, b) => a.avgSal - b.avgSal).map((d, i) => {
+              const pct = Math.min(100, Math.round((d.avgSal / cliff) * 100));
+              const color = pct >= 100 ? "#22c55e" : pct >= 80 ? "#f59e0b" : "#ef4444";
+              return (
+                <div key={i} style={{ marginBottom: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{d.dept}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color }}>{fmt(Math.round(d.avgSal), true)}/mo</span>
+                  </div>
+                  <div style={{ height: 8, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.5s ease" }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+                    <span style={{ fontSize: 10, color: "#94a3b8" }}>{d.below} below cliff</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color }}>{pct}% of cliff</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Export dept plan */}
+          <div style={{ gridColumn: "1 / -1", background: "#fff", borderRadius: 14, padding: "16px 20px", border: "1.5px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>📋 Export Department Adjustment Plan</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Download full salary adjustment plan as CSV</div>
+            </div>
+            <button
+              onClick={() => {
+                const headers = ["Department","Employees Below Cliff","Avg Current Salary","Target (Cliff)","Avg Gap","Monthly Budget","Annual Budget","Priority"];
+                const rows = stats.depts.map(d => {
+                  const priority = Number(d.belowPct) > 70 ? "Urgent" : Number(d.belowPct) > 40 ? "High" : "Monitor";
+                  return [d.dept, d.below, Math.round(d.avgSal), cliff, d.gap > 0 ? d.gap : 0, d.below * (d.gap || 0), d.below * (d.gap || 0) * 12, priority].join(",");
+                });
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+                a.download = `salary_adjustment_plan_${Date.now()}.csv`; a.click();
+              }}
+              style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              ⬇ Export Plan CSV
+            </button>
+          </div>
+        </div>
+      )}
+        
+
       {/* ── TAB: MARKET COMPARISON ── */}
       {activeTab === "market" && (
         <div>
@@ -665,7 +739,33 @@ export default function M3Salary() {
             </div>
           </div>
 
-{/* ── TAB: SALARY HEALTH ── */}
+          {/* Competitor Subsidy Warning (Ini posisinya harusnya di dalam tab Market) */}
+          <div style={{ background: "#fef2f2", borderRadius: 14, padding: "18px 20px", border: "2px solid #fecaca" }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#dc2626", marginBottom: 8 }}>
+              🏴 The Competitor Subsidy Paradox
+            </div>
+            <div style={{ fontSize: 13, color: "#7f1d1d", lineHeight: 1.7 }}>
+              You are effectively training high-value employees — then handing them to competitors at a premium.
+              Every resigned employee who was "Six Sigma-optimized" by your processes is now adding value at a rival company,
+              without them paying any of the training or development cost. <strong>You paid to train talent for others.</strong>
+            </div>
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ background: "#fff", borderRadius: 9, padding: "10px 14px" }}>
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>Total resigned employees</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>{src.filter(e => e.AttritionStatus === "Resigned").length}</div>
+              </div>
+              <div style={{ background: "#fff", borderRadius: 9, padding: "10px 14px" }}>
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>Avg salary they left for (est.)</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>
+                  {fmt(Math.max(...Object.values(marketRate)))}+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: SALARY HEALTH ── */}
       {activeTab === "health" && (
         <div>
           <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
@@ -792,33 +892,7 @@ export default function M3Salary() {
           </div>
         </div>
       )}
-        
 
-          {/* Competitor Subsidy Warning */}
-          <div style={{ background: "#fef2f2", borderRadius: 14, padding: "18px 20px", border: "2px solid #fecaca" }}>
-            <div style={{ fontWeight: 800, fontSize: 14, color: "#dc2626", marginBottom: 8 }}>
-              🏴 The Competitor Subsidy Paradox
-            </div>
-            <div style={{ fontSize: 13, color: "#7f1d1d", lineHeight: 1.7 }}>
-              You are effectively training high-value employees — then handing them to competitors at a premium.
-              Every resigned employee who was "Six Sigma-optimized" by your processes is now adding value at a rival company,
-              without them paying any of the training or development cost. <strong>You paid to train talent for others.</strong>
-            </div>
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div style={{ background: "#fff", borderRadius: 9, padding: "10px 14px" }}>
-                <div style={{ fontSize: 10, color: "#94a3b8" }}>Total resigned employees</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>{src.filter(e => e.AttritionStatus === "Resigned").length}</div>
-              </div>
-              <div style={{ background: "#fff", borderRadius: 9, padding: "10px 14px" }}>
-                <div style={{ fontSize: 10, color: "#94a3b8" }}>Avg salary they left for (est.)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>
-                  {fmt(Math.max(...Object.values(marketRate)))}+
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
