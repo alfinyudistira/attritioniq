@@ -624,19 +624,6 @@ export default function M3Salary() {
         </div>
       )}
 
-                   { label: "Total Fix Budget", value: fmt(src.filter(e => (e.MonthlySalary||0) < cliff).reduce((s,e) => s + (cliff - (e.MonthlySalary||0)), 0) * 12, true), color: "#8b5cf6", icon: "💰", sub: "annual cost to fix all" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22` }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{k.icon}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
-                <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>{k.sub}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── TAB: DEPT RADAR ── */}
       {activeTab === "radar" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
