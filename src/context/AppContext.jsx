@@ -118,21 +118,61 @@ export function getScoreColor(score, maxScore = 5, inverse = false) {
 }
 
 
-// ── Fuzzy CSV column mapper ──
-const COLUMN_ALIASES = {
-  EmployeeID:       ["employeeid", "employee_id", "emp_id", "id", "empid", "employee id", "idkaryawan", "id pegawai", "no_pegawai", "nik"],
-  FirstName:        ["firstname", "first_name", "first", "namadepan", "nama", "name", "nama_awal", "nama_karyawan"],
-  LastName:         ["lastname", "last_name", "last", "namabelakang", "marga", "surname"],
-  Department:       ["department", "dept", "divisi", "division", "bagian", "departemen", "unit_kerja", "div"],
-  MonthlySalary:    ["monthlysalary", "monthly_salary", "salary", "gaji", "gaji_bulanan", "sal", "monthly salary", "gaji bulanan", "pendapatan", "upah", "gajih", "base_salary"],
-  OvertimeStatus:   ["overtimestatus", "overtime_status", "overtime", "lembur", "ot", "over time", "status_lembur", "suka_lembur"],
-  JobSatisfaction:  ["jobsatisfaction", "job_satisfaction", "satisfaction", "kepuasan", "satisf", "job satisfaction", "kepuasan_kerja", "skor_puas"],
-  AttritionStatus:  ["attritionstatus", "attrition_status", "attrition", "status", "statusattrisi", "status_keluar", "turnover", "status_karyawan"],
-  YearsAtCompany:   ["yearsatcompany", "years_at_company", "tenure", "lama_kerja", "years", "masa kerja", "yearsemployed", "masa_bakti", "pengalaman_di_sini"],
-  Age:              ["age", "umur", "usia", "thn", "tahun_lahir"],
-  PerformanceScore: ["performancescore", "performance", "kinerja", "skor_kinerja", "rating", "nilai_kinerja", "kpi"],
-  WorkModel:        ["workmodel", "work_model", "tipe_kerja", "remote", "onsite", "wfa", "wfh", "wfo", "sistem_kerja"],
-  CommuteDistance:  ["commutedistance", "commute", "jarak_tempuh", "jarak", "jarak_rumah", "distance"]
+// ── Fuzzy CSV column mapper ──const COLUMN_ALIASES = {
+  EmployeeID: [
+    "employeeid", "employee_id", "emp_id", "id", "empid", "employee id", "idkaryawan", "id pegawai", "no_pegawai", "nik",
+    "empcode", "emp code", "kode karyawan", "nomor induk", "nip", "nrp"
+  ],
+  FirstName: [
+    "firstname", "first_name", "first", "namadepan", "nama", "name", "nama_awal", "nama_karyawan",
+    "fname", "givenname", "given_name", "nama depan", "nama_pertama"
+  ],
+  LastName: [
+    "lastname", "last_name", "last", "namabelakang", "marga", "surname",
+    "lname", "familyname", "family_name", "nama belakang", "nama_akhir"
+  ],
+  Department: [
+    "department", "dept", "divisi", "division", "bagian", "departemen", "unit_kerja", "div",
+    "team", "tim", "unit", "organization", "org", "fungsi", "dept_name", "department_name", "bidang"
+  ],
+  MonthlySalary: [
+    "monthlysalary", "monthly_salary", "salary", "gaji", "gaji_bulanan", "sal", "monthly salary", "gaji bulanan",
+    "pendapatan", "upah", "gajih", "base_salary", "gaji_perbulan", "salary_permonth", "income_monthly", "pay",
+    "takehome", "take_home", "salary_idr", "gajipokok", "gaji pokok", "gaji bersih", "gaji_kotor", "gross_salary"
+  ],
+  OvertimeStatus: [
+    "overtimestatus", "overtime_status", "overtime", "lembur", "ot", "over time", "status_lembur", "suka_lembur",
+    "lembur_status", "is_overtime", "overtime_yn", "lembur_yn"
+  ],
+  JobSatisfaction: [
+    "jobsatisfaction", "job_satisfaction", "satisfaction", "kepuasan", "satisf", "job satisfaction", "kepuasan_kerja",
+    "skor_puas", "kepuasan_score", "job_rate", "feeling", "mood", "happy_score", "rating_kepuasan", "puas",
+    "tingkat kepuasan", "score", "satisfaction_level"
+  ],
+  AttritionStatus: [
+    "attritionstatus", "attrition_status", "attrition", "status", "statusattrisi", "status_keluar", "turnover", "status_karyawan",
+    "keluar", "resign", "cabut", "out", "leave", "exit_status", "status_aktif", "status_keaktifan", "status_pegawai"
+  ],
+  YearsAtCompany: [
+    "yearsatcompany", "years_at_company", "tenure", "lama_kerja", "years", "masa kerja", "yearsemployed", "masa_bakti",
+    "pengalaman_di_sini", "masakerja", "lama_bekerja", "tahun_kerja", "thn_kerja", "tahun_bekerja", "total_years"
+  ],
+  Age: [
+    "age", "umur", "usia", "thn", "tahun_lahir", "umur_karyawan", "usia_karyawan", "age_year", "usia_tahun", "thn_umur",
+    "years_old", "age_years", "umur_tahun", "tahun_umur", "umur_thn", "usia_thn"
+  ],
+  PerformanceScore: [
+    "performancescore", "performance", "kinerja", "skor_kinerja", "rating", "nilai_kinerja", "kpi",
+    "performance_rating", "score_kinerja", "evaluation", "eval_score"
+  ],
+  WorkModel: [
+    "workmodel", "work_model", "tipe_kerja", "remote", "onsite", "wfa", "wfh", "wfo", "sistem_kerja",
+    "work_type", "work_location", "model_kerja", "jenis_pekerjaan"
+  ],
+  CommuteDistance: [
+    "commutedistance", "commute", "jarak_tempuh", "jarak", "jarak_rumah", "distance",
+    "commute_distance", "jarak_tempat_tinggal", "travel_distance", "jarak_kerja"
+  ]
 };
 
 const EXTRA_ALIASES = {
@@ -160,6 +200,28 @@ function smartParseNumber(val) {
   if (str.endsWith("m")) return Number(str.replace("m","")) * 1_000_000;
   if (str.endsWith("jt")) return Number(str.replace("jt","")) * 1_000_000;
   if (str.endsWith("rb")) return Number(str.replace("rb","")) * 1000;
+
+  str = str.replace(/\s/g, '');
+
+if (str.includes(',') && str.includes('.')) {
+
+  const withoutComma = str.replace(/,.*$/, '');
+  const numberPart = withoutComma.replace(/\./g, '');
+  return Number(numberPart);
+}
+
+if (str.includes(',') && !str.includes('.')) {
+  const cleaned = str.replace(/,/g, '');
+  const num = Number(cleaned);
+  if (!isNaN(num)) return num;
+}
+
+if (str.includes('.') && !str.includes(',')) {
+  const parts = str.split('.');
+  if (parts.length > 2 || (parts[parts.length-1].length === 3 && parts.length === 2)) {
+    str = str.replace(/\./g, '');
+  }
+}
 
   let cleanStr = str.replace(/[^\d.,-]/g, '');
 
@@ -216,8 +278,79 @@ function mapHeader(raw) {
   return raw;
 }
 
+
+const TEXT_NORMALIZATION = {
+  AttritionStatus: {
+
+    "resigned": "Resigned",
+    "resign": "Resigned",
+    "keluar": "Resigned",
+    "cabut": "Resigned",
+    "quit": "Resigned",
+    "high risk": "High Risk",
+    "risk": "High Risk",
+    "berisiko": "High Risk",
+    "active": "Active",
+    "aktif": "Active",
+    "still": "Active",
+  },
+  JobSatisfaction: {
+
+    "sangat puas": 5,
+    "puas": 4,
+    "cukup": 3,
+    "tidak puas": 2,
+    "sangat tidak puas": 1,
+    "very satisfied": 5,
+    "satisfied": 4,
+    "neutral": 3,
+    "dissatisfied": 2,
+    "very dissatisfied": 1,
+    "excellent": 5,
+    "good": 4,
+    "average": 3,
+    "poor": 2,
+    "bad": 1,
+  },
+  OvertimeStatus: {
+    "yes": "Yes",
+    "y": "Yes",
+    "1": "Yes",
+    "true": "Yes",
+    "no": "No",
+    "n": "No",
+    "0": "No",
+    "false": "No",
+    "lembur": "Yes",
+    "tidak": "No",
+  },
+};
+
+function normalizeTextValue(field, value) {
+  if (!value) return value;
+  const mapping = TEXT_NORMALIZATION[field];
+  if (!mapping) return value;
+  const lowerVal = String(value).toLowerCase().trim();
+
+  if (mapping[lowerVal]) return mapping[lowerVal];
+
+  return value;
+}
+
 function enrichRow(row) {
   const enriched = { ...row };
+
+if (enriched.AttritionStatus) {
+  enriched.AttritionStatus = normalizeTextValue('AttritionStatus', enriched.AttritionStatus);
+}
+if (enriched.OvertimeStatus) {
+  enriched.OvertimeStatus = normalizeTextValue('OvertimeStatus', enriched.OvertimeStatus);
+}
+if (enriched.JobSatisfaction && typeof enriched.JobSatisfaction === 'string') {
+
+  const mapped = normalizeTextValue('JobSatisfaction', enriched.JobSatisfaction);
+  if (typeof mapped === 'number') enriched.JobSatisfaction = mapped;
+}
 
   if (enriched.Age) {
     enriched.Generation = getGeneration(enriched.Age);
@@ -271,6 +404,10 @@ export function AppProvider({ children }) {
   });
 
   const [data, setDataState] = useState(() => {
+    const [riskThresholds, setRiskThresholds] = useState({
+  high: 5,
+  medium: 3
+});
     try {
       const saved = localStorage.getItem(LS_DATA_KEY);
       return saved ? JSON.parse(saved) : [];
@@ -307,14 +444,13 @@ export function AppProvider({ children }) {
 
   return data.map(d => {
     let riskScore = 0;
-
     if (d.OvertimeStatus === "Yes") riskScore += 2;
     if (d.JobSatisfaction <= 2) riskScore += 2;
     if (d.YearsAtCompany < 1) riskScore += 2;
 
     let riskLevel = "Low";
-    if (riskScore >= 5) riskLevel = "High";
-    else if (riskScore >= 3) riskLevel = "Medium";
+    if (riskScore >= riskThresholds.high) riskLevel = "High";
+    else if (riskScore >= riskThresholds.medium) riskLevel = "Medium";
 
     return {
       ...d,
@@ -326,7 +462,7 @@ export function AppProvider({ children }) {
         "#22c55e"
     };
   });
-}, [data]);
+}, [data, riskThresholds]);
 
     const contextValue = useMemo(() => ({
   company,
@@ -334,8 +470,10 @@ export function AppProvider({ children }) {
   data,
   setData,
   computed,
-  resetWorkspace
-}), [company, data, computed, setCompany, setData, resetWorkspace]);
+  resetWorkspace,
+  riskThresholds,
+  setRiskThresholds
+}), [company, data, computed, setCompany, setData, resetWorkspace, riskThresholds, setRiskThresholds]);
 
   return (
     <AppContext.Provider value={contextValue}>
