@@ -431,21 +431,6 @@ export default function M3Salary() {
             </div>
           </div>
 
-          // ── Salary Health Bar per employee ──
-function SalaryHealthBar({ salary, cliff, currSymbol }) {
-  const pct = Math.min(100, Math.round((salary / cliff) * 100));
-  const color = pct >= 100 ? "#22c55e" : pct >= 80 ? "#f59e0b" : "#ef4444";
-  const label = pct >= 100 ? "Safe" : pct >= 80 ? "Near Cliff" : "Danger";
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 50, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3 }} />
-      </div>
-      <span style={{ fontSize: 10, fontWeight: 700, color }}>{label}</span>
-    </div>
-  );
-}
-
           {/* AI Insight */}
           <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
             <button onClick={handleAI} disabled={aiLoading}
