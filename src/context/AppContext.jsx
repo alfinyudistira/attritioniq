@@ -118,7 +118,8 @@ export function getScoreColor(score, maxScore = 5, inverse = false) {
 }
 
 
-// ── Fuzzy CSV column mapper ──const COLUMN_ALIASES = {
+// ── Fuzzy CSV column mapper ──
+const COLUMN_ALIASES = {
   EmployeeID: [
     "employeeid", "employee_id", "emp_id", "id", "empid", "employee id", "idkaryawan", "id pegawai", "no_pegawai", "nik",
     "empcode", "emp code", "kode karyawan", "nomor induk", "nip", "nrp"
@@ -404,16 +405,17 @@ export function AppProvider({ children }) {
   });
 
   const [data, setDataState] = useState(() => {
-    const [riskThresholds, setRiskThresholds] = useState({
-  high: 5,
-  medium: 3
-});
     try {
       const saved = localStorage.getItem(LS_DATA_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
 
+  const [riskThresholds, setRiskThresholds] = useState({
+    high: 5,
+    medium: 3
+  });
+    
   const setCompany = useCallback((c) => {
     setCompanyState(c);
     try {
