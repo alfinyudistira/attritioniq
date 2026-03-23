@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useApp, getGeneration, getStatusColor, formatCurrency, getCurrencyConfig } from "../context/AppContext";
+import { useMemo, useState, useCallback } from "react";
+import { useApp, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
 import { BarChart, DonutChart, ScatterPlot } from "../components/Charts";
 
 function FilterBtn({ val, cur, onSet }) {
@@ -89,17 +89,15 @@ function EditModal({ employee, onSave, onClose }) {
 }
 
 export default function M1Dashboard() {
-  const { data, setData, company } = useApp();
-  const currency   = company?.currency || "USD";
-  const cfg        = getCurrencyConfig(currency);
+  const { data, setData, computed, company } = useApp();
+  const { fmt, config: cfg } = useCurrency();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
-  const fmt        = (v, compact = false) => formatCurrency(v, currency, compact);
-
   const [deptF,   setDeptF]   = useState("All");
   const [genF,    setGenF]    = useState("All");
   const [statusF, setStatusF] = useState("All");
   const [otF,     setOtF]     = useState("All");
+  const [search,  setSearch]  = useState("");
   const [page,    setPage]    = useState(1);
   const PAGE_SIZE = 25;
 
@@ -110,13 +108,14 @@ export default function M1Dashboard() {
   // Inline edit state
   const [editingEmp, setEditingEmp] = useState(null);
 
-  const depts = useMemo(() => ["All", ...new Set(data.map(d => d.Department))], [data]);
+  const depts = useMemo(() => ["All", ...new Set(computed.map(d => d.Department))], [computed]);
 
-  const filtered = useMemo(() => data.filter(d => {
+  const filtered = useMemo(() => computed.filter(d => {
     if (deptF !== "All" && d.Department !== deptF) return false;
-    if (genF !== "All" && getGeneration(d.Age) !== genF) return false;
+    if (genF !== "All" && d.Generation !== genF) return false;
     if (statusF !== "All" && d.AttritionStatus !== statusF) return false;
     if (otF !== "All" && d.OvertimeStatus !== otF) return false;
+    if (search && !`${d.FirstName} ${d.LastName} ${d.Department} ${d.EmployeeID}`.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [data, deptF, genF, statusF, otF]);
 
@@ -299,17 +298,38 @@ export default function M1Dashboard() {
 
       {/* Employee Table */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
             Employee Records <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>({filtered.length} records)</span>
           </div>
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>Click ✏️ to edit any row inline</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="🔍 Search name, dept, ID..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc", outline: "none", width: 200 }}
+            />
+            <button
+              onClick={() => {
+                const headers = ["EmployeeID","FirstName","LastName","Department","MonthlySalary","OvertimeStatus","JobSatisfaction","AttritionStatus","YearsAtCompany","Age","RiskLevel","RiskPct"];
+                const rows = filtered.map(d => headers.map(h => d[h] ?? "").join(","));
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+                a.download = `attritioniq_export_${Date.now()}.csv`; a.click();
+              }}
+              style={{ padding: "6px 13px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
+            >
+              ⬇ Export CSV
+            </button>
+          </div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                {["ID","Name","Dept","Gen","Salary","OT","Satisfaction","Status","Tenure","Edit"].map(h => (
+                {["ID","Name","Dept","Gen","Salary","OT","Satisfaction","Status","Tenure","Risk %","Edit"].map(h => (
                   <th key={h} style={{ padding: "8px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -344,6 +364,13 @@ export default function M1Dashboard() {
                     </td>
                     <td style={{ padding: "7px 10px", color: "#64748b" }}>{d.YearsAtCompany}y</td>
                     <td style={{ padding: "7px 10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <div style={{ width: 36, height: 5, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
+                          <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskColor || "#22c55e", borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskColor || "#22c55e" }}>{d.RiskPct || 0}%</span>
+                      </div>
+                    </td>
                       <button onClick={() => setEditingEmp(d)}
                         style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 12, color: "#64748b", transition: "all 0.15s" }}
                         onMouseEnter={e => { e.target.style.background = "#fffbeb"; e.target.style.borderColor = "#f59e0b"; }}
