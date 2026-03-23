@@ -37,8 +37,7 @@ const MODULE_DETAILS = {
 };
 
 function AppShell() {
-  const { company, setCompany, data, computed, resetWorkspace } = useContext(AppContext);
-  const { appConfig, updateConfig } = useContext(AppContext);
+  const { company, setCompany, data, computed, resetWorkspace, appConfig, updateConfig } = useContext(AppContext);
     const insight = useMemo(() => {
     if (!computed || computed.length === 0) return null;
     const total = computed.length;
