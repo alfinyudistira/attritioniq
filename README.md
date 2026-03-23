@@ -15,17 +15,17 @@ AttritionIQ is a universal, AI-powered SaaS platform for predicting and preventi
 ---
 
 ## 🧩 Modules (9 Total)
-| # | Module | Status |
-|---|--------|--------|
-| M1 | Attrition Dashboard | ✅ Live |
-| M2 | Predictive Risk Scorer | 🔄 In Progress |
-| M3 | Salary Benchmarking Studio | 🔄 In Progress |
-| M4 | Department Health Monitor | 🔄 In Progress |
-| M5 | Exit Interview Analyzer | 🔄 In Progress |
-| M6 | Retention ROI Calculator | 🔄 In Progress |
-| M7 | Shift & Fatigue Radar | 🔄 In Progress |
-| M8 | Internal Talent Matchmaker | 🔄 In Progress |
-| M9 | Micro-Pulse Survey Engine | 🔄 In Progress |
+| # | Module |
+|---|--------
+| M1 | Attrition Dashboard
+| M2 | Predictive Risk Scorer 
+| M3 | Salary Benchmarking Studio 
+| M4 | Department Health Monitor 
+| M5 | Exit Interview Analyzer
+| M6 | Retention ROI Calculator
+| M7 | Shift & Fatigue Radar
+| M8 | Internal Talent Matchmaker
+| M9 | Micro-Pulse Survey Engine
 
 ---
 
