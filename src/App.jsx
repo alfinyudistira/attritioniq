@@ -42,6 +42,11 @@ function AppShell() {
   const [active, setActive]           = useState("m1");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  useEffect(() => {
+  if (data && data.length > 0) {
+    setActive("m1");
+  }
+}, [data]);
 
   if (!company) return <CompanySetup onSave={setCompany} />;
 
@@ -127,9 +132,11 @@ function AppShell() {
         {sidebarOpen && (
           <div style={{ padding: "10px 16px", borderBottom: "1px solid #1e293b" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: data.length > 0 ? "#22c55e" : "#475569", flexShrink: 0 }} />
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: insight?.color || "#475569", flexShrink: 0 }} />
               <span style={{ fontSize: 11, color: data.length > 0 ? "#22c55e" : "#475569" }}>
-                {data.length > 0 ? `${data.length} employees synced` : "No data loaded"}
+                {insight
+  ? `${insight.total} employees synced · ${insight.status}`
+  : "No data loaded"}
               </span>
             </div>
           </div>
@@ -138,17 +145,24 @@ function AppShell() {
         {/* Nav */}
         <nav style={{ flex: 1, padding: "10px 8px" }}>
           {MODULES.map(m => (
+      const isDisabled = !data.length && m.id !== "m1";
+
+    return (
             <button
               key={m.id}
-              onClick={() => setActive(m.id)}
+              onClick={() => !isDisabled && setActive(m.id)}
+              disabled={isDisabled}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 9,
                 padding: "9px 10px", borderRadius: 9, border: "none",
-                cursor: "pointer", marginBottom: 1,
+                cursor: isDisabled ? "not-allowed" : "pointer", marginBottom: 1,
                 background: active === m.id ? "rgba(245,158,11,0.12)" : "transparent",
                 color: active === m.id ? "#f59e0b" : "#64748b",
-                textAlign: "left", transition: "all 0.12s",
+                textAlign: "left", transition: "all 0.15s ease",
                 borderLeft: active === m.id ? "3px solid #f59e0b" : "3px solid transparent",
+                opacity: isDisabled ? 0.4 : 1,
+          pointerEvents: isDisabled ? "none" : "auto",
+          transform: isDisabled ? "scale(0.98)" : "scale(1)",
               }}
             >
               <span style={{ fontSize: 15, flexShrink: 0 }}>{m.icon}</span>
