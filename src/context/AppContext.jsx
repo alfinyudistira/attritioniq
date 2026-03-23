@@ -89,16 +89,32 @@ export const SAMPLE_DATA = [
 ];
 
 export function getGeneration(age) {
-  if (age < 26) return "Gen Z";
-  if (age <= 35) return "Millennial";
-  return "Senior";
+  if (age < 28) return "Gen Z";
+  if (age <= 43) return "Millennial";
+  if (age <= 59) return "Gen X";
+  return "Baby Boomer";
 }
 
 export function getStatusColor(status) {
-  if (status === "Resigned") return "#ef4444";
-  if (status === "High Risk") return "#f59e0b";
+  const s = status?.toLowerCase() || "";
+  if (s.includes("resigned")) return "#ef4444";
+  if (s.includes("high risk")) return "#eab308";
   return "#22c55e";
 }
+
+export function getScoreColor(score, maxScore = 5, inverse = false) {
+  const ratio = score / maxScore;
+  if (inverse) {
+    if (ratio > 0.7) return "#ef4444"; 
+    if (ratio > 0.4) return "#eab308"; 
+    return "#22c55e"; 
+  } else {
+    if (ratio >= 0.8) return "#22c55e"; 
+    if (ratio >= 0.5) return "#eab308"; 
+    return "#ef4444"; 
+  }
+}
+
 
 // ── Fuzzy CSV column mapper ──
 const COLUMN_ALIASES = {
@@ -112,6 +128,9 @@ const COLUMN_ALIASES = {
   AttritionStatus:  ["attritionstatus","attrition_status","attrition","status","statusattrisi"],
   YearsAtCompany:   ["yearsatcompany","years_at_company","tenure","lama_kerja","years","masa kerja","yearsemployed"],
   Age:              ["age","umur","usia"],
+  PerformanceScore: ["performancescore", "performance", "kinerja", "skor_kinerja", "rating"],
+  WorkModel:        ["workmodel", "work_model", "tipe_kerja", "remote", "onsite"],
+  CommuteDistance:  ["commutedistance", "commute", "jarak_tempuh", "jarak"]
 };
 
 function normalizeHeader(h) {
