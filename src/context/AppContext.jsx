@@ -197,15 +197,16 @@ function smartParseNumber(val) {
 
   let str = String(val).toLowerCase().trim();
 
-  str = str.replace(/\s+/g, '').replace(/rp|\$|€|£|idr|usd/g, '');
+  str = str.replace(/\s+/g, '').replace(/rp|\$|€|£|idr|usd/g, '').replace(/,-$/, '');
 
   let multiplier = 1;
-  if (str.match(/[0-9](k|rb)$/)) { multiplier = 1e3; str = str.replace(/k|rb/g, ''); }
+
+  if (str.match(/[0-9](k|rb|ribu)$/)) { multiplier = 1e3; str = str.replace(/k|rb|ribu/g, ''); }
   else if (str.match(/[0-9](m|jt|juta)$/)) { multiplier = 1e6; str = str.replace(/m|jt|juta/g, ''); }
   else if (str.match(/[0-9](b|miliar|bio)$/)) { multiplier = 1e9; str = str.replace(/b|miliar|bio/g, ''); }
   else if (str.match(/[0-9](t|triliun)$/)) { multiplier = 1e12; str = str.replace(/t|triliun/g, ''); }
-
-  let cleanStr = str.replace(/[^\d.,-]/g, '');
+  
+  let cleanStr = str.replace(/[^\d.,]/g, '');
 
   if (cleanStr.includes('.') && cleanStr.includes(',')) {
     const lastDot = cleanStr.lastIndexOf('.');
@@ -230,7 +231,7 @@ function smartParseNumber(val) {
   }
 
   const num = Number(cleanStr) * multiplier;
-  return isNaN(num) ? val : num;
+  return isNaN(num) ? val : num; 
 }
 
 function normalizeHeader(h) {
@@ -461,39 +462,47 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
-  const computed = useMemo(() => {
+    const computed = useMemo(() => {
     if (!data || data.length === 0) return [];
 
     return data.map(d => {
       let riskScore = 0;
-      
+
       if (d.OvertimeStatus === "Yes") riskScore += 2;
-      if (d.JobSatisfaction <= 2) riskScore += 2;
+      if (d.JobSatisfaction <= 2) riskScore += 3;
+      if (d.JobSatisfaction === 3) riskScore += 1;
       if (d.YearsAtCompany < 1) riskScore += 2;
+      if (d.SalaryLevel === "Low") riskScore += 1;
 
       let riskLevel = "Low";
-      let riskColor = appConfig.colors.low; // Ambil dari Global Config
+      let riskColor = appConfig.colors.low; 
+      let isCritical = false;
 
       if (riskScore >= appConfig.thresholds.high) {
         riskLevel = "High";
         riskColor = appConfig.colors.high;
+        isCritical = true;
       } else if (riskScore >= appConfig.thresholds.medium) {
         riskLevel = "Medium";
         riskColor = appConfig.colors.medium;
       }
 
       if (d.AttritionStatus === "Resigned") {
+        riskLevel = "Resigned";
         riskColor = appConfig.colors.inactive;
+        isCritical = false;
       }
 
       return {
         ...d,
-        RiskScore: riskScore,
+        ComputedRiskScore: riskScore,
         RiskLevel: riskLevel,
-        RiskColor: riskColor
+        DynamicColor: riskColor,
+        IsCritical: isCritical
       };
     });
   }, [data, appConfig]); 
+
 
   const contextValue = useMemo(() => ({
     company,
