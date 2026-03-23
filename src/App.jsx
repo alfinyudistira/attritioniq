@@ -253,7 +253,7 @@ function AppShell() {
                 </div>
               )}
             </button>
-          ))}
+                    )})}
         </nav>
 
         {/* Collapse */}
