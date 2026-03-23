@@ -406,33 +406,20 @@ export function AppProvider({ children }) {
     } catch { return []; }
   });
 
-   
   const [appConfig, setAppConfig] = useState(() => {
     try {
-      const saved = localStorage.getItem(LS_CONFIG_KEY);
+      const saved = localStorage.getItem("attritioniq_config");
       return saved ? JSON.parse(saved) : {
-        thresholds: { high: 5, medium: 3 },
-        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" }
+        thresholds: { high: 30, medium: 15 },
+        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
       };
     } catch {
       return {
-        thresholds: { high: 5, medium: 3 },
-        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" }
+        thresholds: { high: 30, medium: 15 },
+        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
       };
     }
   });
-
-  useEffect(() => {
-    localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(appConfig));
-  }, [appConfig]);
-
-  const updateConfig = useCallback((newConfig) => {
-    setAppConfig(prev => ({
-      ...prev,
-      thresholds: { ...prev.thresholds, ...(newConfig.thresholds || {}) },
-      colors: { ...prev.colors, ...(newConfig.colors || {}) }
-    }));
-  }, []);
 
   const setCompany = useCallback((c) => {
     setCompanyState(c);
@@ -450,59 +437,48 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
+  const updateConfig = useCallback((patch) => {
+    setAppConfig(prev => {
+      const next = {
+        ...prev,
+        thresholds: { ...prev.thresholds, ...patch.thresholds },
+        colors: { ...prev.colors, ...patch.colors },
+      };
+      try { localStorage.setItem("attritioniq_config", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   const resetWorkspace = useCallback(() => {
     setCompanyState(null);
     setDataState([]);
-
-    setAppConfig({ thresholds: { high: 5, medium: 3 }, colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" } });
     try {
       localStorage.removeItem(LS_COMPANY_KEY);
       localStorage.removeItem(LS_DATA_KEY);
-      localStorage.removeItem(LS_CONFIG_KEY);
     } catch {}
   }, []);
 
-    const computed = useMemo(() => {
+  const computed = useMemo(() => {
     if (!data || data.length === 0) return [];
-
     return data.map(d => {
       let riskScore = 0;
-
       if (d.OvertimeStatus === "Yes") riskScore += 2;
-      if (d.JobSatisfaction <= 2) riskScore += 3;
-      if (d.JobSatisfaction === 3) riskScore += 1;
+      if (d.JobSatisfaction <= 2) riskScore += 2;
       if (d.YearsAtCompany < 1) riskScore += 2;
-      if (d.SalaryLevel === "Low") riskScore += 1;
-
       let riskLevel = "Low";
-      let riskColor = appConfig.colors.low; 
-      let isCritical = false;
-
-      if (riskScore >= appConfig.thresholds.high) {
-        riskLevel = "High";
-        riskColor = appConfig.colors.high;
-        isCritical = true;
-      } else if (riskScore >= appConfig.thresholds.medium) {
-        riskLevel = "Medium";
-        riskColor = appConfig.colors.medium;
-      }
-
-      if (d.AttritionStatus === "Resigned") {
-        riskLevel = "Resigned";
-        riskColor = appConfig.colors.inactive;
-        isCritical = false;
-      }
-
+      if (riskScore >= 5) riskLevel = "High";
+      else if (riskScore >= 3) riskLevel = "Medium";
       return {
         ...d,
-        ComputedRiskScore: riskScore,
+        RiskScore: riskScore,
         RiskLevel: riskLevel,
-        DynamicColor: riskColor,
-        IsCritical: isCritical
+        RiskColor:
+          riskLevel === "High" ? appConfig.colors.high :
+          riskLevel === "Medium" ? appConfig.colors.medium :
+          appConfig.colors.low
       };
     });
-  }, [data, appConfig]); 
-
+  }, [data, appConfig]);
 
   const contextValue = useMemo(() => ({
     company,
@@ -511,8 +487,8 @@ export function AppProvider({ children }) {
     setData,
     computed,
     resetWorkspace,
-    appConfig,      
-    updateConfig   
+    appConfig,
+    updateConfig,
   }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig]);
 
   return (
