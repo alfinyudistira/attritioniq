@@ -37,7 +37,8 @@ const MODULE_DETAILS = {
 };
 
 function AppShell() {
-  const { company, setCompany, data, resetWorkspace } = useContext(AppContext);
+  const { company, setCompany, data, computed, resetWorkspace } = useContext(AppContext);
+  const insight = useGlobalInsight(computed);
   const [active, setActive]           = useState("m1");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -183,13 +184,27 @@ function AppShell() {
             <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
               {mod?.icon} {mod?.label}
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>
-              {company.name} · {data.length > 0 ? `${data.length} employees loaded` : "No data — upload CSV or use sample data"}
-            </div>
+            <div style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8" }}>
+              {insight
+              ? `${insight.total} employees · ${company.name} company · ${insight.highRisk} high risk · ${insight.riskRate.toFixed(0)}% risk`
+              : "No data — upload CSV or use sample data"}
+                </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {data.length > 0 && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 20, padding: "4px 11px", fontSize: 10, color: "#16a34a", fontWeight: 700, whiteSpace: "nowrap" }}>
+            {insight && (
+  <div style={{
+    background: insight.color + "22",
+    border: `1px solid ${insight.color}55`,
+    borderRadius: 20,
+    padding: "4px 11px",
+    fontSize: 10,
+    color: insight.color,
+    fontWeight: 700,
+    whiteSpace: "nowrap"
+  }}>
+    {insight.status} · {insight.highRisk} high risk
+  </div>
+)}
                 ✓ Synced · all modules
               </div>
             )}
