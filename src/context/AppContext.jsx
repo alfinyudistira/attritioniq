@@ -281,7 +281,7 @@ function mapHeader(raw) {
   for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
     for (const alias of aliases) {
       const score = similarity(norm, normalizeHeader(alias));
-      if (score > bestScore) {
+      if (score >= 0.75 && score > bestScore) { 
         bestScore = score;
         bestMatch = canonical;
       }
