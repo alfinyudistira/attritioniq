@@ -193,50 +193,44 @@ Object.keys(EXTRA_ALIASES).forEach(key => {
 
 function smartParseNumber(val) {
   if (typeof val === 'number') return val;
-  if (!val || String(val).trim() === "") return "";
+  if (val === null || val === undefined || String(val).trim() === "") return "";
 
   let str = String(val).toLowerCase().trim();
 
-  if (str.endsWith("k")) return Number(str.replace("k","")) * 1000;
-  if (str.endsWith("m")) return Number(str.replace("m","")) * 1_000_000;
-  if (str.endsWith("jt")) return Number(str.replace("jt","")) * 1_000_000;
-  if (str.endsWith("rb")) return Number(str.replace("rb","")) * 1000;
+  str = str.replace(/\s+/g, '').replace(/rp|\$|€|£|idr|usd/g, '');
 
-  str = str.replace(/\s/g, '');
-
-if (str.includes(',') && str.includes('.')) {
-
-  const withoutComma = str.replace(/,.*$/, '');
-  const numberPart = withoutComma.replace(/\./g, '');
-  return Number(numberPart);
-}
-
-if (str.includes(',') && !str.includes('.')) {
-  const cleaned = str.replace(/,/g, '');
-  const num = Number(cleaned);
-  if (!isNaN(num)) return num;
-}
-
-if (str.includes('.') && !str.includes(',')) {
-  const parts = str.split('.');
-  if (parts.length > 2 || (parts[parts.length-1].length === 3 && parts.length === 2)) {
-    str = str.replace(/\./g, '');
-  }
-}
+  let multiplier = 1;
+  if (str.match(/[0-9](k|rb)$/)) { multiplier = 1e3; str = str.replace(/k|rb/g, ''); }
+  else if (str.match(/[0-9](m|jt|juta)$/)) { multiplier = 1e6; str = str.replace(/m|jt|juta/g, ''); }
+  else if (str.match(/[0-9](b|miliar|bio)$/)) { multiplier = 1e9; str = str.replace(/b|miliar|bio/g, ''); }
+  else if (str.match(/[0-9](t|triliun)$/)) { multiplier = 1e12; str = str.replace(/t|triliun/g, ''); }
 
   let cleanStr = str.replace(/[^\d.,-]/g, '');
 
-  if (cleanStr.includes('.') && !cleanStr.includes(',')) {
-    const parts = cleanStr.split('.');
-    if (parts.length > 2 || parts[parts.length - 1].length === 3) {
-      cleanStr = cleanStr.replace(/\./g, '');
+  if (cleanStr.includes('.') && cleanStr.includes(',')) {
+    const lastDot = cleanStr.lastIndexOf('.');
+    const lastComma = cleanStr.lastIndexOf(',');
+    if (lastComma > lastDot) {
+      cleanStr = cleanStr.replace(/\./g, '').replace(',', '.'); 
+    } else {
+      cleanStr = cleanStr.replace(/,/g, ''); 
     }
+  } else if (cleanStr.includes(',')) {
+    const parts = cleanStr.split(',');
+    if (parts[parts.length - 1].length === 3) {
+       cleanStr = cleanStr.replace(/,/g, ''); 
+    } else {
+       cleanStr = cleanStr.replace(',', '.');
+    }
+  } else if (cleanStr.includes('.')) {
+     const parts = cleanStr.split('.');
+     if (parts.length > 2 || parts[parts.length - 1].length === 3) {
+        cleanStr = cleanStr.replace(/\./g, ''); 
+     }
   }
 
-  cleanStr = cleanStr.replace(/,/g, '');
-
-  const num = Number(cleanStr);
-  return isNaN(num) ? str : num;
+  const num = Number(cleanStr) * multiplier;
+  return isNaN(num) ? val : num;
 }
 
 function normalizeHeader(h) {
@@ -246,12 +240,32 @@ function normalizeHeader(h) {
 function similarity(a, b) {
   const s1 = a.toLowerCase();
   const s2 = b.toLowerCase();
-  let matches = 0;
-  for (let i = 0; i < Math.min(s1.length, s2.length); i++) {
-    if (s1[i] === s2[i]) matches++;
+  
+  if (s1 === s2) return 1.0;
+  if (s1.includes(s2) || s2.includes(s1)) return 0.8; 
+
+  const costs = new Array();
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) costs[j] = j;
+      else {
+        if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1))
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0) costs[s2.length] = lastValue;
   }
-  return matches / Math.max(s1.length, s2.length);
+  
+  const maxLen = Math.max(s1.length, s2.length);
+  return (maxLen - costs[s2.length]) / maxLen;
 }
+
 
 function mapHeader(raw) {
   const norm = normalizeHeader(raw);
@@ -282,49 +296,25 @@ function mapHeader(raw) {
 
 const TEXT_NORMALIZATION = {
   AttritionStatus: {
-
-    "resigned": "Resigned",
-    "resign": "Resigned",
-    "keluar": "Resigned",
-    "cabut": "Resigned",
-    "quit": "Resigned",
-    "high risk": "High Risk",
-    "risk": "High Risk",
-    "berisiko": "High Risk",
-    "active": "Active",
-    "aktif": "Active",
-    "still": "Active",
+    "resigned": "Resigned", "resign": "Resigned", "keluar": "Resigned", "cabut": "Resigned", "quit": "Resigned", "rsgn": "Resigned", "out": "Resigned", "minggat": "Resigned",
+    "high risk": "High Risk", "risk": "High Risk", "berisiko": "High Risk", "bahaya": "High Risk", "warning": "High Risk",
+    "active": "Active", "aktif": "Active", "still": "Active", "stay": "Active", "aman": "Active", "bertahan": "Active",
   },
   JobSatisfaction: {
-
-    "sangat puas": 5,
-    "puas": 4,
-    "cukup": 3,
-    "tidak puas": 2,
-    "sangat tidak puas": 1,
-    "very satisfied": 5,
-    "satisfied": 4,
-    "neutral": 3,
-    "dissatisfied": 2,
-    "very dissatisfied": 1,
-    "excellent": 5,
-    "good": 4,
-    "average": 3,
-    "poor": 2,
-    "bad": 1,
+    "sangat puas": 5, "puas": 4, "cukup": 3, "tidak puas": 2, "sangat tidak puas": 1,
+    "very satisfied": 5, "satisfied": 4, "neutral": 3, "dissatisfied": 2, "very dissatisfied": 1,
+    "excellent": 5, "good": 4, "average": 3, "poor": 2, "bad": 1, "b aja": 3, "lumayan": 3, "jelek": 2, "parah": 1,
   },
   OvertimeStatus: {
-    "yes": "Yes",
-    "y": "Yes",
-    "1": "Yes",
-    "true": "Yes",
-    "no": "No",
-    "n": "No",
-    "0": "No",
-    "false": "No",
-    "lembur": "Yes",
-    "tidak": "No",
+    "yes": "Yes", "y": "Yes", "1": "Yes", "true": "Yes", "ya": "Yes", "yoi": "Yes", "sering": "Yes", "lembur": "Yes", "ot": "Yes",
+    "no": "No", "n": "No", "0": "No", "false": "No", "tidak": "No", "tdk": "No", "ngga": "No", "g": "No", "gk": "No", "engga": "No",
   },
+  Department: {
+    "hr": "HR", "hrd": "HR", "human resource": "HR", "human resources": "HR", "sdm": "HR", "personalia": "HR",
+    "it": "IT", "information technology": "IT", "tech": "IT", "teknologi informasi": "IT", "engineer": "IT",
+    "sales": "Sales", "penjualan": "Sales", "marketing": "Sales", "pemasaran": "Sales",
+    "finance": "Finance", "keuangan": "Finance", "accounting": "Finance", "akuntansi": "Finance",
+  }
 };
 
 function normalizeTextValue(field, value) {
@@ -346,6 +336,9 @@ if (enriched.AttritionStatus) {
 }
 if (enriched.OvertimeStatus) {
   enriched.OvertimeStatus = normalizeTextValue('OvertimeStatus', enriched.OvertimeStatus);
+}
+  if (enriched.Department) {
+  enriched.Department = normalizeTextValue('Department', enriched.Department);
 }
 if (enriched.JobSatisfaction && typeof enriched.JobSatisfaction === 'string') {
 
