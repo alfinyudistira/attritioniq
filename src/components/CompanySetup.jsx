@@ -17,7 +17,7 @@ export default function CompanySetup({ onSave }) {
     { label: "Industry", key: "industry", type: "select", opts: ["Manufacturing","Retail","Technology","Healthcare","Finance","Services","Other"] },
     { label: "Currency", key: "currency", type: "select", opts: ["USD","IDR","EUR","GBP","SGD"] },
     { label: "Salary Safety Cliff (monthly)", key: "salaryCliff", type: "number", placeholder: "5000" },
-    { label: "Replacement Cost Multiplier (×annual salary)", key: "replacementMultiplier", type: "number", placeholder: "1.5" },
+    { label: "Replacement Cost Multiplier (×annual salary)", key: "replacementMultiplier", type: "number", placeholder: "1.5", tooltip: "Cost to replace 1 employee = annual salary × this multiplier. Industry standard: 1.5× (conservative) to 3× (specialist roles). Covers recruiting, onboarding, lost productivity." },
   ];
 
   return (
@@ -55,13 +55,18 @@ export default function CompanySetup({ onSave }) {
         </div>
 
         {fields.map(f => (
-          <div key={f.key} style={{ marginBottom: 14 }}>
-            <label style={{
-              display: "block", fontSize: 11, fontWeight: 700, color: "#475569",
-              marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em",
-            }}>
-              {f.label}
-            </label>
+  <div key={f.key} style={{ marginBottom: 14 }}>
+    <label style={{
+      display: "block", fontSize: 11, fontWeight: 700, color: "#475569",
+      marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em",
+    }}>
+      {f.label}
+    </label>
+    {f.tooltip && (
+      <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 5, lineHeight: 1.5 }}>
+        💡 {f.tooltip}
+      </div>
+    )}
             {f.type === "select" ? (
               <select
                 value={form[f.key]}
