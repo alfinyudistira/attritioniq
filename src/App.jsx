@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { AppProvider, AppContext } from "./context/AppContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
