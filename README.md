@@ -5,7 +5,7 @@
 ---
 
 ## 🔗 Live Demo
-[attritioniq.netlify.app](https://attritioniq.netlify.app)
+alfinyudistira.github.io/attritioniq
 
 ## 📋 About
 AttritionIQ is a universal, AI-powered SaaS platform for predicting and preventing employee attrition. Upload your own HR data and get instant analytics — works for any company, any industry.
