@@ -8,6 +8,27 @@ export function useApp() {
   return useContext(AppContext);
 }
 
+// ── Convenience hooks ──
+export function useCompany() {
+  const { company, setCompany, resetWorkspace } = useContext(AppContext);
+  return { company, setCompany, resetWorkspace };
+}
+
+export function useCurrency() {
+  const { company } = useContext(AppContext);
+  const currency = company?.currency || "USD";
+  const fmt = useCallback(
+    (val, compact = false) => formatCurrency(val, currency, compact),
+    [currency]
+  );
+  return { currency, fmt, config: getCurrencyConfig(currency) };
+}
+
+export function useHRData() {
+  const { data, setData, computed, appConfig, updateConfig } = useContext(AppContext);
+  return { data, setData, computed, appConfig, updateConfig };
+}
+
 // ── Currency config ──
 const CURRENCY_CONFIG = {
   USD: { symbol: "$", locale: "en-US", name: "US Dollar" },
@@ -462,23 +483,60 @@ export function AppProvider({ children }) {
     if (!data || data.length === 0) return [];
     return data.map(d => {
       let riskScore = 0;
+
+      // Factor 1: Overtime
       if (d.OvertimeStatus === "Yes") riskScore += 2;
-      if (d.JobSatisfaction <= 2) riskScore += 2;
-      if (d.YearsAtCompany < 1) riskScore += 2;
+
+      // Factor 2: Job satisfaction (scale 1–10)
+      if (d.JobSatisfaction <= 2) riskScore += 3;
+      else if (d.JobSatisfaction <= 4) riskScore += 2;
+      else if (d.JobSatisfaction <= 6) riskScore += 1;
+
+      // Factor 3: Tenure
+      if (d.YearsAtCompany < 1) riskScore += 3;
+      else if (d.YearsAtCompany < 2) riskScore += 2;
+      else if (d.YearsAtCompany < 3) riskScore += 1;
+
+      // Factor 4: Age / Gen Z signal
+      if (d.Age && d.Age < 27) riskScore += 1;
+
+      // Factor 5: Already flagged as attrition
+      const statusLower = (d.AttritionStatus || "").toLowerCase();
+      if (statusLower.includes("resigned")) riskScore += 4;
+      else if (statusLower.includes("high risk")) riskScore += 3;
+
+      // Normalize to 0–100
+      const maxPossible = 13;
+      const riskPct = Math.min(100, Math.round((riskScore / maxPossible) * 100));
+
       let riskLevel = "Low";
-      if (riskScore >= 5) riskLevel = "High";
-      else if (riskScore >= 3) riskLevel = "Medium";
+      if (riskPct >= appConfig.thresholds.high) riskLevel = "High";
+      else if (riskPct >= appConfig.thresholds.medium) riskLevel = "Medium";
+
       return {
         ...d,
         RiskScore: riskScore,
+        RiskPct: riskPct,
         RiskLevel: riskLevel,
         RiskColor:
-          riskLevel === "High" ? appConfig.colors.high :
+          riskLevel === "High"   ? appConfig.colors.high :
           riskLevel === "Medium" ? appConfig.colors.medium :
-          appConfig.colors.low
+          appConfig.colors.low,
+        Generation: getGeneration(d.Age),
       };
     });
   }, [data, appConfig]);
+
+  // ── Cross-module notification system ──
+  const [notifications, setNotifications] = useState([]);
+
+  const pushNotification = useCallback((msg, type = "info") => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, msg, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 4000);
+  }, []);
 
   const contextValue = useMemo(() => ({
     company,
@@ -489,7 +547,9 @@ export function AppProvider({ children }) {
     resetWorkspace,
     appConfig,
     updateConfig,
-  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig]);
+    notifications,
+    pushNotification,
+  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig, notifications, pushNotification]);
 
   return (
     <AppContext.Provider value={contextValue}>
