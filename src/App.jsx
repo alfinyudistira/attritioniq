@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { AppProvider, AppContext } from "./context/AppContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
@@ -38,9 +38,32 @@ const MODULE_DETAILS = {
 
 function AppShell() {
   const { company, setCompany, data, computed, resetWorkspace } = useContext(AppContext);
+  const { appConfig, updateConfig } = useContext(AppContext);
   const insight = useGlobalInsight(computed);
+function useGlobalInsight(data) {
+  return useMemo(() => {
+    if (!data || data.length === 0) return null;
+    const total = data.length;
+    const highRisk = data.filter(d => d.RiskLevel === "High").length;
+    const riskRate = (highRisk / total) * 100;
+    let status = "";
+    let color = "#475569";
+    if (riskRate >= appConfig.thresholds.high) {
+      status = "Critical Risk";
+      color = appConfig.colors.high;
+    } else if (riskRate >= appConfig.thresholds.medium) {
+      status = "Medium Risk";
+      color = appConfig.colors.medium;
+    } else {
+      status = "Stable";
+      color = appConfig.colors.low;
+    }
+    return { total, highRisk, riskRate, status, color };
+  }, [data, appConfig]);
+}
   const [active, setActive]           = useState("m1");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   useEffect(() => {
   if (data && data.length > 0) {
@@ -90,6 +113,63 @@ function AppShell() {
           </div>
         </div>
       )}
+
+      {/* ── Config Modal ── */}
+{showConfigModal && (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(6px)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16
+  }}>
+    <div style={{ background: "#fff", borderRadius: 18, padding: "28px 32px", maxWidth: 420, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700 }}>⚙️ Risk Configuration</div>
+        <button onClick={() => setShowConfigModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>✕</button>
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>High Risk Threshold</label>
+        <input
+          type="number"
+          value={appConfig.thresholds.high}
+          onChange={e => updateConfig({ thresholds: { high: Number(e.target.value) } })}
+          style={{ width: "100%", marginTop: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13 }}
+        />
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>Medium Risk Threshold</label>
+        <input
+          type="number"
+          value={appConfig.thresholds.medium}
+          onChange={e => updateConfig({ thresholds: { medium: Number(e.target.value) } })}
+          style={{ width: "100%", marginTop: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13 }}
+        />
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>High Risk Color</label>
+        <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
+          {["high", "medium", "low"].map(level => (
+            <div key={level}>
+              <div style={{ fontSize: 10, textTransform: "capitalize", marginBottom: 4 }}>{level}</div>
+              <input
+                type="color"
+                value={appConfig.colors[level]}
+                onChange={e => updateConfig({ colors: { [level]: e.target.value } })}
+                style={{ width: 40, height: 40, borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          updateConfig({ thresholds: { high: 5, medium: 3 }, colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" } });
+        }}
+        style={{ width: "100%", padding: "10px", background: "#f1f5f9", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 8 }}
+      >
+        Reset to Defaults
+      </button>
+    </div>
+  </div>
+)}
 
       {/* ── Sidebar ── */}
       <aside style={{
@@ -222,6 +302,12 @@ function AppShell() {
                 ✓ Synced · all modules
               </div>
             )}
+onClick={() => setShowConfigModal(true)}
+    style={{ background: "#f1f5f9", border: "none", borderRadius: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18 }}
+    title="Settings"
+  >
+    ⚙️
+  </button>     
             <div style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14 }}>
               {company.name.charAt(0).toUpperCase()}
             </div>
