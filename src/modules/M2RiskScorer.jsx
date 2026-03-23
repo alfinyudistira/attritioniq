@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useCurrency, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
 import { GaugeChart } from "../components/Charts";
 
 // ── Risk scoring engine (mirrors logistic regression from PDF) ──
-function computeRisk(emp, cliff = 5000) {
+function computeRisk(emp, cliff = 5000, currSymbol = "$") {
   let score = 0;
   const factors = [];
 
@@ -21,9 +21,9 @@ function computeRisk(emp, cliff = 5000) {
     const gap = cliff - sal;
     const salScore = Math.min(30, Math.round((gap / cliff) * 55));
     score += salScore;
-    factors.push({ label: "Salary", impact: salScore, direction: "bad", note: `$${gap.toLocaleString()} below safety cliff ($${cliff.toLocaleString()}/mo)` });
+    factors.push({ label: "Salary", impact: salScore, direction: "bad", note: `${currSymbol}${gap.toLocaleString()} below safety cliff (${currSymbol}${cliff.toLocaleString()}/mo)` });
   } else if (sal >= cliff) {
-    factors.push({ label: "Salary", impact: 0, direction: "good", note: `Above cliff threshold — retention stabilizer` });
+    factors.push({ label: "Salary", impact: 0, direction: "good", note: `Above cliff ${currSymbol}${cliff.toLocaleString()} — retention stabilizer` });
   } else {
     factors.push({ label: "Salary", impact: 0, direction: "neutral", note: "No salary data" });
   }
@@ -343,8 +343,15 @@ function BulkScorer({ company }) {
 
 // ── MAIN M2 COMPONENT ──
 export default function M2RiskScorer() {
-  const { company } = useApp();
+  const { data, company } = useApp();
+  const { fmt, currency, config: cfg } = useCurrency();
   const cliff = company?.salaryCliff || 5000;
+  const deptOptions = useMemo(() => {
+    const fromData = [...new Set(data.map(d => d.Department).filter(Boolean))];
+    return fromData.length > 0
+      ? fromData
+      : ["Sales","Technical Support","IT","HR","Digital Marketing","Operations","Finance","Other"];
+  }, [data]);
 
   const [emp, setEmp] = useState({
     name: "", department: "Sales", salary: 4200,
@@ -356,7 +363,7 @@ export default function M2RiskScorer() {
   const [activeTab, setActiveTab] = useState("single");
 
   const set = (k, v) => setEmp(p => ({ ...p, [k]: v }));
-  const { score, factors, gen } = useMemo(() => computeRisk(emp, cliff), [emp, cliff]);
+  const { score, factors, gen } = useMemo(() => computeRisk(emp, cliff, cfg?.symbol || "$"), [emp, cliff, cfg]);
   const level = getRiskLevel(score);
 
   const handleScore = () => setScored(true);
@@ -413,15 +420,14 @@ export default function M2RiskScorer() {
               </InputField>
 
               <InputField label="Department">
-                <select value={emp.department} onChange={e => set("department", e.target.value)} style={selectStyle}>
-                  {["Sales","Technical Support","IT","HR","Digital Marketing","Operations","Finance","Other"].map(d => (
+                {deptOptions.map(d => (
                     <option key={d}>{d}</option>
                   ))}
                 </select>
               </InputField>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <InputField label="Monthly Salary ($)">
+                <InputField label={`Monthly Salary (${cfg?.symbol || "$"})`}>
                   <input type="number" value={emp.salary} min={0}
                     onChange={e => set("salary", Number(e.target.value))} style={inputStyle} />
                 </InputField>
