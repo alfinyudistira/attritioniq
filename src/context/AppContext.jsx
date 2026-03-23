@@ -388,6 +388,7 @@ export function parseCSV(text) {
 
 const LS_COMPANY_KEY = "attritioniq_company";
 const LS_DATA_KEY    = "attritioniq_data";
+const LS_CONFIG_KEY  = "attritioniq_config";
 
 export function AppProvider({ children }) {
   const [company, setCompanyState] = useState(() => {
@@ -404,11 +405,34 @@ export function AppProvider({ children }) {
     } catch { return []; }
   });
 
-  const [riskThresholds, setRiskThresholds] = useState({
-    high: 5,
-    medium: 3
+   
+  const [appConfig, setAppConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LS_CONFIG_KEY);
+      return saved ? JSON.parse(saved) : {
+        thresholds: { high: 5, medium: 3 },
+        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" }
+      };
+    } catch {
+      return {
+        thresholds: { high: 5, medium: 3 },
+        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" }
+      };
+    }
   });
-    
+
+  useEffect(() => {
+    localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(appConfig));
+  }, [appConfig]);
+
+  const updateConfig = useCallback((newConfig) => {
+    setAppConfig(prev => ({
+      ...prev,
+      thresholds: { ...prev.thresholds, ...(newConfig.thresholds || {}) },
+      colors: { ...prev.colors, ...(newConfig.colors || {}) }
+    }));
+  }, []);
+
   const setCompany = useCallback((c) => {
     setCompanyState(c);
     try {
@@ -428,47 +452,59 @@ export function AppProvider({ children }) {
   const resetWorkspace = useCallback(() => {
     setCompanyState(null);
     setDataState([]);
+
+    setAppConfig({ thresholds: { high: 5, medium: 3 }, colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" } });
     try {
       localStorage.removeItem(LS_COMPANY_KEY);
       localStorage.removeItem(LS_DATA_KEY);
+      localStorage.removeItem(LS_CONFIG_KEY);
     } catch {}
   }, []);
 
   const computed = useMemo(() => {
-  if (!data || data.length === 0) return [];
+    if (!data || data.length === 0) return [];
 
-  return data.map(d => {
-    let riskScore = 0;
-    if (d.OvertimeStatus === "Yes") riskScore += 2;
-    if (d.JobSatisfaction <= 2) riskScore += 2;
-    if (d.YearsAtCompany < 1) riskScore += 2;
+    return data.map(d => {
+      let riskScore = 0;
+      
+      if (d.OvertimeStatus === "Yes") riskScore += 2;
+      if (d.JobSatisfaction <= 2) riskScore += 2;
+      if (d.YearsAtCompany < 1) riskScore += 2;
 
-    let riskLevel = "Low";
-    if (riskScore >= riskThresholds.high) riskLevel = "High";
-    else if (riskScore >= riskThresholds.medium) riskLevel = "Medium";
+      let riskLevel = "Low";
+      let riskColor = appConfig.colors.low; // Ambil dari Global Config
 
-    return {
-      ...d,
-      RiskScore: riskScore,
-      RiskLevel: riskLevel,
-      RiskColor:
-        riskLevel === "High" ? "#ef4444" :
-        riskLevel === "Medium" ? "#eab308" :
-        "#22c55e"
-    };
-  });
-}, [data, riskThresholds]);
+      if (riskScore >= appConfig.thresholds.high) {
+        riskLevel = "High";
+        riskColor = appConfig.colors.high;
+      } else if (riskScore >= appConfig.thresholds.medium) {
+        riskLevel = "Medium";
+        riskColor = appConfig.colors.medium;
+      }
 
-    const contextValue = useMemo(() => ({
-  company,
-  setCompany,
-  data,
-  setData,
-  computed,
-  resetWorkspace,
-  riskThresholds,
-  setRiskThresholds
-}), [company, data, computed, setCompany, setData, resetWorkspace, riskThresholds, setRiskThresholds]);
+      if (d.AttritionStatus === "Resigned") {
+        riskColor = appConfig.colors.inactive;
+      }
+
+      return {
+        ...d,
+        RiskScore: riskScore,
+        RiskLevel: riskLevel,
+        RiskColor: riskColor
+      };
+    });
+  }, [data, appConfig]); 
+
+  const contextValue = useMemo(() => ({
+    company,
+    setCompany,
+    data,
+    setData,
+    computed,
+    resetWorkspace,
+    appConfig,      
+    updateConfig   
+  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig]);
 
   return (
     <AppContext.Provider value={contextValue}>
