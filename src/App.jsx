@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { AppProvider, AppContext } from "./context/AppContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
@@ -12,43 +12,78 @@ import M7FatigueRadar from "./modules/M7FatigueRadar";
 import M8TalentMatch from "./modules/M8TalentMatch";
 import M9PulseSurvey from "./modules/M9PulseSurvey";
 import ComingSoon from "./modules/ComingSoon";
-import { useState } from "react";
 
 const MODULES = [
-  { id: "m1", label: "Attrition Dashboard", icon: "📊", short: "M1", live: true },
+  { id: "m1", label: "Attrition Dashboard",   icon: "📊", short: "M1", live: true },
   { id: "m2", label: "Predictive Risk Scorer", icon: "🎯", short: "M2", live: true },
-  { id: "m3", label: "Salary Benchmarking", icon: "💰", short: "M3", live: true },
-  { id: "m4", label: "Dept Health Monitor", icon: "🏥", short: "M4", live: true },
-  { id: "m5", label: "Exit Interview Analyzer", icon: "🚪", short: "M5", live: true },
-  { id: "m6", label: "Retention ROI Calc", icon: "📈", short: "M6", live: true },
-  { id: "m7", label: "Shift & Fatigue Radar", icon: "😴", short: "M7", live: true },
-  { id: "m8", label: "Talent Matchmaker", icon: "🔗", short: "M8", live: true },
-  { id: "m9", label: "Micro-Pulse Survey", icon: "💬", short: "M9", live: true },
+  { id: "m3", label: "Salary Benchmarking",    icon: "💰", short: "M3", live: true },
+  { id: "m4", label: "Dept Health Monitor",    icon: "🏥", short: "M4", live: true },
+  { id: "m5", label: "Exit Interview Analyzer",icon: "🚪", short: "M5", live: true },
+  { id: "m6", label: "Retention ROI Calc",     icon: "📈", short: "M6", live: true },
+  { id: "m7", label: "Shift & Fatigue Radar",  icon: "😴", short: "M7", live: true },
+  { id: "m8", label: "Talent Matchmaker",      icon: "🔗", short: "M8", live: true },
+  { id: "m9", label: "Micro-Pulse Survey",     icon: "💬", short: "M9", live: true },
 ];
 
 const MODULE_DETAILS = {
-  m2: { title: "Predictive Risk Scorer", icon: "🎯", desc: "Input any employee's details and get an AI-powered flight risk score from 0–100% with factor breakdown.", features: ["Risk Gauge 0-100%","Factor Breakdown","Gen Z Warning","Bulk CSV Score","AI Explanation"] },
+  m2: { title: "Predictive Risk Scorer",     icon: "🎯", desc: "Input any employee's details and get an AI-powered flight risk score from 0–100% with factor breakdown.", features: ["Risk Gauge 0-100%","Factor Breakdown","Gen Z Warning","Bulk CSV Score","AI Explanation"] },
   m3: { title: "Salary Benchmarking Studio", icon: "💰", desc: "Detect your company's salary cliff threshold, visualize danger zones, and simulate salary adjustments.", features: ["Cliff Detector","Danger Zone Map","Adjustment Simulator","Budget Impact","Market Compare"] },
-  m4: { title: "Department Health Monitor", icon: "🏥", desc: "Traffic-light scorecards per department with Survivor Burnout Alert and Human Buffer Metric.", features: ["Traffic Light System","🚨 Survivor Burnout Alert","Human Buffer Metric","Dept Comparison","Trend Tracking"] },
-  m5: { title: "Exit Interview Analyzer", icon: "🚪", desc: "Paste exit interview notes — AI categorizes reasons, detects patterns, generates word cloud.", features: ["AI Categorization","Pattern Detector","Keyword Cloud","Sentiment Score","Export Summary"] },
-  m6: { title: "Retention ROI Calculator", icon: "📈", desc: "Simulate interventions with sliders, get ROI timeline, ghost cost toggle, and auto Gantt Action Plan.", features: ["3 Intervention Sliders","ROI Timeline","Ghost Cost Toggle","AI Executive Summary","90-Day Gantt Chart"] },
-  m7: { title: "Shift & Fatigue Radar", icon: "😴", desc: "Analyze shift patterns, calculate Fatigue Index, simulate schedule changes to predict burnout.", features: ["Fatigue Index Score","Schedule Optimizer","Burnout Predictor","AI Insight","Team Radar"] },
+  m4: { title: "Department Health Monitor",  icon: "🏥", desc: "Traffic-light scorecards per department with Survivor Burnout Alert and Human Buffer Metric.", features: ["Traffic Light System","🚨 Survivor Burnout Alert","Human Buffer Metric","Dept Comparison","Trend Tracking"] },
+  m5: { title: "Exit Interview Analyzer",    icon: "🚪", desc: "Paste exit interview notes — AI categorizes reasons, detects patterns, generates word cloud.", features: ["AI Categorization","Pattern Detector","Keyword Cloud","Sentiment Score","Export Summary"] },
+  m6: { title: "Retention ROI Calculator",   icon: "📈", desc: "Simulate interventions with sliders, get ROI timeline, ghost cost toggle, and auto Gantt Action Plan.", features: ["3 Intervention Sliders","ROI Timeline","Ghost Cost Toggle","AI Executive Summary","90-Day Gantt Chart"] },
+  m7: { title: "Shift & Fatigue Radar",      icon: "😴", desc: "Analyze shift patterns, calculate Fatigue Index, simulate schedule changes to predict burnout.", features: ["Fatigue Index Score","Schedule Optimizer","Burnout Predictor","AI Insight","Team Radar"] },
   m8: { title: "Internal Talent Matchmaker", icon: "🔗", desc: "Build skill matrices for at-risk employees — AI scans other departments for match opportunities.", features: ["Skill Matrix","AI Matchmaker","Mobility Radar Chart","Match % Score","Transfer Recommendation"] },
-  m9: { title: "Micro-Pulse Survey Engine", icon: "💬", desc: "Generate weekly survey links — real-time sentiment stream updates satisfaction scores live.", features: ["Survey Generator","Real-time Stream","Word Cloud D3","Sentiment Scoring","Auto Update M1"] },
+  m9: { title: "Micro-Pulse Survey Engine",  icon: "💬", desc: "Generate weekly survey links — real-time sentiment stream updates satisfaction scores live.", features: ["Survey Generator","Real-time Stream","Word Cloud D3","Sentiment Scoring","Auto Update M1"] },
 };
 
 function AppShell() {
-  const { company, setCompany, data } = useContext(AppContext);
-  const [active, setActive] = useState("m1");
+  const { company, setCompany, data, resetWorkspace } = useContext(AppContext);
+  const [active, setActive]           = useState("m1");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   if (!company) return <CompanySetup onSave={setCompany} />;
 
   const mod = MODULES.find(m => m.id === active);
   const det = MODULE_DETAILS[active];
 
+  const handleReset = () => {
+    resetWorkspace();
+    setShowResetConfirm(false);
+    setActive("m1");
+  };
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
+
+      {/* ── Reset Confirm Modal ── */}
+      {showResetConfirm && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
+          backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 2000, padding: 16,
+        }}>
+          <div style={{ background: "#fff", borderRadius: 18, padding: "32px 36px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", textAlign: "center", marginBottom: 8 }}>
+              Change Workspace?
+            </div>
+            <div style={{ fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 1.6, marginBottom: 24 }}>
+              This will clear your current company settings and all loaded data. You'll return to the setup screen.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowResetConfirm(false)}
+                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
+                Cancel
+              </button>
+              <button onClick={handleReset}
+                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#ef4444,#dc2626)", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
+                Yes, Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Sidebar ── */}
       <aside style={{
@@ -75,6 +110,14 @@ function AppShell() {
               <div style={{ fontSize: 9, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em" }}>Workspace</div>
               <div style={{ fontSize: 12, color: "#f1f5f9", fontWeight: 600, marginTop: 1 }}>{company.name}</div>
               <div style={{ fontSize: 10, color: "#64748b" }}>{company.industry} · {company.currency}</div>
+              {/* ── Change Company Button ── */}
+              <button onClick={() => setShowResetConfirm(true)}
+                style={{ marginTop: 8, width: "100%", padding: "5px 8px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#64748b", fontSize: 10, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
+                onMouseEnter={e => { e.target.style.color = "#f59e0b"; e.target.style.borderColor = "#f59e0b44"; }}
+                onMouseLeave={e => { e.target.style.color = "#64748b"; e.target.style.borderColor = "#334155"; }}
+              >
+                ↩ Change Company
+              </button>
             </div>
           )}
         </div>
@@ -159,28 +202,17 @@ function AppShell() {
         {/* Content */}
         <div style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
           <DataUpload />
-          {active === "m1"
-            ? <M1Dashboard />
-            : active === "m2"
-            ? <M2RiskScorer />
-            : active === "m3"
-            ? <M3Salary />
-            : active === "m4"
-            ? <M4DeptHealth />
-            : active === "m5"
-            ? <M5ExitAnalyzer />
-            : active === "m6"
-            ? <M6ROI />
-            : active === "m7"
-            ? <M7FatigueRadar />
-            : active === "m8"
-            ? <M8TalentMatch />
-            : active === "m9"
-            ? <M9PulseSurvey />
-            : det
-            ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
-            : null
-          }
+          {active === "m1" ? <M1Dashboard />
+            : active === "m2" ? <M2RiskScorer />
+            : active === "m3" ? <M3Salary />
+            : active === "m4" ? <M4DeptHealth />
+            : active === "m5" ? <M5ExitAnalyzer />
+            : active === "m6" ? <M6ROI />
+            : active === "m7" ? <M7FatigueRadar />
+            : active === "m8" ? <M8TalentMatch />
+            : active === "m9" ? <M9PulseSurvey />
+            : det ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
+            : null}
         </div>
       </main>
     </div>
