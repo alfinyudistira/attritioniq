@@ -471,6 +471,7 @@ export default function M4DeptHealth() {
   const [activeTab, setActiveTab]   = useState("overview");
   const [aiLoading, setAiLoading]   = useState(false);
   const [aiPlan, setAiPlan]         = useState(null);
+  const [showAlerts, setShowAlerts] = useState(true);
 
   const depts = useMemo(() => computeDeptHealth(src, cliff), [src, cliff]);
   const criticalDepts = depts.filter(d => d.survivorRisk);
@@ -555,9 +556,25 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
   return (
     <div>
       {/* Global Critical Alert Banner */}
-      {criticalDepts.length > 0 && (
+            {criticalDepts.length > 0 && (
         <div style={{ marginBottom: 18 }}>
-          {criticalDepts.map(d => (
+          <button
+            onClick={() => setShowAlerts(!showAlerts)}
+            style={{
+              width: "100%", background: "#fef2f2", border: "1.5px solid #ef4444", borderRadius: 10,
+              padding: "10px 16px", display: "flex", justifyContent: "space-between",
+              alignItems: "center", cursor: "pointer", marginBottom: showAlerts ? 10 : 0,
+              color: "#dc2626", fontWeight: 700, fontSize: 13, transition: "all 0.2s"
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>🚨</span> 
+              <span>{criticalDepts.length} Critical Department Alerts</span>
+            </span>
+            <span>{showAlerts ? "Hide Alerts ▲" : "View Details ▼"}</span>
+          </button>
+
+          {showAlerts && criticalDepts.map(d => (
             <div key={d.dept} style={{ background: "#fef2f2", borderRadius: 12, padding: "12px 18px", border: "2px solid #ef4444", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ fontSize: 20, flexShrink: 0 }}>🚨</div>
               <div>
