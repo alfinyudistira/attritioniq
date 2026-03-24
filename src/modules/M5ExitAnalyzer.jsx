@@ -727,12 +727,14 @@ export default function M5ExitAnalyzer() {
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <div style={{ width: Math.max(12, (count / keywords[0][1]) * 40), height: 4, background: color, borderRadius: 2 }} />
                       <span style={{ fontSize: 11, fontWeight: 700, color }}>{count}x</span>
-                    </div>
+                       </div>
                   </div>
                 );
               })}
-                  </div> 
-  )} 
+            </div>
+          </div>
+        </div>
+      )}
 
           {/* ── TAB: PERSONAS ── */}
       {activeTab === "personas" && (
