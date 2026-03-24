@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useCurrency } from "../context/AppContext";
 
 // ── Sample exit interviews based on PDF personas ──
 const SAMPLE_INTERVIEWS = [
@@ -68,7 +68,19 @@ function categorizeInterview(text) {
   const primary = sorted[0][1] > 0 ? sorted[0][0] : "Culture";
   const secondary = sorted[1]?.[1] > 0 ? sorted[1][0] : null;
   const sentiment = computeSentiment(lower);
-  return { primary, secondary, scores, sentiment };
+
+  // Retention probability — could they have been saved?
+  // High if: mainly salary/workload (fixable), positive mentions, no "already accepted"
+  let retentionProbability = 50;
+  if (primary === "Compensation" || primary === "Workload") retentionProbability += 20;
+  if (primary === "Career" || primary === "Management") retentionProbability += 10;
+  if (lower.includes("would have stayed") || lower.includes("could have stayed")) retentionProbability += 15;
+  if (lower.includes("already accepted") || lower.includes("toxic") || lower.includes("hostile")) retentionProbability -= 25;
+  if (sentiment.score >= 50) retentionProbability += 10;
+  if (lower.includes("no future") || lower.includes("last straw")) retentionProbability -= 20;
+  retentionProbability = Math.min(90, Math.max(5, retentionProbability));
+
+  return { primary, secondary, scores, sentiment, retentionProbability };
 }
 
 function computeSentiment(text) {
@@ -193,13 +205,22 @@ function InterviewCard({ iv, analysis, idx }) {
         </div>
       </div>
 
-      {/* Sentiment bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 9, color: "#94a3b8", width: 60 }}>Sentiment</span>
-        <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
-          <div style={{ width: `${analysis.sentiment.score}%`, height: "100%", background: analysis.sentiment.color, borderRadius: 2 }} />
+      {/* Dual bars: Sentiment + Retention Probability */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 9, color: "#94a3b8", width: 80, flexShrink: 0 }}>Sentiment</span>
+          <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ width: `${analysis.sentiment.score}%`, height: "100%", background: analysis.sentiment.color, borderRadius: 2 }} />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 700, color: analysis.sentiment.color, width: 28 }}>{analysis.sentiment.score}</span>
         </div>
-        <span style={{ fontSize: 10, fontWeight: 700, color: analysis.sentiment.color, width: 28 }}>{analysis.sentiment.score}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 9, color: "#94a3b8", width: 80, flexShrink: 0 }}>Retainable</span>
+          <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ width: `${analysis.retentionProbability}%`, height: "100%", background: analysis.retentionProbability >= 60 ? "#22c55e" : analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444", borderRadius: 2 }} />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 700, color: analysis.retentionProbability >= 60 ? "#22c55e" : analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444", width: 28 }}>{analysis.retentionProbability}%</span>
+        </div>
       </div>
 
       {/* Text preview */}
@@ -230,10 +251,10 @@ function InterviewCard({ iv, analysis, idx }) {
 }
 
 // ── Input form for new interview ──
-function AddInterviewForm({ onAdd }) {
-  const [form, setForm] = useState({ name: "", dept: "Sales", date: "2024-10", tenure: 1, salary: 4000, age: 27, text: "" });
+function AddInterviewForm({ onAdd, deptOptions = [], currSymbol = "$" }) {
+  const [form, setForm] = useState({ name: "", dept: deptOptions[0] || "Sales", date: new Date().toISOString().slice(0,7), tenure: 1, salary: 0, age: 27, text: "" });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-  const depts = ["Sales", "Technical Support", "IT", "HR", "Digital Marketing", "Operations", "Finance", "Other"];
+  const depts = deptOptions.length > 0 ? deptOptions : ["Sales", "Technical Support", "IT", "HR", "Digital Marketing", "Operations", "Finance", "Other"];
 
   return (
     <div style={{ background: "#f8fafc", borderRadius: 13, padding: "16px 18px", border: "1.5px solid #e2e8f0", marginBottom: 16 }}>
@@ -244,7 +265,7 @@ function AddInterviewForm({ onAdd }) {
           { label: "Dept", key: "dept", type: "select" },
           { label: "Date (YYYY-MM)", key: "date", type: "text", placeholder: "2024-10" },
           { label: "Tenure (yrs)", key: "tenure", type: "number" },
-          { label: "Monthly Salary", key: "salary", type: "number" },
+          { label: `Monthly Salary (${currSymbol})`, key: "salary", type: "number" },
           { label: "Age", key: "age", type: "number" },
         ].map(f => (
           <div key={f.key}>
@@ -281,13 +302,24 @@ function AddInterviewForm({ onAdd }) {
 // ── MAIN M5 ──
 export default function M5ExitAnalyzer() {
   const { company, data } = useApp();
-  const [interviews, setInterviews] = useState(SAMPLE_INTERVIEWS);
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [aiInsights, setAiInsights] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [filterCat, setFilterCat] = useState("All");
-  const [filterDept, setFilterDept] = useState("All");
+  const { fmt, config: cfg } = useCurrency();
+  const currSymbol = cfg?.symbol || "$";
+  const [interviews, setInterviews]     = useState(SAMPLE_INTERVIEWS);
+  const [activeTab, setActiveTab]       = useState("dashboard");
+  const [aiInsights, setAiInsights]     = useState(null);
+  const [aiLoading, setAiLoading]       = useState(false);
+  const [filterCat, setFilterCat]       = useState("All");
+  const [filterDept, setFilterDept]     = useState("All");
+  const [search, setSearch]             = useState("");
+  const [compareA, setCompareA]         = useState(null);
+  const [compareB, setCompareB]         = useState(null);
+  const [showCompare, setShowCompare]   = useState(false);
 
+  // Auto dept list from HR data
+  const deptOptions = useMemo(() => {
+    const fromData = [...new Set(data.map(d => d.Department).filter(Boolean))];
+    return fromData.length > 0 ? fromData : ["Sales","Technical Support","IT","HR","Digital Marketing","Operations","Finance","Other"];
+  }, [data]);
   const analyzed = useMemo(() => interviews.map(iv => ({
     ...iv, analysis: categorizeInterview(iv.text)
   })), [interviews]);
@@ -295,8 +327,9 @@ export default function M5ExitAnalyzer() {
   const filtered = useMemo(() => analyzed.filter(iv => {
     if (filterCat !== "All" && iv.analysis.primary !== filterCat) return false;
     if (filterDept !== "All" && iv.dept !== filterDept) return false;
+    if (search && !`${iv.name} ${iv.dept} ${iv.text}`.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }), [analyzed, filterCat, filterDept]);
+  }), [analyzed, filterCat, filterDept, search]);
 
   const depts = useMemo(() => ["All", ...new Set(interviews.map(iv => iv.dept))], [interviews]);
 
@@ -317,26 +350,100 @@ export default function M5ExitAnalyzer() {
 
   // Pattern detection
   const patterns = useMemo(() => {
+    if (analyzed.length === 0) return [];
     const results = [];
+
+    // Pattern 1: Compound issues
     const compCount = analyzed.filter(iv => iv.analysis.primary === "Compensation" || iv.analysis.secondary === "Compensation").length;
     const workCount = analyzed.filter(iv => iv.analysis.primary === "Workload" || iv.analysis.secondary === "Workload").length;
     const bothCount = analyzed.filter(iv =>
       (iv.analysis.primary === "Compensation" || iv.analysis.secondary === "Compensation") &&
       (iv.analysis.primary === "Workload" || iv.analysis.secondary === "Workload")
     ).length;
-    if (bothCount > 1) results.push({ icon: "🔗", text: `${bothCount} interviews mention BOTH compensation AND workload — these two issues are compounding each other.`, severity: "critical" });
-    const earlyExit = analyzed.filter(iv => iv.tenure < 1).length;
-    if (earlyExit > 0) results.push({ icon: "🚪", text: `${earlyExit} employee(s) left within the first year — onboarding and early-stage retention needs urgent attention.`, severity: "high" });
+    if (bothCount > 1) results.push({ icon: "🔗", text: `${bothCount} interviews mention BOTH compensation AND workload — compounding effect. Fixing one alone won't stop the exodus.`, severity: "critical" });
+
+    // Pattern 2: Early exits
+    const earlyExit = analyzed.filter(iv => (iv.tenure || 0) < 1).length;
+    if (earlyExit > 0) results.push({ icon: "🚪", text: `${earlyExit} employee(s) left within first year — onboarding failure or role mismatch. Cost: ${earlyExit}× full replacement fee with zero productivity return.`, severity: "high" });
+
+    // Pattern 3: Gen Z silent drift
     const genZCount = analyzed.filter(iv => Number(iv.age) < 26).length;
-    if (genZCount > 0) results.push({ icon: "🔕", text: `${genZCount} Gen Z departure(s) detected — all show mentorship/guidance deficiency patterns. Silent Drift risk confirmed.`, severity: "high" });
-    const topMonth = Object.entries(analyzed.reduce((acc, iv) => { acc[iv.date] = (acc[iv.date] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1])[0];
-    if (topMonth && topMonth[1] > 1) results.push({ icon: "📅", text: `Peak departure month: ${topMonth[0]} with ${topMonth[1]} exits — investigate what triggered this spike.`, severity: "medium" });
-    if (compCount >= analyzed.length * 0.5) results.push({ icon: "💸", text: `${((compCount / analyzed.length) * 100).toFixed(0)}% of exits mention compensation — this is systemic, not individual.`, severity: "critical" });
-    return results;
+    if (genZCount > 0) results.push({ icon: "🔕", text: `${genZCount} Gen Z departure(s) — mentorship/guidance deficiency confirmed. Silent Drift pattern: they disengaged months before resigning.`, severity: "high" });
+
+    // Pattern 4: Peak departure month
+    const monthMap = analyzed.reduce((acc, iv) => { acc[iv.date] = (acc[iv.date] || 0) + 1; return acc; }, {});
+    const topMonth = Object.entries(monthMap).sort((a, b) => b[1] - a[1])[0];
+    if (topMonth && topMonth[1] > 1) results.push({ icon: "📅", text: `Peak departure: ${topMonth[0]} with ${topMonth[1]} exits — investigate trigger event (policy change? performance review cycle? manager change?).`, severity: "medium" });
+
+    // Pattern 5: Systemic compensation
+    if (compCount >= analyzed.length * 0.5) results.push({ icon: "💸", text: `${((compCount / analyzed.length) * 100).toFixed(0)}% of exits cite compensation — this is organizational failure, not individual negotiation failure.`, severity: "critical" });
+
+    // Pattern 6: High retainable exits
+    const retainable = analyzed.filter(iv => iv.analysis.retentionProbability >= 60).length;
+    if (retainable > 0) results.push({ icon: "💔", text: `${retainable} exit(s) had ≥60% retention probability — meaning they were preventable. Estimated cost: ${retainable} × replacement fees lost unnecessarily.`, severity: "high" });
+
+    // Pattern 7: Single dept overrepresented
+    const deptCounts = analyzed.reduce((acc, iv) => { acc[iv.dept] = (acc[iv.dept] || 0) + 1; return acc; }, {});
+    const topDept = Object.entries(deptCounts).sort((a, b) => b[1] - a[1])[0];
+    if (topDept && topDept[1] >= Math.ceil(analyzed.length * 0.4) && analyzed.length >= 3) {
+      results.push({ icon: "🏢", text: `${topDept[0]} accounts for ${topDept[1]} of ${analyzed.length} exits (${((topDept[1]/analyzed.length)*100).toFixed(0)}%) — dept-specific crisis, not company-wide.`, severity: topDept[1] >= analyzed.length * 0.6 ? "critical" : "high" });
+    }
+
+    // Pattern 8: Manager/leadership theme
+    const mgmtCount = analyzed.filter(iv => iv.analysis.primary === "Management" || iv.analysis.secondary === "Management").length;
+    if (mgmtCount >= 2) results.push({ icon: "👤", text: `${mgmtCount} exits cite management issues — check if this clusters around specific managers. One bad manager can trigger cascade resignations.`, severity: mgmtCount >= 3 ? "critical" : "high" });
+
+    // Pattern 9: Career stagnation
+    const careerCount = analyzed.filter(iv => iv.analysis.primary === "Career").length;
+    if (careerCount >= 2) results.push({ icon: "📈", text: `${careerCount} exits cite lack of career growth — these are your highest-potential employees leaving. Create visible promotion paths immediately.`, severity: "medium" });
+
+    // Pattern 10: Overtime cluster
+    if (workCount >= analyzed.length * 0.4) results.push({ icon: "⏱️", text: `${workCount} exits mention unsustainable workload — ${((workCount/analyzed.length)*100).toFixed(0)}% of your departures are burnout-driven. Headcount addition is now a retention strategy.`, severity: workCount >= analyzed.length * 0.6 ? "critical" : "high" });
+
+    return results.sort((a, b) => {
+      const order = { critical: 0, high: 1, medium: 2 };
+      return order[a.severity] - order[b.severity];
+    });
   }, [analyzed]);
 
   const keywords = useMemo(() => extractKeywords(interviews), [interviews]);
+// Persona clustering
+  const personaClusters = useMemo(() => {
+    const clusters = {
+      "💸 The Underpaid Performer": analyzed.filter(iv => iv.analysis.primary === "Compensation" && iv.analysis.sentiment.score >= 35),
+      "🔥 The Burned-Out Worker": analyzed.filter(iv => iv.analysis.primary === "Workload" || (iv.analysis.secondary === "Workload" && iv.analysis.scores["Workload"] >= 2)),
+      "🔕 The Silent Drifter": analyzed.filter(iv => Number(iv.age) < 26 && iv.analysis.sentiment.score < 40),
+      "📈 The Blocked Climber": analyzed.filter(iv => iv.analysis.primary === "Career"),
+      "👤 The Manager Victim": analyzed.filter(iv => iv.analysis.primary === "Management" || iv.analysis.secondary === "Management"),
+      "🚪 The Early Quitter": analyzed.filter(iv => (iv.tenure || 0) < 1),
+    };
+    return Object.entries(clusters).filter(([, members]) => members.length > 0);
+  }, [analyzed]);
 
+  // Avg retention probability
+  const avgRetentionProbability = useMemo(() => {
+    if (analyzed.length === 0) return 0;
+    return Math.round(analyzed.reduce((s, iv) => s + iv.analysis.retentionProbability, 0) / analyzed.length);
+  }, [analyzed]);
+
+  // Export interviews as CSV
+  const exportCSV = useCallback(() => {
+    const headers = ["Name","Department","Date","Tenure","Salary","Age","Primary Reason","Secondary Reason","Sentiment Score","Sentiment Label","Retention Probability","Text Preview"];
+    const rows = analyzed.map(iv => [
+      iv.name || "Anonymous", iv.dept, iv.date, iv.tenure, iv.salary, iv.age,
+      iv.analysis.primary, iv.analysis.secondary || "",
+      iv.analysis.sentiment.score, iv.analysis.sentiment.label,
+      iv.analysis.retentionProbability,
+      `"${(iv.text || "").slice(0, 100).replace(/"/g, "'")}"`
+    ].join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `exit_interviews_${Date.now()}.csv`;
+    a.click();
+  }, [analyzed]);
+  
   const handleAI = useCallback(async () => {
     setAiLoading(true);
     setAiInsights(null);
@@ -350,12 +457,14 @@ export default function M5ExitAnalyzer() {
   }, [interviews, company]);
 
   const TABS = [
-    { id: "dashboard", label: "📊 Dashboard" },
+    { id: "dashboard",  label: "📊 Dashboard" },
     { id: "interviews", label: "📋 All Interviews" },
-    { id: "patterns", label: "🔍 Pattern Analysis" },
-    { id: "wordcloud", label: "☁️ Keyword Cloud" },
+    { id: "patterns",   label: "🔍 Patterns" },
+    { id: "personas",   label: "🎭 Personas" },
+    { id: "compare",    label: "⚖️ Compare" },
+    { id: "wordcloud",  label: "☁️ Keywords" },
+    { id: "export",     label: "📤 Export" },
   ];
-
   const severityColor = s => s === "critical" ? "#ef4444" : s === "high" ? "#f59e0b" : "#3b82f6";
   const severityBg = s => s === "critical" ? "#fef2f2" : s === "high" ? "#fffbeb" : "#eff6ff";
   const severityBorder = s => s === "critical" ? "#fecaca" : s === "high" ? "#fde68a" : "#bfdbfe";
@@ -386,9 +495,10 @@ export default function M5ExitAnalyzer() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
             {[
               { label: "Total Interviews", value: interviews.length, sub: "Exit interviews analyzed", color: "#3b82f6", icon: "📋", bg: "#eff6ff" },
-              { label: "Top Exit Reason", value: catDist[0]?.[0] || "—", sub: `${catDist[0]?.[1] || 0} mentions`, color: CATEGORIES[catDist[0]?.[0]]?.color || "#94a3b8", icon: CATEGORIES[catDist[0]?.[0]]?.icon || "❓", bg: CATEGORIES[catDist[0]?.[0]]?.bg || "#f8fafc" },
-              { label: "Avg Sentiment", value: sentimentStats.avg, sub: `${sentimentStats.pct}% highly negative`, color: sentimentStats.avg < 35 ? "#ef4444" : sentimentStats.avg < 60 ? "#f59e0b" : "#22c55e", icon: "😔", bg: sentimentStats.avg < 35 ? "#fef2f2" : "#fffbeb" },
-              { label: "Patterns Found", value: patterns.length, sub: "Actionable systemic issues", color: "#8b5cf6", icon: "🔍", bg: "#f5f3ff" },
+            { label: "Top Exit Reason", value: catDist[0]?.[0] || "—", sub: `${catDist[0]?.[1] || 0} mentions`, color: CATEGORIES[catDist[0]?.[0]]?.color || "#94a3b8", icon: CATEGORIES[catDist[0]?.[0]]?.icon || "❓", bg: CATEGORIES[catDist[0]?.[0]]?.bg || "#f8fafc" },
+            { label: "Avg Sentiment", value: sentimentStats.avg, sub: `${sentimentStats.pct}% highly negative`, color: sentimentStats.avg < 35 ? "#ef4444" : sentimentStats.avg < 60 ? "#f59e0b" : "#22c55e", icon: "😔", bg: sentimentStats.avg < 35 ? "#fef2f2" : "#fffbeb" },
+            { label: "Patterns Found", value: patterns.length, sub: "Actionable systemic issues", color: "#8b5cf6", icon: "🔍", bg: "#f5f3ff" },
+            { label: "Avg Retainable", value: `${avgRetentionProbability}%`, sub: "Could have been prevented", color: avgRetentionProbability >= 60 ? "#22c55e" : avgRetentionProbability >= 35 ? "#f59e0b" : "#ef4444", icon: "💔", bg: avgRetentionProbability >= 60 ? "#f0fdf4" : "#fef2f2" },
             ].map((k, i) => (
               <div key={i} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", right: 10, top: 8, fontSize: 18, opacity: 0.2 }}>{k.icon}</div>
@@ -469,7 +579,18 @@ export default function M5ExitAnalyzer() {
       {/* ── TAB: ALL INTERVIEWS ── */}
       {activeTab === "interviews" && (
         <div>
-          <AddInterviewForm onAdd={iv => setInterviews(p => [...p, iv])} />
+          <AddInterviewForm onAdd={iv => setInterviews(p => [...p, iv])} deptOptions={deptOptions} currSymbol={currSymbol} />
+
+          {/* Search */}
+          <div style={{ marginBottom: 10 }}>
+            <input
+              type="text"
+              placeholder="🔍 Search by name, department, or keyword in interview text..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ width: "100%", padding: "9px 14px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc", outline: "none", boxSizing: "border-box" }}
+            />
+          </div>                 
 
           {/* Filters */}
           <div style={{ background: "#fff", borderRadius: 12, padding: "12px 16px", border: "1.5px solid #f1f5f9", marginBottom: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
@@ -590,6 +711,194 @@ export default function M5ExitAnalyzer() {
               ))}
             </div>
           </div>
+
+          {/* ── TAB: PERSONAS ── */}
+      {activeTab === "personas" && (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🎭 Exit Persona Clusters</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 20 }}>
+              Auto-grouped by behavioral patterns — each persona needs a different intervention strategy
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>
+              {personaClusters.map(([persona, members]) => {
+                const topCat = members[0]?.analysis?.primary || "Culture";
+                const cfg = CATEGORIES[topCat] || CATEGORIES["Culture"];
+                const avgRetain = Math.round(members.reduce((s, iv) => s + iv.analysis.retentionProbability, 0) / members.length);
+                return (
+                  <div key={persona} style={{ background: cfg.bg, borderRadius: 13, padding: "16px 18px", border: `1.5px solid ${cfg.border}` }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: cfg.color, marginBottom: 6 }}>{persona}</div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>{members.length} employee(s) match this profile</div>
+
+                    {/* Members */}
+                    <div style={{ marginBottom: 12 }}>
+                      {members.map((iv, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < members.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                          <span style={{ fontSize: 12, color: "#1e293b", fontWeight: 500 }}>{iv.name || "Anonymous"}</span>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <span style={{ fontSize: 10, color: "#94a3b8" }}>{iv.dept}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: iv.analysis.retentionProbability >= 60 ? "#22c55e" : iv.analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444" }}>
+                              {iv.analysis.retentionProbability}% retainable
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Retention avg */}
+                    <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px" }}>
+                      <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Avg Retention Probability</div>
+                      <div style={{ height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
+                        <div style={{ width: `${avgRetain}%`, height: "100%", background: avgRetain >= 60 ? "#22c55e" : avgRetain >= 35 ? "#f59e0b" : "#ef4444", borderRadius: 3 }} />
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: avgRetain >= 60 ? "#22c55e" : avgRetain >= 35 ? "#f59e0b" : "#ef4444" }}>
+                        {avgRetain}% — {avgRetain >= 60 ? "Most were preventable" : avgRetain >= 35 ? "Some were preventable" : "Hard to retain"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: COMPARE ── */}
+      {activeTab === "compare" && (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>⚖️ Interview Comparison</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>Select two interviews to compare side-by-side</div>
+
+            {/* Selectors */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+              {[{ label: "Interview A", val: compareA, setter: setCompareA }, { label: "Interview B", val: compareB, setter: setCompareB }].map(({ label, val, setter }) => (
+                <div key={label}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+                  <select value={val || ""} onChange={e => setter(Number(e.target.value) || null)}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc" }}>
+                    <option value="">— Select interview —</option>
+                    {analyzed.map((iv, i) => (
+                      <option key={i} value={i}>{iv.name || `Anonymous #${i+1}`} · {iv.dept}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {/* Comparison output */}
+            {compareA !== null && compareB !== null && analyzed[compareA] && analyzed[compareB] && (() => {
+              const a = analyzed[compareA], b = analyzed[compareB];
+              const rows = [
+                { label: "Name", va: a.name || "Anonymous", vb: b.name || "Anonymous" },
+                { label: "Department", va: a.dept, vb: b.dept },
+                { label: "Tenure", va: `${a.tenure}y`, vb: `${b.tenure}y` },
+                { label: "Age", va: a.age, vb: b.age },
+                { label: "Primary Reason", va: a.analysis.primary, vb: b.analysis.primary },
+                { label: "Secondary Reason", va: a.analysis.secondary || "—", vb: b.analysis.secondary || "—" },
+                { label: "Sentiment Score", va: a.analysis.sentiment.score, vb: b.analysis.sentiment.score },
+                { label: "Retention Probability", va: `${a.analysis.retentionProbability}%`, vb: `${b.analysis.retentionProbability}%` },
+              ];
+              return (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        {["Metric", a.name || "Interview A", b.name || "Interview B"].map(h => (
+                          <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 600, color: "#475569" }}>{row.label}</td>
+                          <td style={{ padding: "8px 12px", color: "#1e293b" }}>{row.va}</td>
+                          <td style={{ padding: "8px 12px", color: "#1e293b" }}>{row.vb}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Text comparison */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
+                    {[a, b].map((iv, i) => (
+                      <div key={i} style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, color: "#0f172a", marginBottom: 8 }}>{iv.name || `Interview ${i === 0 ? "A" : "B"}`}</div>
+                        <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, fontStyle: "italic" }}>"{iv.text.slice(0, 200)}..."</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: EXPORT ── */}
+      {activeTab === "export" && (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>📤 Export Exit Interview Data</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 20 }}>
+              Full dataset with AI categorization, sentiment scores, and retention probability
+            </div>
+
+            {/* Preview */}
+            <div style={{ overflowX: "auto", marginBottom: 20 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    {["Name","Dept","Date","Tenure","Primary Reason","Sentiment","Retainable"].map(h => (
+                      <th key={h} style={{ padding: "7px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {analyzed.map((iv, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
+                      <td style={{ padding: "7px 10px", fontWeight: 600, color: "#1e293b" }}>{iv.name || "Anonymous"}</td>
+                      <td style={{ padding: "7px 10px", color: "#475569" }}>{iv.dept}</td>
+                      <td style={{ padding: "7px 10px", color: "#94a3b8" }}>{iv.date}</td>
+                      <td style={{ padding: "7px 10px", color: "#64748b" }}>{iv.tenure}y</td>
+                      <td style={{ padding: "7px 10px" }}>
+                        <span style={{ background: CATEGORIES[iv.analysis.primary]?.bg, color: CATEGORIES[iv.analysis.primary]?.color, padding: "2px 7px", borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
+                          {CATEGORIES[iv.analysis.primary]?.icon} {iv.analysis.primary}
+                        </span>
+                      </td>
+                      <td style={{ padding: "7px 10px" }}>
+                        <span style={{ fontWeight: 700, color: iv.analysis.sentiment.color }}>{iv.analysis.sentiment.score}</span>
+                      </td>
+                      <td style={{ padding: "7px 10px" }}>
+                        <span style={{ fontWeight: 700, color: iv.analysis.retentionProbability >= 60 ? "#22c55e" : iv.analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444" }}>
+                          {iv.analysis.retentionProbability}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button onClick={exportCSV}
+                style={{ padding: "12px 24px", borderRadius: 11, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                ⬇ Export Full CSV ({analyzed.length} interviews)
+              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0fdf4", borderRadius: 10, padding: "10px 16px", border: "1px solid #bbf7d0" }}>
+                <span style={{ fontSize: 16 }}>💔</span>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#166534" }}>Preventable Exits</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#15803d" }}>
+                    {analyzed.filter(iv => iv.analysis.retentionProbability >= 60).length} of {analyzed.length} were retainable
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
           {/* Top keywords table */}
           <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
