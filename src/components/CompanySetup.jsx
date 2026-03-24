@@ -10,7 +10,32 @@ export default function CompanySetup({ onSave }) {
     employeeCount: "",
     avgWorkHoursPerWeek: 40,
   });
-  const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
+  const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(false);
+  const DEFAULT_CLIFF_BY_CURRENCY = {
+  USD: 3000,
+  IDR: 5000000,
+  EUR: 2200,
+  GBP: 2300,
+  SGD: 2500,
+};
+  useEffect(() => {
+  if (!hasEditedSalaryCliff) {
+    const defaultCliff = DEFAULT_CLIFF_BY_CURRENCY[form.currency] ?? 5000;
+    setForm(p => ({ ...p, salaryCliff: defaultCliff }));
+  }
+}, [form.currency, hasEditedSalaryCliff]);
+  const set = (key, val) => {
+  let finalVal = val;
+  if (key === 'salaryCliff') {
+    setHasEditedSalaryCliff(true);
+  }
+  const numberFields = ['salaryCliff', 'replacementMultiplier', 'avgWorkHoursPerWeek', 'targetTurnover'];
+  if (numberFields.includes(key)) {
+    finalVal = val === "" ? "" : Number(val);
+  }
+
+  setForm(p => ({ ...p, [key]: finalVal }));
+};
   const valid = form.name.trim().length > 0;
 
   const CURRENCY_SYMBOLS = { USD: "$", IDR: "Rp", EUR: "€", GBP: "£", SGD: "S$" };
@@ -22,7 +47,7 @@ export default function CompanySetup({ onSave }) {
     { label: "Currency", key: "currency", type: "select", opts: ["USD","IDR","EUR","GBP","SGD"] },
     { label: `Salary Safety Cliff (${currSymbol}/month)`, key: "salaryCliff", type: "number", placeholder: form.currency === "IDR" ? "5000000" : "5000", tooltip: "The minimum monthly salary threshold. Employees below this are statistically at higher attrition risk." },
     { label: "Replacement Cost Multiplier (×annual salary)", key: "replacementMultiplier", type: "number", placeholder: "1.5", tooltip: "Cost to replace 1 employee = annual salary × this multiplier. Industry standard: 1.5× (conservative) to 3× (specialist roles). Covers recruiting, onboarding, lost productivity." },
-    { label: "Total Employees (optional)", key: "employeeCount", type: "number", placeholder: "e.g. 250", tooltip: "Used to calculate org-wide cost projections in M6 ROI Calculator." },
+   { label: "Target Turnover Rate (%)", key: "targetTurnover", type: "number", placeholder: "e.g. 10", tooltip: "Maximum target for employees leaving per year  (example : 10%)." },
     { label: "Avg Work Hours / Week", key: "avgWorkHoursPerWeek", type: "number", placeholder: "40", tooltip: "Standard work hours per week at your company. Used by M7 Fatigue Radar to detect burnout risk." },
   ];
 
@@ -88,7 +113,7 @@ export default function CompanySetup({ onSave }) {
             ) : (
               <input
                 type={f.type}
-                value={form[f.key]}
+                value={form[f.key] === "" ? "" : form[f.key]}
                 placeholder={f.placeholder}
                 onChange={e => set(f.key, f.type === "number" ? Number(e.target.value) : e.target.value)}
                 style={{
