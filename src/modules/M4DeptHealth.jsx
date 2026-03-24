@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { useApp, getGeneration, SAMPLE_DATA } from "../context/AppContext";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useApp, useCurrency, getGeneration, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Compute dept health scores ──
 function computeDeptHealth(employees, cliff) {
@@ -55,13 +55,25 @@ function computeDeptHealth(employees, cliff) {
       }
     };
 
+    // Risk Velocity — composite speed of deterioration
+    const riskVelocity = Math.min(100, Math.round(
+      (attritionRate * 0.4) +
+      (overtimePct * 0.3) +
+      ((10 - avgSat) * 4) +
+      (belowCliffPct * 0.2)
+    ));
+
+    // Intervention urgency
+    const urgency = riskVelocity >= 70 ? "CRITICAL" : riskVelocity >= 45 ? "HIGH" : riskVelocity >= 25 ? "MEDIUM" : "LOW";
+    const urgencyColor = riskVelocity >= 70 ? "#ef4444" : riskVelocity >= 45 ? "#f97316" : riskVelocity >= 25 ? "#f59e0b" : "#22c55e";
+
     const metrics = {
-      attrition: { value: attritionRate.toFixed(1), unit: "%", light: trafficLight(attritionRate, [40, 20]), label: "Attrition Rate" },
-      overtime: { value: overtimePct.toFixed(1), unit: "%", light: trafficLight(overtimePct, [70, 40]), label: "Overtime Exposure" },
-      satisfaction: { value: avgSat.toFixed(1), unit: "/10", light: trafficLight(avgSat, [7, 5], true), label: "Avg Satisfaction" },
-      salary: { value: Math.round(avgSal).toLocaleString(), unit: "$", light: trafficLight(avgSal, [cliff, cliff * 0.9], true), label: "Avg Salary" },
-      belowCliff: { value: belowCliffPct.toFixed(1), unit: "%", light: trafficLight(belowCliffPct, [60, 30]), label: "Below Cliff" },
-      humanBuffer: { value: humanBuffer, unit: "%", light: trafficLight(humanBuffer, [40, 60], true), label: "Human Buffer" },
+      attrition:   { value: attritionRate.toFixed(1), unit: "%",  light: trafficLight(attritionRate, [40, 20]),        label: "Attrition Rate" },
+      overtime:    { value: overtimePct.toFixed(1),   unit: "%",  light: trafficLight(overtimePct, [70, 40]),          label: "Overtime Exposure" },
+      satisfaction:{ value: avgSat.toFixed(1),        unit: "/10",light: trafficLight(avgSat, [7, 5], true),           label: "Avg Satisfaction" },
+      salary:      { value: Math.round(avgSal),        unit: "currency", light: trafficLight(avgSal, [cliff, cliff * 0.9], true), label: "Avg Salary" },
+      belowCliff:  { value: belowCliffPct.toFixed(1), unit: "%",  light: trafficLight(belowCliffPct, [60, 30]),        label: "Below Cliff" },
+      humanBuffer: { value: humanBuffer,               unit: "%",  light: trafficLight(humanBuffer, [40, 60], true),   label: "Human Buffer" },
     };
 
     // Overall health score (weighted)
@@ -78,12 +90,14 @@ function computeDeptHealth(employees, cliff) {
       attritionRate, overtimePct, avgSat, avgSal,
       avgTenure, belowCliff, belowCliffPct,
       humanBuffer, burnoutIndex, survivorRisk, survivorLoad,
+      riskVelocity, urgency, urgencyColor,
       metrics, healthScore,
       genBreakdown: {
-        genZ: emps.filter(e => getGeneration(e.Age) === "Gen Z").length,
+        genZ:       emps.filter(e => getGeneration(e.Age) === "Gen Z").length,
         millennial: emps.filter(e => getGeneration(e.Age) === "Millennial").length,
-        senior: emps.filter(e => getGeneration(e.Age) === "Senior").length,
-      }
+        senior:     emps.filter(e => getGeneration(e.Age) === "Senior").length,
+      },
+      employees: emps,
     };
   }).sort((a, b) => a.healthScore - b.healthScore);
 }
@@ -237,7 +251,7 @@ function HealthRing({ score, size = 80 }) {
 }
 
 // ── Dept Card ──
-function DeptCard({ dept, onSelect, selected }) {
+function DeptCard({ dept, onSelect, selected, currSymbol = "$" }) {
   const color = dept.healthScore >= 70 ? "#22c55e" : dept.healthScore >= 45 ? "#f59e0b" : "#ef4444";
   const bg = dept.healthScore >= 70 ? "#f0fdf4" : dept.healthScore >= 45 ? "#fffbeb" : "#fef2f2";
   const border = dept.healthScore >= 70 ? "#bbf7d0" : dept.healthScore >= 45 ? "#fde68a" : "#fecaca";
@@ -255,7 +269,16 @@ function DeptCard({ dept, onSelect, selected }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{dept.dept}</div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>{dept.total} employees</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+            <span style={{ fontSize: 10, color: "#64748b" }}>{dept.total} employees</span>
+            <span style={{
+              background: dept.urgencyColor + "22",
+              color: dept.urgencyColor,
+              border: `1px solid ${dept.urgencyColor}55`,
+              borderRadius: 20, padding: "1px 7px", fontSize: 9, fontWeight: 800,
+              letterSpacing: "0.05em"
+            }}>{dept.urgency}</span>
+          </div>
         </div>
         <HealthRing score={dept.healthScore} size={52} />
       </div>
@@ -267,7 +290,9 @@ function DeptCard({ dept, onSelect, selected }) {
             <TrafficLight light={m.light} />
             <div>
               <div style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1 }}>{m.label}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>{m.unit === "$" ? "$" : ""}{m.value}{m.unit !== "$" ? m.unit : ""}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>
+                {m.unit === "currency" ? `${currSymbol}${Number(m.value).toLocaleString()}` : `${m.value}${m.unit}`}
+              </div>
             </div>
           </div>
         ))}
@@ -303,6 +328,21 @@ function DeptCard({ dept, onSelect, selected }) {
         </div>
       </div>
 
+{/* Risk Velocity */}
+      <div style={{ marginTop: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#94a3b8", marginBottom: 3 }}>
+          <span>⚡ Risk Velocity</span>
+          <span style={{ fontWeight: 700, color: dept.urgencyColor }}>{dept.riskVelocity}%</span>
+        </div>
+        <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{
+            width: `${dept.riskVelocity}%`, height: "100%", borderRadius: 2,
+            background: `linear-gradient(90deg, ${dept.urgencyColor}88, ${dept.urgencyColor})`,
+            transition: "width 0.6s ease",
+          }} />
+        </div>
+      </div>
+      
       {/* Survivor Burnout Alert */}
       {dept.survivorRisk && (
         <CriticalAlert dept={dept.dept} attritionRate={dept.attritionRate} survivorLoad={dept.survivorLoad} />
@@ -312,7 +352,7 @@ function DeptCard({ dept, onSelect, selected }) {
 }
 
 // ── Dept Detail Panel ──
-function DeptDetail({ dept, allDepts, cliff }) {
+function DeptDetail({ dept, allDepts, cliff, currSymbol = "$", fmt }) {
   const color = dept.healthScore >= 70 ? "#22c55e" : dept.healthScore >= 45 ? "#f59e0b" : "#ef4444";
   const others = allDepts.filter(d => d.dept !== dept.dept);
 
@@ -375,7 +415,7 @@ function DeptDetail({ dept, allDepts, cliff }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 11, color: "#64748b" }}>{m.label}</div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: lightColors[m.light] }}>
-                      {m.unit === "$" ? "$" : ""}{m.value}{m.unit !== "$" ? m.unit : ""}
+                      {m.unit === "currency" ? `${currSymbol}${Number(m.value).toLocaleString()}` : `${m.value}${m.unit}`}
                     </div>
                   </div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: lightColors[m.light], textTransform: "uppercase" }}>
@@ -423,20 +463,93 @@ function DeptDetail({ dept, allDepts, cliff }) {
 // ── MAIN M4 ──
 export default function M4DeptHealth() {
   const { data, company } = useApp();
+  const { fmt, config: cfg } = useCurrency();
+  const currSymbol = cfg?.symbol || "$";
   const src = data.length > 0 ? data : SAMPLE_DATA;
   const cliff = company?.salaryCliff || 5000;
-  const [selected, setSelected] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [selected, setSelected]     = useState(null);
+  const [activeTab, setActiveTab]   = useState("overview");
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiPlan, setAiPlan]         = useState(null);
 
   const depts = useMemo(() => computeDeptHealth(src, cliff), [src, cliff]);
   const criticalDepts = depts.filter(d => d.survivorRisk);
   const avgHealth = depts.length > 0 ? Math.round(depts.reduce((s, d) => s + d.healthScore, 0) / depts.length) : 0;
   const selectedDept = depts.find(d => d.dept === selected) || depts[0];
 
+// ── AI Intervention Plan ──
+  const fetchAIPlan = useCallback(async (dept) => {
+    setAiLoading(true);
+    setAiPlan(null);
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: `You are an HR intervention specialist at ${company?.name || "a company"} (${company?.industry || "services"} industry).
+
+Department: ${dept.dept}
+Health Score: ${dept.healthScore}/100
+Urgency: ${dept.urgency}
+Key Issues:
+- Attrition Rate: ${dept.attritionRate.toFixed(1)}%
+- Overtime Exposure: ${dept.overtimePct.toFixed(1)}%
+- Avg Satisfaction: ${dept.avgSat.toFixed(1)}/10
+- Human Buffer: ${dept.humanBuffer}%
+- Burnout Index: ${dept.burnoutIndex}%
+- Survivor Risk: ${dept.survivorRisk ? "YES - secondary burnout imminent" : "No"}
+- Risk Velocity: ${dept.riskVelocity}%
+
+Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
+{
+  "diagnosis": "2 sentence diagnosis of root cause",
+  "week1_14": "Immediate action: what to do in first 2 weeks",
+  "week15_30": "Short-term: what to do in weeks 3-4",
+  "week31_60": "Mid-term: what to do in weeks 5-8",
+  "week61_90": "Long-term: what to do in weeks 9-12",
+  "kpi": "One measurable KPI to track success",
+  "risk_if_ignored": "What happens in 90 days if nothing is done"
+}`
+          }]
+        })
+      });
+      const data2 = await response.json();
+      const text = data2.content?.[0]?.text || "{}";
+      setAiPlan(JSON.parse(text.replace(/```json|```/g, "").trim()));
+    } catch {
+      setAiPlan({ diagnosis: "AI unavailable. Please check connection.", week1_14: "—", week15_30: "—", week31_60: "—", week61_90: "—", kpi: "—", risk_if_ignored: "—" });
+    }
+    setAiLoading(false);
+  }, [company]);
+
+  // ── Export health report ──
+  const exportHealthCSV = useCallback(() => {
+    const headers = ["Department","Health Score","Urgency","Attrition %","Overtime %","Avg Satisfaction","Avg Salary","Below Cliff","Human Buffer %","Burnout Index","Risk Velocity","Survivor Risk"];
+    const rows = depts.map(d => [
+      d.dept, d.healthScore, d.urgency,
+      d.attritionRate.toFixed(1), d.overtimePct.toFixed(1),
+      d.avgSat.toFixed(1), Math.round(d.avgSal),
+      d.belowCliff, d.humanBuffer, d.burnoutIndex,
+      d.riskVelocity, d.survivorRisk ? "YES" : "No"
+    ].join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `dept_health_report_${Date.now()}.csv`;
+    a.click();
+  }, [depts]);
+  
   const TABS = [
-    { id: "overview", label: "🏥 All Departments" },
-    { id: "detail", label: "🔍 Dept Deep-Dive" },
-    { id: "compare", label: "⚖️ Side-by-Side Compare" },
+    { id: "overview",  label: "🏥 Overview" },
+    { id: "detail",    label: "🔍 Deep-Dive" },
+    { id: "compare",   label: "⚖️ Compare" },
+    { id: "action",    label: "📅 Action Plan" },
+    { id: "export",    label: "📤 Export" },
   ];
 
   return (
@@ -501,7 +614,7 @@ export default function M4DeptHealth() {
           {/* Dept Cards Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
             {depts.map(d => (
-              <DeptCard key={d.dept} dept={d} onSelect={dept => { setSelected(dept); setActiveTab("detail"); }} selected={selected === d.dept} />
+              <DeptCard key={d.dept} dept={d} onSelect={dept => { setSelected(dept); setActiveTab("detail"); }} selected={selected === d.dept} currSymbol={currSymbol} />
             ))}
           </div>
 
@@ -543,7 +656,7 @@ export default function M4DeptHealth() {
               );
             })}
           </div>
-          {selectedDept && <DeptDetail dept={selectedDept} allDepts={depts} cliff={cliff} />}
+          {selectedDept && <DeptDetail dept={selectedDept} allDepts={depts} cliff={cliff} currSymbol={currSymbol} fmt={fmt} />}
         </div>
       )}
 
@@ -567,7 +680,7 @@ export default function M4DeptHealth() {
                     { label: "Attrition Rate", key: d => d.attritionRate.toFixed(1), fmt: v => `${v}%`, colorFn: v => v >= 40 ? "#ef4444" : v >= 20 ? "#f59e0b" : "#22c55e" },
                     { label: "Overtime %", key: d => d.overtimePct.toFixed(1), fmt: v => `${v}%`, colorFn: v => v >= 70 ? "#ef4444" : v >= 40 ? "#f59e0b" : "#22c55e" },
                     { label: "Avg Satisfaction", key: d => d.avgSat.toFixed(1), fmt: v => `${v}/10`, colorFn: v => v >= 7 ? "#22c55e" : v >= 5 ? "#f59e0b" : "#ef4444" },
-                    { label: "Avg Salary", key: d => Math.round(d.avgSal), fmt: v => `$${v.toLocaleString()}`, colorFn: () => "#3b82f6" },
+                    { label: "Avg Salary", key: d => Math.round(d.avgSal), fmt: v => `${currSymbol}${v.toLocaleString()}`, colorFn: () => "#3b82f6" },
                     { label: "Human Buffer", key: d => d.humanBuffer, fmt: v => `${v}%`, colorFn: v => v >= 60 ? "#22c55e" : v >= 30 ? "#f59e0b" : "#ef4444" },
                     { label: "Burnout Index", key: d => d.burnoutIndex, fmt: v => `${v}%`, colorFn: v => v >= 70 ? "#ef4444" : v >= 40 ? "#f59e0b" : "#22c55e" },
                     { label: "Survivor Risk", key: d => d.survivorRisk ? "YES" : "No", fmt: v => v, colorFn: v => v === "YES" ? "#ef4444" : "#22c55e" },
@@ -589,6 +702,203 @@ export default function M4DeptHealth() {
               </table>
             </div>
           </div>
+
+          {/* ── TAB: ACTION PLAN ── */}
+      {activeTab === "action" && (
+        <div>
+          {/* Dept selector */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {depts.map(d => (
+              <button key={d.dept} onClick={() => { setSelected(d.dept); setAiPlan(null); }}
+                style={{
+                  padding: "7px 14px", borderRadius: 9, border: "none", cursor: "pointer",
+                  background: selected === d.dept ? d.urgencyColor : "#f1f5f9",
+                  color: selected === d.dept ? "#fff" : "#64748b",
+                  fontWeight: selected === d.dept ? 700 : 500, fontSize: 12,
+                  transition: "all 0.15s",
+                }}>
+                {d.dept}
+                <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.8 }}>({d.urgency})</span>
+              </button>
+            ))}
+          </div>
+
+          {selectedDept && (
+            <div>
+              {/* Header */}
+              <div style={{ background: selectedDept.urgencyColor + "11", borderRadius: 14, padding: "18px 20px", border: `1.5px solid ${selectedDept.urgencyColor}33`, marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+                      📅 90-Day Intervention Plan — {selectedDept.dept}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>
+                      Health: {selectedDept.healthScore}/100 · Urgency: <strong style={{ color: selectedDept.urgencyColor }}>{selectedDept.urgency}</strong> · Risk Velocity: {selectedDept.riskVelocity}%
+                    </div>
+                  </div>
+                  <button onClick={() => fetchAIPlan(selectedDept)} disabled={aiLoading}
+                    style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: aiLoading ? "#f1f5f9" : "#0f172a", color: aiLoading ? "#94a3b8" : "#fff", fontWeight: 700, fontSize: 12, cursor: aiLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
+                    {aiLoading ? "⏳ Generating..." : "🤖 AI Generate Plan"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Manual quick actions based on metrics */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12, marginBottom: 16 }}>
+                {selectedDept.overtimePct > 40 && (
+                  <div style={{ background: "#fff7ed", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #fed7aa" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#c2410c", marginBottom: 6 }}>⏱️ Overtime Intervention</div>
+                    <div style={{ fontSize: 11, color: "#78350f", lineHeight: 1.6 }}>
+                      {selectedDept.overtimePct.toFixed(0)}% OT exposure detected. Recommended: hire {Math.ceil(selectedDept.total * 0.15)} additional staff or redistribute {Math.round(selectedDept.withOT || 0)} overtime roles.
+                    </div>
+                  </div>
+                )}
+                {selectedDept.avgSat < 5 && (
+                  <div style={{ background: "#fef2f2", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #fecaca" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#dc2626", marginBottom: 6 }}>😔 Satisfaction Recovery</div>
+                    <div style={{ fontSize: 11, color: "#7f1d1d", lineHeight: 1.6 }}>
+                      Avg satisfaction {selectedDept.avgSat.toFixed(1)}/10 — critically low. Launch anonymous pulse survey within 7 days. Schedule skip-level 1:1s immediately.
+                    </div>
+                  </div>
+                )}
+                {selectedDept.belowCliff > 0 && (
+                  <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #bbf7d0" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#166534", marginBottom: 6 }}>💰 Salary Cliff Fix</div>
+                    <div style={{ fontSize: 11, color: "#14532d", lineHeight: 1.6 }}>
+                      {selectedDept.belowCliff} employees below {currSymbol}{cliff.toLocaleString()} cliff. Est. fix cost: {fmt(selectedDept.belowCliff * (cliff - selectedDept.avgSal), true)}/mo. ROI: reduces attrition risk immediately.
+                    </div>
+                  </div>
+                )}
+                {selectedDept.survivorRisk && (
+                  <div style={{ background: "#fef2f2", borderRadius: 12, padding: "14px 16px", border: "2px solid #ef4444" }}>
+                    <div style={{ fontWeight: 800, fontSize: 12, color: "#dc2626", marginBottom: 6 }}>🚨 Survivor Burnout — URGENT</div>
+                    <div style={{ fontSize: 11, color: "#7f1d1d", lineHeight: 1.6 }}>
+                      {selectedDept.active} active employees carrying ~{selectedDept.survivorLoad}% extra load. Redistribute tasks NOW. Temp hire within 2 weeks or risk secondary wave.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* AI Plan output */}
+              {aiPlan && (
+                <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🤖 AI-Generated 90-Day Plan</div>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>Generated for {selectedDept.dept} · {company?.name}</div>
+
+                  {aiPlan.diagnosis && (
+                    <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", marginBottom: 14, border: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 4 }}>🩺 Diagnosis</div>
+                      <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.6 }}>{aiPlan.diagnosis}</div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                    {[
+                      { label: "Week 1–2", key: "week1_14", color: "#ef4444", icon: "🚨" },
+                      { label: "Week 3–4", key: "week15_30", color: "#f97316", icon: "⚡" },
+                      { label: "Week 5–8", key: "week31_60", color: "#f59e0b", icon: "📈" },
+                      { label: "Week 9–12", key: "week61_90", color: "#22c55e", icon: "✅" },
+                    ].map(phase => (
+                      <div key={phase.key} style={{ background: phase.color + "11", borderRadius: 10, padding: "12px 14px", border: `1px solid ${phase.color}33` }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: phase.color, marginBottom: 6 }}>{phase.icon} {phase.label}</div>
+                        <div style={{ fontSize: 11, color: "#1e293b", lineHeight: 1.6 }}>{aiPlan[phase.key]}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {aiPlan.kpi && (
+                    <div style={{ background: "#eff6ff", borderRadius: 10, padding: "10px 14px", border: "1px solid #bfdbfe", marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#1d4ed8", marginBottom: 3 }}>📊 Success KPI</div>
+                      <div style={{ fontSize: 12, color: "#1e3a8a" }}>{aiPlan.kpi}</div>
+                    </div>
+                  )}
+
+                  {aiPlan.risk_if_ignored && (
+                    <div style={{ background: "#fef2f2", borderRadius: 10, padding: "10px 14px", border: "1px solid #fecaca" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", marginBottom: 3 }}>⚠️ Risk If Ignored</div>
+                      <div style={{ fontSize: 12, color: "#7f1d1d" }}>{aiPlan.risk_if_ignored}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: EXPORT ── */}
+      {activeTab === "export" && (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>📤 Export Department Health Report</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 20 }}>
+              Full report including all metrics, urgency ratings, and risk velocity scores
+            </div>
+
+            {/* Preview table */}
+            <div style={{ overflowX: "auto", marginBottom: 20 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    {["Department","Health","Urgency","Attrition","OT%","Satisfaction","Avg Salary","Buffer","Burnout","Velocity"].map(h => (
+                      <th key={h} style={{ padding: "8px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {depts.map((d, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
+                      <td style={{ padding: "8px 10px", fontWeight: 600, color: "#1e293b" }}>{d.dept}</td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <span style={{ fontWeight: 800, color: d.healthScore >= 70 ? "#22c55e" : d.healthScore >= 45 ? "#f59e0b" : "#ef4444" }}>{d.healthScore}</span>
+                      </td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <span style={{ background: d.urgencyColor + "22", color: d.urgencyColor, padding: "2px 7px", borderRadius: 20, fontSize: 9, fontWeight: 800 }}>{d.urgency}</span>
+                      </td>
+                      <td style={{ padding: "8px 10px", color: d.attritionRate >= 40 ? "#ef4444" : "#475569", fontWeight: 600 }}>{d.attritionRate.toFixed(1)}%</td>
+                      <td style={{ padding: "8px 10px", color: d.overtimePct >= 70 ? "#ef4444" : "#475569" }}>{d.overtimePct.toFixed(1)}%</td>
+                      <td style={{ padding: "8px 10px", color: d.avgSat < 5 ? "#ef4444" : "#475569" }}>{d.avgSat.toFixed(1)}/10</td>
+                      <td style={{ padding: "8px 10px", color: "#3b82f6", fontWeight: 600 }}>{fmt(Math.round(d.avgSal), true)}</td>
+                      <td style={{ padding: "8px 10px", color: d.humanBuffer < 30 ? "#ef4444" : "#475569" }}>{d.humanBuffer}%</td>
+                      <td style={{ padding: "8px 10px", color: d.burnoutIndex > 70 ? "#ef4444" : "#475569" }}>{d.burnoutIndex}%</td>
+                      <td style={{ padding: "8px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <div style={{ width: 30, height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                            <div style={{ width: `${d.riskVelocity}%`, height: "100%", background: d.urgencyColor, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: d.urgencyColor }}>{d.riskVelocity}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button onClick={exportHealthCSV}
+              style={{ padding: "12px 24px", borderRadius: 11, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              ⬇ Download Full Report CSV
+            </button>
+          </div>
+
+          {/* Quick summary cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+            {[
+              { label: "Critical Depts", value: depts.filter(d => d.urgency === "CRITICAL").length, color: "#ef4444", icon: "🚨", sub: "need immediate action" },
+              { label: "High Urgency", value: depts.filter(d => d.urgency === "HIGH").length, color: "#f97316", icon: "⚡", sub: "need action this week" },
+              { label: "Avg Org Health", value: `${avgHealth}/100`, color: avgHealth >= 70 ? "#22c55e" : avgHealth >= 45 ? "#f59e0b" : "#ef4444", icon: "🏥", sub: "weighted average" },
+              { label: "Survivor Risk Depts", value: criticalDepts.length, color: "#8b5cf6", icon: "⚠️", sub: "secondary burnout risk" },
+            ].map((k, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 13, padding: "16px 18px", border: `1.5px solid ${k.color}22` }}>
+                <div style={{ fontSize: 22, marginBottom: 6 }}>{k.icon}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
           {/* Cross-module insight */}
           <div style={{ background: "#fff8f0", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #fed7aa" }}>
