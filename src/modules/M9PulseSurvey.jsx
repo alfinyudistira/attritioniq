@@ -358,7 +358,7 @@ function BenchmarkChart({ history, metric }) {
 
 // ── MAIN M9 ──
 export default function M9PulseSurvey() {
-  const { data, company } = useApp();
+  const { data, company, setPulseOverride, pushNotification } = useApp();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [anonymous, setAnonymous] = useState(true);
   const [selectedQuestions, setSelectedQuestions] = useState(QUESTION_BANK.slice(0, 4).map(q => q.id));
@@ -374,6 +374,21 @@ export default function M9PulseSurvey() {
   const history = useMemo(() => generatePulseHistory(data), [data]);
   const current = history[history.length - 1];
   const prev = history[history.length - 2];
+
+    // ── Auto-push latest pulse score to context (M1 can read this) ──
+  useEffect(() => {
+    if (!history || history.length === 0) return;
+    const latest = history[history.length - 1];
+    if (!latest) return;
+    
+    setPulseOverride({
+      orgPulse: latest.orgPulse,
+      deptScores: latest.deptData,
+      week: latest.week,
+      updatedAt: Date.now(),
+    });
+  }, [history, setPulseOverride]);
+
   const src = data.length > 0 ? data : SAMPLE_DATA;
   const depts = [...new Set(src.map(e => e.Department))];
 
