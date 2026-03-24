@@ -6,7 +6,7 @@ E001,John,Doe,Sales,4500,Yes,3,Resigned,2.0,28
 E002,Jane,Smith,HR,5200,No,8,Active,4.0,35`;
 
 export default function DataUpload() {
-  const { data, setData } = useApp();
+  const { data, setData, pushNotification } = useApp();
   const [dragging, setDragging] = useState(false);
   const [msg, setMsg] = useState("");
   const [mappingInfo, setMappingInfo] = useState(null);
@@ -53,6 +53,7 @@ export default function DataUpload() {
 
         setData(parsed);
         setMsg(`✅ ${parsed.length} employees loaded — synced across all modules`);
+        pushNotification(`${parsed.length} employees synced across all modules`, "success");
         setMappingInfo({
           found: foundCols.length,
           foundCols,
@@ -95,7 +96,12 @@ export default function DataUpload() {
             ⬇ Template
           </button>
           <button
-            onClick={() => { setData(SAMPLE_DATA); setMsg(`✅ Sample data loaded — 50 employees from Pulse Digital`); setMappingInfo(null); }}
+            onClick={() => {
+              setData(SAMPLE_DATA);
+              setMsg(`✅ Sample data loaded — 50 employees from Pulse Digital`);
+              setMappingInfo(null);
+              pushNotification("Sample data loaded — 50 employees synced", "success");
+            }}
             style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #f59e0b", background: "#fffbeb", fontSize: 12, color: "#b45309", cursor: "pointer", fontWeight: 700 }}>
             Use Sample Data
           </button>
