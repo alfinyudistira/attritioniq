@@ -14,9 +14,9 @@ function FilterBtn({ val, cur, onSet }) {
   );
 }
 
-function KPICard({ label, value, sub, color, icon, bg }) {
+function KPICard({ label, value, sub, color, icon, bg, title }) {
   return (
-    <div style={{ background: bg, borderRadius: 14, padding: "16px 18px", border: `1.5px solid ${color}22`, position: "relative", overflow: "hidden" }}>
+    <div title={title} style={{ background: bg, borderRadius: 14, padding: "16px 18px", border: `1.5px solid ${color}22`, position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", right: 12, top: 10, fontSize: 20, opacity: 0.2 }}>{icon}</div>
       <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1.1, fontFamily: "'Playfair Display',Georgia,serif" }}>{value}</div>
@@ -103,6 +103,7 @@ function EditModal({ employee, onSave, onClose }) {
 export default function M1Dashboard() {
     const { company, pulseOverride } = useApp();
   const { data, setData, computed } = useHRData();
+  const { appConfig } = useApp(); 
   const { fmt, config: cfg } = useCurrency();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
@@ -167,13 +168,13 @@ export default function M1Dashboard() {
   const genZCrisis = genData.find(g => g.label === "Gen Z" && g.rate >= 0.8);
 
   const kpis = [
-    { label: "Flight Risk",       value: `${flightRisk}%`,          sub: `${resigned + highRisk} of ${total} at risk`,          color: "#ef4444", icon: "🚨", bg: "#fef2f2" },
-    { label: "Resigned",          value: resigned,                   sub: `${total > 0 ? ((resigned/total)*100).toFixed(0) : 0}% of workforce`, color: "#dc2626", icon: "🚪", bg: "#fff1f2" },
-    { label: "High Risk",         value: highRisk,                   sub: "Likely to resign soon",                               color: "#f59e0b", icon: "⚠️", bg: "#fffbeb" },
-    { label: "Active & Safe",     value: active,                     sub: `${total > 0 ? ((active/total)*100).toFixed(0) : 0}% retained`,      color: "#22c55e", icon: "✅", bg: "#f0fdf4" },
-    { label: "Est. Turnover Cost",value: fmt(turnoverCost, true),    sub: `${multiplier}× annual salary formula`,                color: "#8b5cf6", icon: "💸", bg: "#f5f3ff" },
-    { label: "Below Salary Cliff",value: belowCliff,                 sub: `Under ${fmt(cliff)}/mo`,                              color: "#f97316", icon: "📉", bg: "#fff7ed" },
-  ];
+  { label: "Flight Risk", value: `${flightRisk}%`, sub: `${resigned + highRisk} of ${total} at risk`, color: appConfig.colors.high, icon: "🚨", bg: `${appConfig.colors.high}22`, title: "Risk threshold can be changed in the menu  ⚙️" },
+  { label: "Resigned",          value: resigned,                   sub: `${total > 0 ? ((resigned/total)*100).toFixed(0) : 0}% of workforce`, color: appConfig.colors.high, icon: "🚪", bg: `${appConfig.colors.high}22` },
+  { label: "High Risk",         value: highRisk,                   sub: "Likely to resign soon",                               color: appConfig.colors.medium, icon: "⚠️", bg: `${appConfig.colors.medium}22` },
+  { label: "Active & Safe",     value: active,                     sub: `${total > 0 ? ((active/total)*100).toFixed(0) : 0}% retained`,      color: appConfig.colors.low, icon: "✅", bg: `${appConfig.colors.low}22` },
+  { label: "Est. Turnover Cost",value: fmt(turnoverCost, true),    sub: `${multiplier}× annual salary formula`,                color: "#8b5cf6", icon: "💸", bg: "#f5f3ff" },
+  { label: "Below Salary Cliff",value: belowCliff,                 sub: `Under ${fmt(cliff)}/mo`,                              color: "#f97316", icon: "📉", bg: "#fff7ed" },
+];
 
   // Pagination
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -252,10 +253,10 @@ export default function M1Dashboard() {
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2, alignSelf: "flex-start" }}>Workforce Status</div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 10, alignSelf: "flex-start" }}>{total} employees</div>
           <DonutChart data={[
-            { label: "Resigned",  value: resigned,  color: "#ef4444" },
-            { label: "High Risk", value: highRisk,  color: "#f59e0b" },
-            { label: "Active",    value: active,    color: "#22c55e" },
-          ]} size={120} />
+  { label: "Resigned",  value: resigned,  color: appConfig.colors.high },
+  { label: "High Risk", value: highRisk,  color: appConfig.colors.medium },
+  { label: "Active",    value: active,    color: appConfig.colors.low },
+]} size={120} />
           <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
             {[{ l: "Resigned", c: "#ef4444", v: resigned }, { l: "High Risk", c: "#f59e0b", v: highRisk }, { l: "Active", c: "#22c55e", v: active }].map(x => (
               <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -270,15 +271,15 @@ export default function M1Dashboard() {
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>By Generation</div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 12 }}>Gen Z · Millennial · Senior</div>
           <BarChart
-            data={genData} valueKey="rate" labelKey="label"
-            colorFn={d => Number(d.rate) > 0.7 ? "#ef4444" : Number(d.rate) > 0.4 ? "#f59e0b" : "#22c55e"}
-          />
+  data={genData} valueKey="rate" labelKey="label"
+  colorFn={d => Number(d.rate) > 0.7 ? appConfig.colors.high : Number(d.rate) > 0.4 ? appConfig.colors.medium : appConfig.colors.low}
+/>
           {genZCrisis && !dismissedAlerts.has("genZ") && (
-            <div style={{ marginTop: 8, background: "#fef2f2", borderRadius: 8, padding: "7px 10px", border: "1px solid #fecaca", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>⚠️ Gen Z Crisis: {(genZCrisis.rate * 100).toFixed(0)}% attrition — mentorship gap detected</span>
-              <button onClick={() => dismissAlert("genZ")} style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>×</button>
-            </div>
-          )}
+  <div style={{ marginTop: 8, background: `${appConfig.colors.high}22`, borderRadius: 8, padding: "7px 10px", border: `1px solid ${appConfig.colors.high}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+    <span style={{ fontSize: 10, color: appConfig.colors.high, fontWeight: 700 }}>⚠️ Gen Z Crisis: {(genZCrisis.rate * 100).toFixed(0)}% attrition — mentorship gap detected</span>
+    <button onClick={() => dismissAlert("genZ")} style={{ background: "none", border: "none", color: appConfig.colors.high, cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>×</button>
+  </div>
+)}
         </div>
       </div>
 
@@ -287,12 +288,17 @@ export default function M1Dashboard() {
         
         <div style={{ flex: "1 1 300px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-             <div style={{ background: "#fef2f2", color: "#ef4444", padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 800, letterSpacing: "0.05em" }}>AI INSIGHT</div>
+             <div style={{ background: `${appConfig.colors.high}22`, color: appConfig.colors.high, padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 800, letterSpacing: "0.05em" }}>AI INSIGHT</div>
              <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>Top Attrition Drivers</div>
           </div>
           <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
             Based on the analysis of <strong>{total}</strong> employee records, our algorithm detected 3 main patterns driving the highest retention risk in your company:
           </div>
+          {flightRisk > 50 && (
+  <div style={{ marginTop: 8, fontSize: 10, color: appConfig.colors.high }}>
+    💡 Tip: You can adjust the risk threshold in the settings menu (⚙️) to see the impact on risk color. 
+  </div>
+)}
         </div>
 
         <div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
