@@ -81,17 +81,19 @@ function EditModal({ employee, onSave, onClose }) {
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Cancel</button>
-          <button onClick={() => {
-  const cleaned = { ...form };
-  if (cleaned.JobSatisfaction === null || cleaned.JobSatisfaction === undefined || cleaned.JobSatisfaction === '') {
-    cleaned.JobSatisfaction = 5;
-  }
-  onSave(cleaned);
-  onClose();
-}}>
-            style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
-            Save Changes
-          </button>
+          <button
+  onClick={() => {
+    const cleaned = { ...form };
+    if (cleaned.JobSatisfaction === null || cleaned.JobSatisfaction === undefined || cleaned.JobSatisfaction === '') {
+      cleaned.JobSatisfaction = 5;
+    }
+    onSave(cleaned);
+    onClose();
+  }}
+  style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+>
+  Save Changes
+</button>
         </div>
       </div>
     </div>
