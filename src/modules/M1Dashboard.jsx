@@ -118,7 +118,7 @@ export default function M1Dashboard() {
     if (otF !== "All" && d.OvertimeStatus !== otF) return false;
     if (search && !`${d.FirstName} ${d.LastName} ${d.Department} ${d.EmployeeID}`.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }), [data, deptF, genF, statusF, otF]);
+    }), [data, deptF, genF, statusF, otF, search]);
 
   const total     = filtered.length;
   const resigned  = filtered.filter(d => d.AttritionStatus === "Resigned").length;
