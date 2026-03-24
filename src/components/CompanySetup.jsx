@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function CompanySetup({ onSave }) {
   const [form, setForm] = useState({
@@ -7,7 +7,7 @@ export default function CompanySetup({ onSave }) {
     currency: "USD",
     salaryCliff: 5000,
     replacementMultiplier: 1.5,
-    employeeCount: "",
+    targetTurnover: 10,
     avgWorkHoursPerWeek: 40,
   });
   const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(false);
@@ -140,8 +140,8 @@ export default function CompanySetup({ onSave }) {
             <div style={{ fontSize: 13, color: "#0f172a", marginTop: 2 }}>
               Salary cliff will display as{" "}
               <strong style={{ color: "#f59e0b" }}>
-                {currSymbol}{Number(form.salaryCliff || 0).toLocaleString()}
-              </strong>
+  {currSymbol}{Number(form.salaryCliff || 0).toLocaleString(form.currency === "IDR" ? "id-ID" : "en-US")}
+</strong>
               {" "}across all modules
             </div>
           </div>
