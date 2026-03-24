@@ -12,6 +12,8 @@ import M7FatigueRadar from "./modules/M7FatigueRadar";
 import M8TalentMatch from "./modules/M8TalentMatch";
 import M9PulseSurvey from "./modules/M9PulseSurvey";
 import ComingSoon from "./modules/ComingSoon";
+import ErrorBoundary from "./components/ErrorBoundary";
+
 
 // Inject toast animation
 const toastStyle = document.createElement("style");
@@ -340,21 +342,29 @@ function AppShell() {
           </div>
         </div>
 
-        {/* Content */}
+                {/* Content */}
         <div style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
-          <DataUpload />
-          {active === "m1" ? <M1Dashboard />
-            : active === "m2" ? <M2RiskScorer />
-            : active === "m3" ? <M3Salary />
-            : active === "m4" ? <M4DeptHealth />
-            : active === "m5" ? <M5ExitAnalyzer />
-            : active === "m6" ? <M6ROI />
-            : active === "m7" ? <M7FatigueRadar />
-            : active === "m8" ? <M8TalentMatch />
-            : active === "m9" ? <M9PulseSurvey />
-            : det ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
-            : null}
+          
+          <ErrorBoundary>
+            <DataUpload />
+          </ErrorBoundary>
+
+          <ErrorBoundary>
+            {active === "m1" ? <M1Dashboard />
+              : active === "m2" ? <M2RiskScorer />
+              : active === "m3" ? <M3Salary />
+              : active === "m4" ? <M4DeptHealth />
+              : active === "m5" ? <M5ExitAnalyzer />
+              : active === "m6" ? <M6ROI />
+              : active === "m7" ? <M7FatigueRadar />
+              : active === "m8" ? <M8TalentMatch />
+              : active === "m9" ? <M9PulseSurvey />
+              : det ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
+              : null}
+          </ErrorBoundary>
+          
         </div>
+
       </main>
     </div>
   );
