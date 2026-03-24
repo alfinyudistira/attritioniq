@@ -471,7 +471,14 @@ export default function M4DeptHealth() {
   const [activeTab, setActiveTab]   = useState("overview");
   const [aiLoading, setAiLoading]   = useState(false);
   const [aiPlan, setAiPlan]         = useState(null);
-  const [showAlerts, setShowAlerts] = useState(true);
+  const [showAlerts, setShowAlerts] = useState(() => {
+  const saved = sessionStorage.getItem("m4_alerts");
+  return saved !== null ? JSON.parse(saved) : true;
+});
+
+useEffect(() => {
+  sessionStorage.setItem("m4_alerts", JSON.stringify(showAlerts));
+}, [showAlerts]);
 
   const depts = useMemo(() => computeDeptHealth(src, cliff), [src, cliff]);
   const criticalDepts = depts.filter(d => d.survivorRisk);
