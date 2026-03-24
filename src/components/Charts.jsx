@@ -1,4 +1,4 @@
-export function BarChart({ data, valueKey, labelKey, colorFn, height = 180 }) {
+export function BarChart({ data, valueKey, labelKey, colorFn, height = 180, formatValue }) {
   const max = Math.max(...data.map(d => d[valueKey]), 0.01);
   const count = data.length;
   const totalW = 300;
@@ -13,9 +13,11 @@ export function BarChart({ data, valueKey, labelKey, colorFn, height = 180 }) {
         const x = i * (totalW / count) + (totalW / count - barW) / 2;
         const y = height - 30 - bh;
         const color = colorFn ? colorFn(d) : "#f59e0b";
-        const displayVal = pct < 1 && pct > 0
-          ? (pct * 100).toFixed(0) + "%"
-          : typeof pct === "number" ? pct : rawVal;
+        const displayVal = formatValue
+          ? formatValue(rawVal)
+          : pct < 1 && pct > 0
+            ? (pct * 100).toFixed(0) + "%"
+            : typeof pct === "number" ? pct : rawVal;
         const label = String(d[labelKey]);
         const shortLabel = label.length > 9 ? label.slice(0, 8) + "…" : label;
 
@@ -115,7 +117,7 @@ export function ScatterPlot({ data, cliffValue = 5000, currencySymbol = "$", wid
   );
 }
 
-export function GaugeChart({ value = 0, size = 160 }) {
+export function GaugeChart({ value = 0, size = 160, label = "Flight Risk" }) {
   const pct = Math.min(100, Math.max(0, value));
   const color = pct >= 75 ? "#ef4444" : pct >= 50 ? "#f59e0b" : pct >= 25 ? "#3b82f6" : "#22c55e";
 
@@ -152,7 +154,7 @@ export function GaugeChart({ value = 0, size = 160 }) {
       </text>
       {/* Label */}
       <text x={cx} y={cy + r * 0.28} textAnchor="middle" fontSize={size * 0.09} fill="#64748b">
-        Flight Risk
+        {label}
       </text>
       {/* Scale labels */}
       <text x={cx - r - 2} y={cy + 12} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">0</text>
