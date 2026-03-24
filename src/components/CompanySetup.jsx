@@ -143,9 +143,12 @@ export default function CompanySetup({ onSave }) {
   {currSymbol}{Number(form.salaryCliff || 0).toLocaleString(form.currency === "IDR" ? "id-ID" : "en-US")}
 </strong>
               {" "}across all modules
-            </div>
-          </div>
-        </div>
+               </div>
+    <div style={{ fontSize: 10, color: "#ef4444", marginTop: 6 }}>
+      ⚠️ Please ensure your CSV file uses numbers in the selected currency (without symbols).
+    </div>
+  </div>
+</div>
         
         <button
           onClick={() => valid && onSave(form)}
