@@ -119,7 +119,7 @@ export function getGeneration(age) {
 }
 
 export function getStatusColor(status) {
-  const s = status?.toLowerCase() || "";
+  const s = String(status || "").toLowerCase();
   if (s.includes("resigned")) return "#ef4444";
   if (s.includes("high risk")) return "#eab308";
   return "#22c55e";
