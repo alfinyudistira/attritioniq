@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
-import { useApp, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
+import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
 import { BarChart, DonutChart, ScatterPlot } from "../components/Charts";
 
 function FilterBtn({ val, cur, onSet }) {
@@ -89,7 +89,8 @@ function EditModal({ employee, onSave, onClose }) {
 }
 
 export default function M1Dashboard() {
-  const { data, setData, computed, company } = useApp();
+    const { company, pulseOverride } = useApp();
+  const { data, setData, computed } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
@@ -209,9 +210,19 @@ export default function M1Dashboard() {
         ))}
       </div>
 
-      {/* KPIs */}
+            {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 18 }}>
         {kpis.map((k, i) => <KPICard key={i} {...k} />)}
+        {pulseOverride && (
+          <KPICard
+            label="Org Pulse Score"
+            value={`${pulseOverride.orgPulse}/100`}
+            sub={`${pulseOverride.week} · from M9 Survey`}
+            color={pulseOverride.orgPulse >= 70 ? "#22c55e" : pulseOverride.orgPulse >= 50 ? "#f59e0b" : "#ef4444"}
+            icon="💬"
+            bg={pulseOverride.orgPulse >= 70 ? "#f0fdf4" : pulseOverride.orgPulse >= 50 ? "#fffbeb" : "#fef2f2"}
+          />
+        )}
       </div>
 
       {/* Charts Row 1 */}
