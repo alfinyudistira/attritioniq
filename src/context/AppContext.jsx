@@ -397,8 +397,13 @@ export function parseCSV(text) {
   return results.data
   .map(row => {
     const cleanRow = {};
+        const numberFields = ["MonthlySalary", "Age", "YearsAtCompany",  "JobSatisfaction", "PerformanceScore", "CommuteDistance"];
     for (const key in row) {
-      cleanRow[key] = smartParseNumber(row[key]);
+      if (numberFields.includes(key)) {
+        cleanRow[key] = smartParseNumber(row[key]);
+      } else {
+        cleanRow[key] = row[key]; 
+      }
     }
 
     if (cleanRow.EmployeeID) cleanRow.EmployeeID = String(cleanRow.EmployeeID);
