@@ -270,42 +270,36 @@ export default function M1Dashboard() {
         </div>
       </div>
 
-      {/* Charts Row 2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-        <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Overtime Death Spiral</div>
-          <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 14 }}>Resignation rate: overtime vs no overtime</div>
-          <div style={{ display: "flex", gap: 20, alignItems: "flex-end" }}>
-            {[{ label: "With Overtime", val: otRate, color: "#ef4444" }, { label: "No Overtime", val: noOtRate, color: "#22c55e" }].map(b => (
-              <div key={b.label} style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: b.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{b.val}%</div>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>{b.label}</div>
-                <div style={{ height: 5, background: b.color, borderRadius: 3, marginTop: 6, opacity: 0.8 }} />
-              </div>
-            ))}
+            {/* Charts Row 2 - Executive Summary */}
+      <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", border: "1.5px solid #f1f5f9", marginBottom: 18, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
+        
+        <div style={{ flex: "1 1 300px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+             <div style={{ background: "#fef2f2", color: "#ef4444", padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 800, letterSpacing: "0.05em" }}>AI INSIGHT</div>
+             <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>Top Attrition Drivers</div>
           </div>
-          {!dismissedAlerts.has("overtime") && (
-            <div style={{ marginTop: 12, background: "#fef2f2", borderRadius: 8, padding: "7px 10px", border: "1px solid #fecaca", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "#dc2626" }}>💀 <strong>Overtime is the #1 predictor</strong> of resignation in this dataset</span>
-              <button onClick={() => dismissAlert("overtime")} style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>×</button>
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
+            Based on the analysis of <strong>{total}</strong> employee records, our algorithm detected 3 main patterns driving the highest retention risk in your company:
+          </div>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Salary Cliff vs Satisfaction</div>
-          <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8 }}>Each dot = 1 employee · amber line = salary cliff</div>
-          <ScatterPlot data={filtered} cliffValue={cliff} currencySymbol={cfg.symbol} />
-          <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-            {[{ l: "Resigned", c: "#ef4444" }, { l: "High Risk", c: "#f59e0b" }, { l: "Active", c: "#22c55e" }].map(x => (
-              <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: x.c }} />
-                <span style={{ fontSize: 10, color: "#64748b" }}>{x.l}</span>
-              </div>
-            ))}
+        <div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: "3px solid #ef4444" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>1. Compensation Gap</div>
+            <div style={{ fontSize: 10, color: "#64748b" }}><strong>{belowCliff}</strong> employees are below the salary safety cliff.</div>
+          </div>
+          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: "3px solid #f59e0b" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>2. Overtime Burnout</div>
+            <div style={{ fontSize: 10, color: "#64748b" }}><strong>{withOT.length}</strong> employees are working excessive overtime.</div>
+          </div>
+          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: "3px solid #3b82f6" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>3. Gen Z Flight Risk</div>
+            <div style={{ fontSize: 10, color: "#64748b" }}><strong>{genData.find(g => g.label === "Gen Z")?.count || 0}</strong> Gen Z employees require intervention.</div>
           </div>
         </div>
+
       </div>
+
 
       {/* Employee Table */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
