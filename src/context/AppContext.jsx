@@ -25,8 +25,8 @@ export function useCurrency() {
 }
 
 export function useHRData() {
-  const { data, setData, computed, appConfig, updateConfig } = useContext(AppContext);
-  return { data, setData, computed, appConfig, updateConfig };
+  const { data, setData, computed, appConfig, updateConfig, applyIntervention } = useContext(AppContext);
+  return { data, setData, computed, appConfig, updateConfig, applyIntervention };
 }
 
 // ── Currency config ──
@@ -564,6 +564,18 @@ const setData = useCallback((rows) => {
     }, 4000);
   }, []);
 
+  // ── Global Reactive Mutation (Masterpiece Feature) ──
+  const applyIntervention = useCallback((employeeId, updates) => {
+    setData(prev => prev.map(emp => {
+      if (emp.EmployeeID === employeeId) {
+        // Gabungkan data lama dengan data intervensi baru
+        return { ...emp, ...updates };
+      }
+      return emp;
+    }));
+    pushNotification(`Intervention applied to ${employeeId}. System globally synced!`, "success");
+  }, [setData, pushNotification]);
+  
     const contextValue = useMemo(() => ({
     company,
     setCompany,
@@ -577,8 +589,8 @@ const setData = useCallback((rows) => {
     pushNotification,
     pulseOverride,
     setPulseOverride,
-  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig, notifications, pushNotification, pulseOverride, setPulseOverride]);
-  
+    applyIntervention,
+  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig, notifications, pushNotification, pulseOverride, setPulseOverride, applyIntervention]);
   return (
     <AppContext.Provider value={contextValue}>
       {children}
