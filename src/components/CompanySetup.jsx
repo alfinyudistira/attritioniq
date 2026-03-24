@@ -115,7 +115,7 @@ export default function CompanySetup({ onSave }) {
                 type={f.type}
                 value={form[f.key] === "" ? "" : form[f.key]}
                 placeholder={f.placeholder}
-                onChange={e => set(f.key, f.type === "number" ? Number(e.target.value) : e.target.value)}
+                onChange={e => set(f.key, e.target.value)}
                 style={{
                   width: "100%", padding: "10px 13px", borderRadius: 10,
                   border: "1.5px solid #e2e8f0", fontSize: 14, color: "#1e293b",
