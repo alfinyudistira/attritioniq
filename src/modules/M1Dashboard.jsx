@@ -126,7 +126,13 @@ export default function M1Dashboard() {
 
   const filtered = useMemo(() => computed.filter(d => {
     if (deptF !== "All" && d.Department !== deptF) return false;
-    if (genF !== "All" && d.Generation !== genF) return false;
+    if (genF !== "All") {
+  if (genF === "Senior") {
+    if (d.Generation !== "Gen X" && d.Generation !== "Baby Boomer") return false;
+  } else {
+    if (d.Generation !== genF) return false;
+  }
+}
     if (statusF !== "All" && d.AttritionStatus !== statusF) return false;
     if (otF !== "All" && d.OvertimeStatus !== otF) return false;
     if (search && !`${d.FirstName} ${d.LastName} ${d.Department} ${d.EmployeeID}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -159,11 +165,24 @@ export default function M1Dashboard() {
     return Object.values(map).map(d => ({ ...d, rate: d.total > 0 ? d.bad / d.total : 0 }));
   }, [filtered]);
 
-  const genData = ["Gen Z", "Millennial", "Senior"].map(g => {
-    const grp = filtered.filter(d => getGeneration(d.Age) === g);
-    const bad = grp.filter(d => d.AttritionStatus !== "Active").length;
-    return { label: g, rate: grp.length > 0 ? bad / grp.length : 0, count: grp.length };
-  });
+  const genData = [
+  { label: "Gen Z",     match: "Gen Z" },
+  { label: "Millennial",match: "Millennial" },
+  { label: "Senior",    match: (age) => {
+      const gen = getGeneration(age);
+      return gen === "Gen X" || gen === "Baby Boomer";
+    }
+  }
+].map(g => {
+  let grp;
+  if (typeof g.match === 'function') {
+    grp = filtered.filter(d => g.match(d.Age));
+  } else {
+    grp = filtered.filter(d => getGeneration(d.Age) === g.match);
+  }
+  const bad = grp.filter(d => d.AttritionStatus !== "Active").length;
+  return { label: g.label, rate: grp.length > 0 ? bad / grp.length : 0, count: grp.length };
+});
 
   const genZCrisis = genData.find(g => g.label === "Gen Z" && g.rate >= 0.8);
 
