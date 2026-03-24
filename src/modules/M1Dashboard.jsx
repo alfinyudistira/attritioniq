@@ -244,9 +244,9 @@ export default function M1Dashboard() {
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Attrition by Department</div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 12 }}>% at-risk per dept</div>
           <BarChart
-            data={deptStats} valueKey="rate" labelKey="dept"
-            colorFn={d => Number(d.rate) > 0.7 ? "#ef4444" : Number(d.rate) > 0.4 ? "#f59e0b" : "#22c55e"}
-          />
+  data={deptStats} valueKey="rate" labelKey="dept"
+  colorFn={d => Number(d.rate) > 0.7 ? appConfig.colors.high : Number(d.rate) > 0.4 ? appConfig.colors.medium : appConfig.colors.low}
+/>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -258,12 +258,16 @@ export default function M1Dashboard() {
   { label: "Active",    value: active,    color: appConfig.colors.low },
 ]} size={120} />
           <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            {[{ l: "Resigned", c: "#ef4444", v: resigned }, { l: "High Risk", c: "#f59e0b", v: highRisk }, { l: "Active", c: "#22c55e", v: active }].map(x => (
-              <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: x.c }} />
-                <span style={{ fontSize: 10, color: "#64748b" }}>{x.l} ({x.v})</span>
-              </div>
-            ))}
+            {[
+  { l: "Resigned", c: appConfig.colors.high, v: resigned },
+  { l: "High Risk", c: appConfig.colors.medium, v: highRisk },
+  { l: "Active", c: appConfig.colors.low, v: active }
+].map(x => (
+  <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div style={{ width: 7, height: 7, borderRadius: "50%", background: x.c }} />
+    <span style={{ fontSize: 10, color: "#64748b" }}>{x.l} ({x.v})</span>
+  </div>
+))}
           </div>
         </div>
 
@@ -387,13 +391,13 @@ export default function M1Dashboard() {
                     </td>
                     <td style={{ padding: "7px 10px", color: "#64748b" }}>{d.YearsAtCompany}y</td>
                     <td style={{ padding: "7px 10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <div style={{ width: 36, height: 5, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
-                          <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskColor || "#22c55e", borderRadius: 3 }} />
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskColor || "#22c55e" }}>{d.RiskPct || 0}%</span>
-                      </div>
-                    </td>
+  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+    <div style={{ width: 36, height: 5, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
+      <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskLevel === "High" ? appConfig.colors.high : d.RiskLevel === "Medium" ? appConfig.colors.medium : appConfig.colors.low, borderRadius: 3 }} />
+    </div>
+    <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskLevel === "High" ? appConfig.colors.high : d.RiskLevel === "Medium" ? appConfig.colors.medium : appConfig.colors.low }}>{d.RiskPct || 0}%</span>
+  </div>
+</td>
                     <td style={{ padding: "7px 10px", textAlign: "center" }}> 
                       <button onClick={() => setEditingEmp(d)}
                         style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 12, color: "#64748b", transition: "all 0.15s" }}
