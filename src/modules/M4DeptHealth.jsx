@@ -703,8 +703,35 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
             </div>
           </div>
                   </div>
-      )}
 
+      {/* Cross-module insight */}
+          <div style={{ background: "#fff8f0", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #fed7aa" }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#9a3412", marginBottom: 8 }}>🔗 Cross-Module Insights</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {depts.filter(d => d.survivorRisk).map(d => (
+                <div key={d.dept} style={{ background: "#fff", borderRadius: 9, padding: "10px 12px", border: "1px solid #fed7aa" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626" }}>⚠ {d.dept}</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4 }}>
+                    → M2: Run bulk risk score for {d.active} active employees<br />
+                    → M3: {d.belowCliff} employees below salary cliff<br />
+                    → M6: Calculate retention ROI for this dept
+                  </div>
+                </div>
+              ))}
+              {depts.filter(d => d.genBreakdown.genZ > 0).map(d => (
+                <div key={`${d.dept}-gz`} style={{ background: "#fff", borderRadius: 9, padding: "10px 12px", border: "1px solid #fed7aa" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e" }}>🔕 {d.dept} — Gen Z at Risk</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4 }}>
+                    → M2: Check quiet-quitting score for {d.genBreakdown.genZ} Gen Z employee(s)<br />
+                    → M8: Consider internal mobility to reduce burnout
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+  </div> 
+)} 
+      
           {/* ── TAB: ACTION PLAN ── */}
       {activeTab === "action" && (
         <div>
@@ -901,32 +928,6 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
           </div>
         </div>
       )}
-
-          {/* Cross-module insight */}
-          <div style={{ background: "#fff8f0", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #fed7aa" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#9a3412", marginBottom: 8 }}>🔗 Cross-Module Insights</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {depts.filter(d => d.survivorRisk).map(d => (
-                <div key={d.dept} style={{ background: "#fff", borderRadius: 9, padding: "10px 12px", border: "1px solid #fed7aa" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626" }}>⚠ {d.dept}</div>
-                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4 }}>
-                    → M2: Run bulk risk score for {d.active} active employees<br />
-                    → M3: {d.belowCliff} employees below salary cliff<br />
-                    → M6: Calculate retention ROI for this dept
-                  </div>
-                </div>
-              ))}
-              {depts.filter(d => d.genBreakdown.genZ > 0).map(d => (
-                <div key={`${d.dept}-gz`} style={{ background: "#fff", borderRadius: 9, padding: "10px 12px", border: "1px solid #fed7aa" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e" }}>🔕 {d.dept} — Gen Z at Risk</div>
-                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.4 }}>
-                    → M2: Check quiet-quitting score for {d.genBreakdown.genZ} Gen Z employee(s)<br />
-                    → M8: Consider internal mobility to reduce burnout
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
     </div>
   );
 }
