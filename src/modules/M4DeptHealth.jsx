@@ -702,6 +702,8 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
               </table>
             </div>
           </div>
+                  </div>
+      )}
 
           {/* ── TAB: ACTION PLAN ── */}
       {activeTab === "action" && (
@@ -925,8 +927,6 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
               ))}
             </div>
           </div>
-        </div>
-      )}
     </div>
   );
 }
