@@ -702,7 +702,6 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
               </table>
             </div>
           </div>
-                  </div>
 
       {/* Cross-module insight */}
           <div style={{ background: "#fff8f0", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #fed7aa" }}>
