@@ -442,6 +442,22 @@ export function AppProvider({ children }) {
     }
   });
 
+  // ── M9 → M1 pulse override ──
+  const [pulseOverride, setPulseOverrideState] = useState(() => {
+    try {
+      const saved = localStorage.getItem("attritioniq_pulse");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  const setPulseOverride = useCallback((pulse) => {
+    setPulseOverrideState(pulse);
+    try {
+      if (pulse) localStorage.setItem("attritioniq_pulse", JSON.stringify(pulse));
+      else localStorage.removeItem("attritioniq_pulse");
+    } catch {}
+  }, []);
+  
   const setCompany = useCallback((c) => {
     setCompanyState(c);
     try {
@@ -450,11 +466,14 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
-  const setData = useCallback((rows) => {
+const setData = useCallback((rows) => {
     setDataState(rows);
     try {
-      if (rows && rows.length > 0) localStorage.setItem(LS_DATA_KEY, JSON.stringify(rows));
-      else localStorage.removeItem(LS_DATA_KEY);
+      if (rows && rows.length > 0) {
+        localStorage.setItem(LS_DATA_KEY, JSON.stringify(rows));
+      } else {
+        localStorage.removeItem(LS_DATA_KEY);
+      }
     } catch {}
   }, []);
 
@@ -470,12 +489,14 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  const resetWorkspace = useCallback(() => {
+    const resetWorkspace = useCallback(() => {
     setCompanyState(null);
     setDataState([]);
+    setPulseOverrideState(null);
     try {
       localStorage.removeItem(LS_COMPANY_KEY);
       localStorage.removeItem(LS_DATA_KEY);
+      localStorage.removeItem("attritioniq_pulse");
     } catch {}
   }, []);
 
@@ -538,7 +559,7 @@ export function AppProvider({ children }) {
     }, 4000);
   }, []);
 
-  const contextValue = useMemo(() => ({
+    const contextValue = useMemo(() => ({
     company,
     setCompany,
     data,
@@ -549,8 +570,10 @@ export function AppProvider({ children }) {
     updateConfig,
     notifications,
     pushNotification,
-  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig, notifications, pushNotification]);
-
+    pulseOverride,
+    setPulseOverride,
+  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig, notifications, pushNotification, pulseOverride, setPulseOverride]);
+  
   return (
     <AppContext.Provider value={contextValue}>
       {children}
