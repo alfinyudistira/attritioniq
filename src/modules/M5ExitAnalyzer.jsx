@@ -712,6 +712,28 @@ export default function M5ExitAnalyzer() {
             </div>
           </div>
 
+          {/* Top keywords table */}
+          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Top 20 Keywords Ranked</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {keywords.slice(0, 20).map(([word, count], i) => {
+                const cat = Object.entries(CATEGORIES).find(([, cfg]) => cfg.keywords.includes(word));
+                const color = cat ? cat[1].color : "#94a3b8";
+                const bg = cat ? cat[1].bg : "#f8fafc";
+                return (
+                  <div key={word} style={{ display: "flex", alignItems: "center", gap: 8, background: bg, borderRadius: 8, padding: "6px 10px" }}>
+                    <span style={{ fontSize: 11, color: "#94a3b8", width: 20, textAlign: "right" }}>#{i + 1}</span>
+                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{word}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ width: Math.max(12, (count / keywords[0][1]) * 40), height: 4, background: color, borderRadius: 2 }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color }}>{count}x</span>
+                    </div>
+                  </div>
+                );
+              })}
+                  </div> 
+  )} 
+
           {/* ── TAB: PERSONAS ── */}
       {activeTab === "personas" && (
         <div>
@@ -892,37 +914,13 @@ export default function M5ExitAnalyzer() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#166534" }}>Preventable Exits</div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#15803d" }}>
                     {analyzed.filter(iv => iv.analysis.retentionProbability >= 60).length} of {analyzed.length} were retainable
-                  </div>
-                </div>
+                    </div>
               </div>
             </div>
           </div>
         </div>
-      )}
-
-          {/* Top keywords table */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Top 20 Keywords Ranked</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              {keywords.slice(0, 20).map(([word, count], i) => {
-                const cat = Object.entries(CATEGORIES).find(([, cfg]) => cfg.keywords.includes(word));
-                const color = cat ? cat[1].color : "#94a3b8";
-                const bg = cat ? cat[1].bg : "#f8fafc";
-                return (
-                  <div key={word} style={{ display: "flex", alignItems: "center", gap: 8, background: bg, borderRadius: 8, padding: "6px 10px" }}>
-                    <span style={{ fontSize: 11, color: "#94a3b8", width: 20, textAlign: "right" }}>#{i + 1}</span>
-                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{word}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <div style={{ width: Math.max(12, (count / keywords[0][1]) * 40), height: 4, background: color, borderRadius: 2 }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color }}>{count}x</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
 }
