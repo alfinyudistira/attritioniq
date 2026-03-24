@@ -71,14 +71,24 @@ function EditModal({ employee, onSave, onClose }) {
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Job Satisfaction (1–10)</label>
-            <input type="number" min={1} max={10} value={form.JobSatisfaction || 5}
-              onChange={e => set("JobSatisfaction", Number(e.target.value))}
+            <input type="number" min={1} max={10} value={form.JobSatisfaction ?? ''}
+  onChange={e => {
+    const val = e.target.value;
+    set("JobSatisfaction", val === '' ? null : Number(val));
+  }}
               style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, color: "#1e293b", background: "#f8fafc", boxSizing: "border-box" }} />
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Cancel</button>
-          <button onClick={() => { onSave(form); onClose(); }}
+          <button onClick={() => {
+  const cleaned = { ...form };
+  if (cleaned.JobSatisfaction === null || cleaned.JobSatisfaction === undefined || cleaned.JobSatisfaction === '') {
+    cleaned.JobSatisfaction = 5;
+  }
+  onSave(cleaned);
+  onClose();
+}}>
             style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
             Save Changes
           </button>
