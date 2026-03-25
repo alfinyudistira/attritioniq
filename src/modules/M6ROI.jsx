@@ -306,9 +306,9 @@ function InterventionSlider({ icon, title, desc, value, onChange, cost, savings,
 export default function M6ROI() {
   const { company } = useApp();
   const { data } = useHRData();
-  const cliff = company?.salaryCliff || 5000;
-  const currSymbol = currCfg?.symbol || "$";
-  const cliff = company?.salaryCliff || 5000;
+  const { config: currCfg } = useCurrency();
+const cliff = company?.salaryCliff || 5000;
+const currSymbol = currCfg?.symbol || "$";
   const multiplier = company?.replacementMultiplier || 1.5;
   const [interventions, setInterventions] = useState({ salary: 70, overtime: 60, mentorship: 80 });
   const [ghostEnabled, setGhostEnabled] = useState(false);
