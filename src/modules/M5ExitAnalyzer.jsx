@@ -652,8 +652,8 @@ export default function M5ExitAnalyzer() {
             {patterns.length === 0 ? (
               <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>No significant patterns detected yet</div>
             ) : patterns.map((p, i) => (
-              <div key={`${p.severity}-${i}`} style={{ background: severityBg(p.severity), borderRadius: 10,
-                <span style={{ fontSize: 18, flexShrink: 0 }}>{p.icon}</span>
+              <div key={`${p.severity}-${i}`} style={{ background: severityBg(p.severity), borderRadius: 10 }}>
+    <span style={{ fontSize: 18, flexShrink: 0 }}>{p.icon}</span>
                 <div>
                   <span style={{ fontSize: 10, fontWeight: 700, color: severityColor(p.severity), textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 8 }}>
                     {p.severity.toUpperCase()}
