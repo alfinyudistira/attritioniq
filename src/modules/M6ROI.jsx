@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, useCurrency, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Constants ──
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -77,40 +77,36 @@ function computeROI({ data, cliff, multiplier, interventions, ghostEnabled }) {
 
 // ── AI Executive Summary ──
 async function fetchExecutiveSummary(roi, interventions, company) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are writing an executive summary for ${company?.name || "the company"}'s leadership team.
+  const prompt = `You are writing an executive summary for ${company?.name || "the company"}'s leadership team.
 
 Retention Investment Analysis:
-- Current annual turnover cost: $${roi.totalTurnoverCost.toLocaleString()} (including ghost costs: $${roi.totalGhost.toLocaleString()})
-- Total proposed investment: $${roi.totalInvestment.toLocaleString()}/year
-- Projected savings: $${roi.totalSavings.toLocaleString()}/year  
+- Current annual turnover cost: ${roi.totalTurnoverCost.toLocaleString()} (including ghost costs: ${roi.totalGhost.toLocaleString()})
+- Total proposed investment: ${roi.totalInvestment.toLocaleString()}/year
+- Projected savings: ${roi.totalSavings.toLocaleString()}/year
 - Net ROI: ${roi.roiPct}% | Break-even: Month ${roi.breakEvenMonth}
 - Employees retained: ${roi.totalRetained} of ${roi.resigned} at-risk
 - New projected attrition rate: ${roi.newAttritionRate}% (down from ${roi.total > 0 ? ((roi.atRisk / roi.total) * 100).toFixed(1) : 0}%)
 
 Interventions selected:
-1. Salary Adjustment (${interventions.salary}% implementation): Fix ${roi.belowCliff} employees below $${roi.cliff} cliff — costs $${roi.salaryFixCost.toLocaleString()}/yr, saves $${roi.salarySavings.toLocaleString()}/yr
-2. Overtime Cap / Hiring Buffer (${interventions.overtime}% implementation): Hire ${roi.newHireCount} buffer staff — costs $${roi.overtimeCost.toLocaleString()}/yr, saves $${roi.overtimeSavings.toLocaleString()}/yr
-3. Mentorship Program (${interventions.mentorship}% implementation): For ${roi.genZCount} Gen Z employees — costs $${roi.mentorshipCost.toLocaleString()}/yr, saves $${roi.mentorshipSavings.toLocaleString()}/yr
+1. Salary Adjustment (${interventions.salary}% implementation): Fix ${roi.belowCliff} employees below cliff — costs ${roi.salaryFixCost.toLocaleString()}/yr, saves ${roi.salarySavings.toLocaleString()}/yr
+2. Overtime Cap / Hiring Buffer (${interventions.overtime}% implementation): Hire ${roi.newHireCount} buffer staff — costs ${roi.overtimeCost.toLocaleString()}/yr, saves ${roi.overtimeSavings.toLocaleString()}/yr
+3. Mentorship Program (${interventions.mentorship}% implementation): For ${roi.genZCount} Gen Z employees — costs ${roi.mentorshipCost.toLocaleString()}/yr, saves ${roi.mentorshipSavings.toLocaleString()}/yr
 
 Write a crisp, boardroom-ready executive summary in 3 paragraphs:
 1. The business case: what inaction costs vs what investment costs
 2. The proposed interventions and their expected impact
 3. The recommendation: what leadership must approve and by when
 
-Tone: confident, data-driven, C-suite level. No bullet points. Under 200 words.`
-      }]
-    })
+Tone: confident, data-driven, C-suite level. No bullet points. Under 200 words.`;
+
+  const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ content: prompt }] }),
   });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
-  return data.content?.[0]?.text || "Unable to generate summary.";
+  return data.content?.[0]?.text || data.text || data.response || "Unable to generate summary.";
 }
 
 // ── Gantt Chart SVG ──
@@ -167,7 +163,7 @@ function GanttChart({ interventions, breakEvenMonth }) {
         const x = pad.l + t.start * colW + 2;
         const w = (t.end - t.start) * colW - 4;
         return (
-          <g key={i}>
+          <g key={t.task}>
             <text x={pad.l - 6} y={y + rowH * 0.65} textAnchor="end" fontSize={8.5} fill="#475569"
               style={{ fontFamily: "'DM Sans', sans-serif" }}>
               {t.task.length > 26 ? t.task.slice(0, 25) + "…" : t.task}
@@ -184,27 +180,37 @@ function GanttChart({ interventions, breakEvenMonth }) {
       {/* Break-even marker */}
       {breakEvenMonth > 0 && breakEvenMonth <= 3 && (
         <g>
-          <line x1={pad.l + (breakEvenMonth / 3) * (W - pad.l - pad.r) + pad.l}
-            y1={pad.t} x2={pad.l + (breakEvenMonth / 3) * (W - pad.l - pad.r) + pad.l}
-            y2={H - pad.b} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4,3" />
-          <text x={pad.l + (breakEvenMonth / 3) * (W - pad.l - pad.r) + pad.l + 3}
-            y={pad.t + 10} fontSize={8} fill="#b45309" fontWeight="700">Break-even</text>
+          <line
+            x1={pad.l + (breakEvenMonth / 3) * (W - pad.l - pad.r)}
+            y1={pad.t}
+            x2={pad.l + (breakEvenMonth / 3) * (W - pad.l - pad.r)}
+            y2={H - pad.b}
+            stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4,3" />
+          <text
+            x={pad.l + (breakEvenMonth / 3) * (W - pad.l - pad.r) + 3}
+            y={pad.t + 10}
+            fontSize={8} fill="#b45309" fontWeight="700">Break-even</text>
         </g>
       )}
 
       {/* Bottom month axis */}
       <line x1={pad.l} y1={H - pad.b + 4} x2={W - pad.r} y2={H - pad.b + 4} stroke="#e2e8f0" strokeWidth={1} />
-      {[0.5, 1.5, 2.5].map((m, i) => (
-        <text key={i} x={pad.l + m * colW} y={H - pad.b + 16} textAnchor="middle" fontSize={8} fill="#94a3b8">
-          {["Jan","Feb","Mar"][i]} 2025
-        </text>
-      ))}
+      {{[0.5, 1.5, 2.5].map((m, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + i);
+        const label = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+        return (
+          <text key={i} x={pad.l + m * colW} y={H - pad.b + 16} textAnchor="middle" fontSize={8} fill="#94a3b8">
+            {label}
+          </text>
+        );
+      })}
     </svg>
   );
 }
 
 // ── ROI Timeline Chart ──
-function ROITimeline({ roi }) {
+function ROITimeline({ roi, currSymbol = "$" }) {
   const months = 12;
   const monthlyInvestment = roi.totalInvestment / 12;
   const monthlySavings = roi.totalSavings / 12;
@@ -245,8 +251,8 @@ function ROITimeline({ roi }) {
       <line x1={pad.l} y1={pad.t} x2={pad.l} y2={H - pad.b} stroke="#e2e8f0" strokeWidth={1} />
       <line x1={pad.l} y1={H - pad.b} x2={W - pad.r} y2={H - pad.b} stroke="#e2e8f0" strokeWidth={1} />
       {/* Labels */}
-      <text x={pad.l - 4} y={toY(maxVal) + 4} textAnchor="end" fontSize={7} fill="#94a3b8">${(maxVal / 1000).toFixed(0)}K</text>
-      <text x={pad.l - 4} y={toY(0) + 4} textAnchor="end" fontSize={7} fill="#94a3b8">$0</text>
+      <text x={pad.l - 4} y={toY(maxVal) + 4} textAnchor="end" fontSize={7} fill="#94a3b8">{currSymbol}{(maxVal / 1000).toFixed(0)}K</text>
+      <text x={pad.l - 4} y={toY(0) + 4} textAnchor="end" fontSize={7} fill="#94a3b8">{currSymbol}0</text>
       {[0, 3, 6, 9, 12].map(m => (
         <text key={m} x={toX(m)} y={H - 6} textAnchor="middle" fontSize={7} fill="#94a3b8">M{m}</text>
       ))}
@@ -255,7 +261,7 @@ function ROITimeline({ roi }) {
 }
 
 // ── Intervention Slider ──
-function InterventionSlider({ icon, title, desc, value, onChange, cost, savings, retained, color, bg, border }) {
+function InterventionSlider({ icon, title, desc, value, onChange, cost, savings, retained, color, bg, border, currSymbol = "$" }) {
   const net = savings - cost;
   return (
     <div style={{ background: bg, borderRadius: 14, padding: "18px 20px", border: `1.5px solid ${border}` }}>
@@ -276,11 +282,11 @@ function InterventionSlider({ icon, title, desc, value, onChange, cost, savings,
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         {[
-          { label: "Annual Cost", value: `$${(cost / 1000).toFixed(0)}K`, color: "#ef4444" },
-          { label: "Annual Savings", value: `$${(savings / 1000).toFixed(0)}K`, color: "#22c55e" },
-          { label: "Net", value: net >= 0 ? `+$${(net / 1000).toFixed(0)}K` : `-$${(Math.abs(net) / 1000).toFixed(0)}K`, color: net >= 0 ? "#22c55e" : "#ef4444" },
-        ].map((m, i) => (
-          <div key={i} style={{ background: "#fff", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
+          { label: "Annual Cost", value: `${currSymbol}${(cost / 1000).toFixed(0)}K`, color: "#ef4444" },
+          { label: "Annual Savings", value: `${currSymbol}${(savings / 1000).toFixed(0)}K`, color: "#22c55e" },
+          { label: "Net", value: net >= 0 ? `+${currSymbol}${(net / 1000).toFixed(0)}K` : `-${currSymbol}${(Math.abs(net) / 1000).toFixed(0)}K`, color: net >= 0 ? "#22c55e" : "#ef4444" },
+        ].map((m) => (
+          <div key={m.label} style={{ background: "#fff", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
             <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2 }}>{m.label}</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: m.color }}>{m.value}</div>
           </div>
@@ -298,18 +304,19 @@ function InterventionSlider({ icon, title, desc, value, onChange, cost, savings,
 
 // ── MAIN M6 ──
 export default function M6ROI() {
-  const { data, company } = useApp();
+  const { company } = useApp();
+  const { data } = useHRData();
+  const cliff = company?.salaryCliff || 5000;
+  const currSymbol = currCfg?.symbol || "$";
   const cliff = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
-
   const [interventions, setInterventions] = useState({ salary: 70, overtime: 60, mentorship: 80 });
   const [ghostEnabled, setGhostEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState("calculator");
   const [aiSummary, setAiSummary] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [showGantt, setShowGantt] = useState(false);
 
-  const setI = (key, val) => setInterventions(p => ({ ...p, [key]: val }));
+  const setI = useCallback((key, val) => setInterventions(p => ({ ...p, [key]: val })), []);
 
   const roi = useMemo(() => computeROI({
     data, cliff, multiplier, interventions, ghostEnabled
@@ -321,12 +328,12 @@ export default function M6ROI() {
     try {
       const text = await fetchExecutiveSummary(roi, interventions, company);
       setAiSummary(text);
-    } catch {
-      setAiSummary("AI summary unavailable. Please check your connection.");
+    } catch (err) {
+      setAiSummary(`⚠️ AI unavailable: ${err?.message || "Check connection and retry."}`);
+    } finally {
+      setAiLoading(false);
     }
-    setAiLoading(false);
   }, [roi, interventions, company]);
-
   const TABS = [
     { id: "calculator", label: "🧮 ROI Calculator" },
     { id: "gantt", label: "📅 90-Day Action Plan" },
@@ -388,8 +395,8 @@ export default function M6ROI() {
               { label: "Projected Savings", value: `$${(roi.totalSavings / 1000).toFixed(0)}K`, sub: "With selected interventions", color: "#22c55e", bg: "#f0fdf4" },
               { label: "Total Investment", value: `$${(roi.totalInvestment / 1000).toFixed(0)}K`, sub: "Annual cost of interventions", color: "#f59e0b", bg: "#fffbeb" },
               { label: "Net ROI", value: `${roi.roiPct}%`, sub: `Break-even: Month ${roi.breakEvenMonth || "N/A"}`, color: Number(roi.roiPct) > 0 ? "#22c55e" : "#ef4444", bg: Number(roi.roiPct) > 0 ? "#f0fdf4" : "#fef2f2" },
-            ].filter(Boolean).map((k, i) => (
-              <div key={i} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
+            ].filter(Boolean).map((k) => (
+              <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.1 }}>{k.value}</div>
                 <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>{k.sub}</div>
@@ -406,8 +413,8 @@ export default function M6ROI() {
                   { label: "Opportunity Cost (Empty Chair)", value: roi.ghostOpportunity, desc: "Revenue lost while seats are vacant" },
                   { label: "Ramp-Up Efficiency Drag", value: roi.ghostRampUp, desc: "3–5 months below-capacity productivity" },
                   { label: "Employer Brand Erosion", value: roi.ghostBrand, desc: "Premium paid to attract talent after exits" },
-                ].map((g, i) => (
-                  <div key={i} style={{ background: "#fff", borderRadius: 10, padding: "12px 14px" }}>
+                ].map((g) => (
+                  <div key={g.label} style={{ background: "#fff", borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>{g.label}</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: "#8b5cf6", fontFamily: "'Playfair Display',Georgia,serif" }}>${(g.value / 1000).toFixed(0)}K</div>
                     <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{g.desc}</div>
@@ -421,24 +428,24 @@ export default function M6ROI() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14, marginBottom: 18 }}>
             <InterventionSlider
               icon="💰" title="Salary Adjustment" value={interventions.salary}
-              desc={`${roi.belowCliff} employees below $${roi.cliff.toLocaleString()} cliff`}
+              desc={`${roi.belowCliff} employees below ${currSymbol}${roi.cliff.toLocaleString()} cliff`}
               onChange={v => setI("salary", v)}
               cost={roi.salaryFixCost} savings={roi.salarySavings} retained={roi.salaryRetained}
-              color="#ef4444" bg="#fef2f2" border="#fecaca"
+              color="#ef4444" bg="#fef2f2" border="#fecaca" currSymbol={currSymbol}
             />
             <InterventionSlider
               icon="⏱️" title="Overtime Cap + Buffer Hiring" value={interventions.overtime}
               desc={`${roi.withOT} employees on overtime · ${roi.newHireCount} buffer hires needed`}
               onChange={v => setI("overtime", v)}
               cost={roi.overtimeCost} savings={roi.overtimeSavings} retained={roi.overtimeRetained}
-              color="#f97316" bg="#fff7ed" border="#fed7aa"
+              color="#f97316" bg="#fff7ed" border="#fed7aa" currSymbol={currSymbol}
             />
             <InterventionSlider
               icon="🎓" title="Mentorship Program" value={interventions.mentorship}
               desc={`${roi.genZCount} Gen Z employees · structured onboarding`}
               onChange={v => setI("mentorship", v)}
               cost={roi.mentorshipCost} savings={roi.mentorshipSavings} retained={roi.mentorshipRetained}
-              color="#8b5cf6" bg="#f5f3ff" border="#ddd6fe"
+              color="#8b5cf6" bg="#f5f3ff" border="#ddd6fe" currSymbol={currSymbol}
             />
           </div>
 
@@ -458,7 +465,7 @@ export default function M6ROI() {
                 ))}
               </div>
             </div>
-            <ROITimeline roi={roi} />
+            <ROITimeline roi={roi} currSymbol={currSymbol} />
             {roi.breakEvenMonth > 0 && (
               <div style={{ marginTop: 12, background: roi.breakEvenMonth <= 6 ? "#f0fdf4" : "#fffbeb", borderRadius: 8, padding: "8px 12px", border: `1px solid ${roi.breakEvenMonth <= 6 ? "#bbf7d0" : "#fde68a"}` }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: roi.breakEvenMonth <= 6 ? "#16a34a" : "#b45309" }}>
@@ -478,7 +485,7 @@ export default function M6ROI() {
                   { label: "Attrition Rate", value: `${roi.total > 0 ? ((roi.atRisk / roi.total) * 100).toFixed(1) : 0}%` },
                   { label: "Annual Turnover Cost", value: `$${(roi.totalTurnoverCost / 1000).toFixed(0)}K` },
                   { label: "At-Risk Employees", value: roi.atRisk },
-                  { label: "Avg Satisfaction", value: "2.8/10" },
+                  { label: "Avg Satisfaction", value: roi.total > 0 ? `${(data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / roi.total).toFixed(1)}/10` : "—" },
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, color: "#64748b" }}>{r.label}</span>
@@ -493,7 +500,7 @@ export default function M6ROI() {
                   { label: "Attrition Rate", value: `${roi.newAttritionRate}%` },
                   { label: "Annual Savings", value: `$${(roi.totalSavings / 1000).toFixed(0)}K` },
                   { label: "Employees Retained", value: `+${roi.totalRetained}` },
-                  { label: "Est. Satisfaction", value: "6.5/10" },
+                  { label: "Est. Satisfaction", value: roi.total > 0 ? `${Math.min(10, (data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / roi.total + 1.5)).toFixed(1)}/10` : "—" },
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, color: "#64748b" }}>{r.label}</span>
@@ -588,8 +595,8 @@ export default function M6ROI() {
               { label: "Investment", value: `$${(roi.totalInvestment / 1000).toFixed(0)}K/yr`, color: "#f59e0b" },
               { label: "ROI", value: `${roi.roiPct}%`, color: "#22c55e" },
               { label: "Break-even", value: `Month ${roi.breakEvenMonth || "N/A"}`, color: "#3b82f6" },
-            ].map((k, i) => (
-              <div key={i} style={{ textAlign: "center" }}>
+            ].map((k) => (
+              <div key={k.label} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
               </div>
