@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
+.import { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppProvider, AppContext, useCurrency } from "./context/AppContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
@@ -96,18 +96,15 @@ const [active, setActive]           = useState("m1");
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
-  
+ const handleReset = useCallback(() => {
+    resetWorkspace();
+    setShowResetConfirm(false);
+    setActive("m1");
+  }, [resetWorkspace]); 
   if (!company) return <CompanySetup onSave={setCompany} />;
 
   const mod = MODULES.find(m => m.id === active);
   const det = MODULE_DETAILS[active];
-
-  const handleReset = useCallback(() => {
-    resetWorkspace();
-    setShowResetConfirm(false);
-    setActive("m1");
-  }, [resetWorkspace]);
-
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
 
