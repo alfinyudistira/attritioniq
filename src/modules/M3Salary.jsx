@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, useCurrency, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, useCurrency, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Detect salary cliff from data ──
 function detectCliff(data, manualCliff) {
@@ -39,7 +39,10 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
   const pad = { l: 38, r: 16, t: 16, b: 32 };
   const W = 320 - pad.l - pad.r;
   const H = 170 - pad.t - pad.b;
-  const toX = s => pad.l + ((s - minS) / (maxS - minS)) * W;
+  const toX = s => {
+    if (maxS === minS) return pad.l + W / 2;
+    return pad.l + ((s - minS) / (maxS - minS)) * W;
+  };
   const toY = sat => pad.t + H - ((Math.max(1, Math.min(10, sat)) - 1) / 9) * H;
   const cliffX = toX(cliff);
   const statusColor = s => s === "Resigned" ? "#ef4444" : s === "High Risk" ? "#f59e0b" : "#22c55e";
@@ -61,7 +64,7 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
       <text x={cliffX + 4} y={pad.t + H - 4} fontSize={7} fill="#16a34a" fontWeight="700">✓ SAFE ZONE</text>
       {/* Dots */}
       {data.map((d, i) => (
-        <circle key={i}
+        <circle key={d.EmployeeID || i}
           cx={toX(d.MonthlySalary || minS)}
           cy={toY(d.JobSatisfaction || 1)}
           r={highlightBelow && d.MonthlySalary < cliff ? 5 : 3.5}
@@ -69,7 +72,9 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
           opacity={0.8}
           stroke={d.MonthlySalary < cliff ? "#fff" : "none"}
           strokeWidth={1}
-        />
+        >
+          <title>{d.FirstName} {d.LastName} · {currSymbol}{Number(d.MonthlySalary || 0).toLocaleString()} · Sat: {d.JobSatisfaction}/10 · {d.AttritionStatus}</title>
+        </circle>
       ))}
       {/* Axis labels */}
       <text x={pad.l - 5} y={pad.t + 4} fontSize={7} fill="#94a3b8" textAnchor="end">10</text>
@@ -104,7 +109,7 @@ function SalaryDistribution({ data, cliff, currSymbol = "$" }) {
         const riskH = (val.atRisk / maxCount) * (H - pad.t - pad.b);
         const isBelow = Number(sal) < cliff;
         return (
-          <g key={i}>
+          <g key={sal}>
             <rect x={x} y={H - pad.b - totalH} width={bW} height={totalH}
               fill={isBelow ? "#fecaca" : "#bbf7d0"} rx={2} />
             <rect x={x} y={H - pad.b - riskH} width={bW} height={riskH}
@@ -180,40 +185,37 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
 
 // ── AI Insight ──
 async function fetchSalaryAI(stats, company) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are an expert compensation analyst for ${company?.name || "a company"} in the ${company?.industry || "services"} industry.
+  const prompt = `You are an expert compensation analyst for ${company?.name || "a company"} in the ${company?.industry || "services"} industry.
 
 Salary Analysis Data:
-- Detected Salary Cliff: $${stats.cliff}/month
+- Detected Salary Cliff: ${stats.cliff}/month
 - Employees below cliff: ${stats.belowCliff} (${stats.belowCliffPct}% of workforce)
-- Average salary gap (below cliff employees): $${stats.avgGap}/month
-- Total budget needed to bring all to cliff: $${stats.totalBudgetNeeded.toLocaleString()}/year
+- Average salary gap (below cliff employees): ${stats.avgGap}/month
+- Total budget needed to bring all to cliff: ${stats.totalBudgetNeeded.toLocaleString()}/year
 - Departments most affected: ${stats.worstDepts.join(", ")}
-- Avg salary resigned: $${stats.avgResigned} | Avg salary active: $${stats.avgActive}
+- Avg salary resigned: ${stats.avgResigned} | Avg salary active: ${stats.avgActive}
 
 Write 3 short paragraphs:
 1. Assessment of the compensation situation and cliff impact
-2. Priority departments to fix first and why  
-3. Budget recommendation: what's the minimum viable investment to stop the bleeding
+2. Priority departments to fix first and why
+3. Budget recommendation: minimum viable investment to stop the bleeding
 
-Under 160 words. Direct and actionable. No bullet points.`
-      }]
-    })
+Under 160 words. Direct and actionable. No bullet points.`;
+
+  const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ content: prompt }] }),
   });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
-  return data.content?.[0]?.text || "AI insight unavailable.";
+  return data.content?.[0]?.text || data.text || data.response || "AI insight unavailable.";
 }
 
 // ── MAIN M3 COMPONENT ──
 export default function M3Salary() {
-    const { company, data } = useApp();
+  const { company } = useApp();
+  const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
   const src = data.length > 0 ? data : SAMPLE_DATA;
@@ -222,8 +224,14 @@ export default function M3Salary() {
 
   const [useAutoCliff, setUseAutoCliff] = useState(true);
   const [customCliff, setCustomCliff] = useState(manualCliff);
-  const [marketRate, setMarketRate] = useState({
-    Sales: 5500, "Technical Support": 5200, IT: 5800, HR: 5100, "Digital Marketing": 5300,
+  useMemo(() => { setCustomCliff(manualCliff); }, [manualCliff]);
+  const [marketRate, setMarketRate] = useState(() => {
+    const src = data.length > 0 ? data : SAMPLE_DATA;
+    const depts = [...new Set(src.map(e => e.Department).filter(Boolean))];
+    const defaults = { Sales: 5500, "Technical Support": 5200, IT: 5800, HR: 5100, "Digital Marketing": 5300 };
+    const result = {};
+    depts.forEach(d => { result[d] = defaults[d] || manualCliff; });
+    return result;
   });
   const [showMarket, setShowMarket] = useState(false);
   const [simTarget, setSimTarget] = useState(manualCliff + 200);
@@ -286,10 +294,11 @@ export default function M3Salary() {
     try {
       const text = await fetchSalaryAI(stats, company);
       setAiText(text);
-    } catch {
-      setAiText("AI insight unavailable. Please check your connection.");
+    } catch (err) {
+      setAiText(`⚠️ AI unavailable: ${err?.message || "Check your connection and try again."}`);
+    } finally {
+      setAiLoading(false);
     }
-    setAiLoading(false);
   }, [stats, company]);
 
     const TABS = [
@@ -360,7 +369,7 @@ export default function M3Salary() {
               { label: "In Danger Zone", value: stats.belowCliff, sub: `${stats.belowCliffPct}% of workforce`, color: "#ef4444", bg: "#fef2f2", icon: "🚨" },
               { label: "In Safe Zone", value: stats.above, sub: `${100 - Number(stats.belowCliffPct)}% retained`, color: "#22c55e", bg: "#f0fdf4", icon: "✅" },
               { label: "Avg Salary Gap", value: fmt(stats.avgGap), sub: "Per danger-zone employee/mo", color: "#f59e0b", bg: "#fffbeb", icon: "📉" },
-              { label: "Annual Fix Budget", value: `$${(stats.totalBudgetNeeded / 1000).toFixed(0)}K`, sub: "To bring all to cliff", color: "#8b5cf6", bg: "#f5f3ff", icon: "💰" },
+              { label: "Annual Fix Budget", value: fmt(stats.totalBudgetNeeded, true), sub: "To bring all to cliff", color: "#8b5cf6", bg: "#f5f3ff", icon: "💰" },
               { label: "Resigned Avg Salary", value: fmt(stats.avgResigned), sub: `vs Active: ${fmt(stats.avgActive)}`, color: "#dc2626", bg: "#fff1f2", icon: "🚪" },
               { label: "Salary Gap Impact", value: fmt(stats.salaryDiff), sub: "Active earns more than resigned", color: "#3b82f6", bg: "#eff6ff", icon: "📊" },
             ].map((k, i) => (
@@ -477,7 +486,7 @@ export default function M3Salary() {
                     const gap = e.gap;
                     const isRisk = gap > 0;
                     return (
-                      <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: isRisk ? (i % 2 === 0 ? "#fffbf0" : "#fff8ee") : (i % 2 === 0 ? "#fff" : "#fafafa") }}>
+                      <tr key={e.EmployeeID || i} style={{ borderBottom: "1px solid #f8fafc", background: isRisk ? (i % 2 === 0 ? "#fffbf0" : "#fff8ee") : (i % 2 === 0 ? "#fff" : "#fafafa") }}>
                         <td style={{ padding: "7px 10px", color: "#1e293b", fontWeight: 500, whiteSpace: "nowrap" }}>{e.FirstName} {e.LastName}</td>
                         <td style={{ padding: "7px 10px", color: "#475569", fontSize: 11 }}>{e.Department}</td>
                         <td style={{ padding: "7px 10px" }}>
@@ -535,11 +544,16 @@ export default function M3Salary() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>Target Minimum Salary</span>
                 <span style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b", fontFamily: "'Playfair Display',Georgia,serif" }}>{fmt(simTarget)}/mo</span>
               </div>
-              <input type="range" min={2000} max={8000} step={100} value={simTarget}
+              <input type="range"
+                min={Math.round(manualCliff * 0.3)}
+                max={Math.round(manualCliff * 2.5)}
+                step={Math.round(manualCliff * 0.02) || 100}
+                value={simTarget}
                 onChange={e => setSimTarget(Number(e.target.value))}
                 style={{ width: "100%", accentColor: "#f59e0b" }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
-                <span>$2,000</span><span>$8,000</span>
+                <span>{fmt(Math.round(manualCliff * 0.3))}</span>
+                <span>{fmt(Math.round(manualCliff * 2.5))}</span>
               </div>
             </div>
 
@@ -547,7 +561,7 @@ export default function M3Salary() {
               {[
                 { label: "Employees Below Target", value: simStats.count, sub: `${simStats.pct}% of workforce`, color: simStats.count > stats.belowCliff ? "#ef4444" : "#22c55e" },
                 { label: "Monthly Budget Needed", value: fmt(Math.round(simStats.totalCost / 12)), sub: "Total salary adjustments", color: "#f59e0b" },
-                { label: "Annual Investment", value: `$${(simStats.totalCost / 1000).toFixed(0)}K`, sub: "vs turnover cost savings", color: "#8b5cf6" },
+                { label: "Annual Investment", value: fmt(simStats.totalCost, true), sub: "vs turnover cost savings", color: "#8b5cf6" },
               ].map((k, i) => (
                 <div key={i} style={{ background: "#f8fafc", borderRadius: 11, padding: "14px 16px", border: "1.5px solid #f1f5f9", textAlign: "center" }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{k.label}</div>
@@ -672,9 +686,12 @@ export default function M3Salary() {
                   return [d.dept, d.below, Math.round(d.avgSal), cliff, d.gap > 0 ? d.gap : 0, d.below * (d.gap || 0), d.below * (d.gap || 0) * 12, priority].join(",");
                 });
                 const csv = [headers.join(","), ...rows].join("\n");
-                const blob = new Blob([csv], { type: "text/csv" });
-                const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-                a.download = `salary_adjustment_plan_${Date.now()}.csv`; a.click();
+                const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `salary_adjustment_plan_${Date.now()}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
               }}
               style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
             >
@@ -744,7 +761,7 @@ export default function M3Salary() {
               <div style={{ background: "#fff", borderRadius: 9, padding: "10px 14px" }}>
                 <div style={{ fontSize: 10, color: "#94a3b8" }}>Avg salary they left for (est.)</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: "#dc2626" }}>
-                  {fmt(Math.max(...Object.values(marketRate)))}+
+                  {fmt(Math.max(...Object.values(marketRate), manualCliff))}+
                 </div>
               </div>
             </div>
@@ -774,7 +791,7 @@ export default function M3Salary() {
                     const gap = cliff - (e.MonthlySalary || 0);
                     const isBelow = gap > 0;
                     return (
-                      <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: isBelow ? "#fff5f5" : "#fff" }}>
+                      <tr key={e.EmployeeID || i} style={{ borderBottom: "1px solid #f8fafc", background: isBelow ? "#fff5f5" : "#fff" }}>
                         <td style={{ padding: "7px 10px", fontWeight: 600, color: "#1e293b" }}>{e.FirstName} {e.LastName}</td>
                         <td style={{ padding: "7px 10px", color: "#475569" }}>{e.Department}</td>
                         <td style={{ padding: "7px 10px", fontWeight: 700, color: isBelow ? "#ef4444" : "#16a34a" }}>{fmt(e.MonthlySalary || 0)}</td>
@@ -820,66 +837,7 @@ export default function M3Salary() {
         </div>
       )}
 
-      {/* ── TAB: DEPT RADAR ── */}
-      {activeTab === "radar" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🕸 Dept Salary Radar</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>
-              Each axis = department · Distance from center = avg salary vs cliff
-            </div>
-            <DeptSalaryRadar depts={stats.depts} cliff={cliff} currSymbol={currSymbol} />
-          </div>
-
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9" }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 14 }}>📊 Dept Risk Ranking</div>
-            {[...stats.depts].sort((a, b) => a.avgSal - b.avgSal).map((d, i) => {
-              const pct = Math.min(100, Math.round((d.avgSal / cliff) * 100));
-              const color = pct >= 100 ? "#22c55e" : pct >= 80 ? "#f59e0b" : "#ef4444";
-              return (
-                <div key={i} style={{ marginBottom: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{d.dept}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color }}>{fmt(Math.round(d.avgSal), true)}/mo</span>
-                  </div>
-                  <div style={{ height: 8, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.5s ease" }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-                    <span style={{ fontSize: 10, color: "#94a3b8" }}>{d.below} below cliff</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color }}>{pct}% of cliff</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Export dept plan */}
-          <div style={{ gridColumn: "1 / -1", background: "#fff", borderRadius: 14, padding: "16px 20px", border: "1.5px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>📋 Export Department Adjustment Plan</div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Download full salary adjustment plan as CSV</div>
-            </div>
-            <button
-              onClick={() => {
-                const headers = ["Department","Employees Below Cliff","Avg Current Salary","Target (Cliff)","Avg Gap","Monthly Budget","Annual Budget","Priority"];
-                const rows = stats.depts.map(d => {
-                  const priority = Number(d.belowPct) > 70 ? "Urgent" : Number(d.belowPct) > 40 ? "High" : "Monitor";
-                  return [d.dept, d.below, Math.round(d.avgSal), cliff, d.gap > 0 ? d.gap : 0, d.below * (d.gap || 0), d.below * (d.gap || 0) * 12, priority].join(",");
-                });
-                const csv = [headers.join(","), ...rows].join("\n");
-                const blob = new Blob([csv], { type: "text/csv" });
-                const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-                a.download = `salary_adjustment_plan_${Date.now()}.csv`; a.click();
-              }}
-              style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              ⬇ Export Plan CSV
-            </button>
-          </div>
-        </div>
-      )}
-
-    </div>
+</div>
   );
 }
+      
