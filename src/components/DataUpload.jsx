@@ -5,6 +5,22 @@ const CSV_TEMPLATE = `EmployeeID,FirstName,LastName,Department,MonthlySalary,Ove
 E001,John,Doe,Sales,4500,Yes,3,Resigned,2.0,28
 E002,Jane,Smith,HR,5200,No,8,Active,4.0,35`;
 
+if (typeof document !== "undefined" && !document.head.querySelector("[data-upload-style]")) {
+  const s = document.createElement("style");
+  s.setAttribute("data-upload-style", "1");
+  s.textContent = `
+    @keyframes shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(250%); }
+    }
+    @keyframes uploadPulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
 export default function DataUpload() {
   const { data, setData, pushNotification } = useApp();
   const [dragging, setDragging] = useState(false);
@@ -16,6 +32,26 @@ export default function DataUpload() {
 
   const handleFile = useCallback((file) => {
     if (!file) return;
+
+    // Guard: only accept CSV/plain text
+    const isCSV = file.type === "text/csv"
+      || file.type === "text/plain"
+      || file.name.toLowerCase().endsWith(".csv")
+      || file.name.toLowerCase().endsWith(".txt");
+
+    if (!isCSV) {
+      setMsg("❌ Only CSV files are supported. Please export your data as .csv first.");
+      pushNotification("Unsupported file type — use CSV", "error");
+      return;
+    }
+
+    // Guard: warn if file is suspiciously large (> 5MB = likely wrong file)
+    if (file.size > 5 * 1024 * 1024) {
+      setMsg("❌ File too large (max 5MB). For best performance, keep CSV under 5,000 rows.");
+      pushNotification("File too large — max 5MB", "error");
+      return;
+    }
+
     setParsing(true);
     setMsg("");
     setMappingInfo(null);
@@ -63,13 +99,15 @@ export default function DataUpload() {
         });
         setParsing(false);
       } catch (err) {
-        setMsg("❌ Parse error. Please check your CSV format.");
+        const errMsg = err?.message ? `❌ Parse error: ${err.message}` : "❌ Parse error — check CSV encoding and format (UTF-8 recommended).";
+        setMsg(errMsg);
+        pushNotification("CSV parse failed — check file format", "error");
         setMappingInfo(null);
         setParsing(false);
       }
     };
     reader.readAsText(file);
-  }, [setData]);
+  }, [setData, pushNotification]);
 
   const downloadTemplate = () => {
     const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
@@ -106,7 +144,14 @@ export default function DataUpload() {
             Use Sample Data
           </button>
           {data.length > 0 && (
-            <button onClick={() => { setData([]); setMsg(""); setMappingInfo(null); }}
+            <button
+              onClick={() => {
+                setData([]);
+                setMsg("");
+                setMappingInfo(null);
+                setFileInfo(null);
+                pushNotification("Data cleared — workspace reset", "info");
+              }}
               style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fef2f2", fontSize: 12, color: "#dc2626", cursor: "pointer", fontWeight: 600 }}>
               ✕ Clear
             </button>
@@ -115,29 +160,60 @@ export default function DataUpload() {
       </div>
 
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
+        onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => { e.preventDefault(); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
         onDrop={(e) => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
         onClick={() => fileRef.current.click()}
-        style={{ border: `2px dashed ${dragging ? "#f59e0b" : "#e2e8f0"}`, borderRadius: 10, padding: "18px 16px", textAlign: "center", cursor: "pointer", background: dragging ? "#fffbeb" : "#f8fafc", transition: "all 0.2s" }}
+        style={{
+          border: `2px dashed ${dragging ? "#f59e0b" : data.length > 0 ? "#bbf7d0" : "#e2e8f0"}`,
+          borderRadius: 10, padding: "18px 16px", textAlign: "center", cursor: "pointer",
+          background: dragging ? "#fffbeb" : data.length > 0 ? "#f0fdf4" : "#f8fafc",
+          transition: "all 0.2s",
+          transform: dragging ? "scale(1.01)" : "scale(1)",
+        }}
       >
-        <div style={{ fontSize: 24, marginBottom: 4 }}>📊</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>
-          Drop CSV here or <span style={{ color: "#f59e0b", fontWeight: 700 }}>click to browse</span>
+        <div style={{ fontSize: 24, marginBottom: 4 }}>
+          {dragging ? "📥" : data.length > 0 ? "✅" : "📊"}
+        </div>
+        <div style={{ fontSize: 13, color: dragging ? "#b45309" : "#64748b", fontWeight: dragging ? 700 : 400 }}>
+          {dragging
+            ? "Release to upload"
+            : data.length > 0
+              ? `${data.length} employees loaded — drop new CSV to replace`
+              : <>Drop CSV here or <span style={{ color: "#f59e0b", fontWeight: 700 }}>click to browse</span></>
+          }
         </div>
         <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 3 }}>
-          Flexible column mapping — exact names not required. Extra columns are ignored.
+          Flexible column mapping · bilingual (EN/ID) · extra columns ignored
         </div>
-        <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,.txt"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            handleFile(e.target.files[0]);
+            e.target.value = ""; 
+          }}
+        />
       </div>
 
       {/* Parsing indicator */}
       {parsing && (
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ width: "60%", height: "100%", background: "#f59e0b", borderRadius: 3, animation: "pulse 1s infinite" }} />
+          <div style={{ flex: 1, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", position: "relative" }}>
+            {/* Shimmer bar */}
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(90deg, #f1f5f9 0%, #f59e0b 40%, #ef4444 60%, #f1f5f9 100%)",
+              animation: "shimmer 1.2s infinite linear",
+              borderRadius: 3,
+            }} />
           </div>
-          <span style={{ fontSize: 11, color: "#94a3b8" }}>Parsing...</span>
+          <span style={{ fontSize: 11, color: "#94a3b8", animation: "uploadPulse 1.2s infinite" }}>
+            Parsing...
+          </span>
         </div>
       )}
 
