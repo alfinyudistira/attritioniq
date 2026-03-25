@@ -15,12 +15,16 @@ import ComingSoon from "./modules/ComingSoon";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 
-// Inject toast animation
-const toastStyle = document.createElement("style");
-toastStyle.textContent = `@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }`;
-if (!document.head.querySelector("[data-toast-style]")) {
-  toastStyle.setAttribute("data-toast-style", "1");
-  document.head.appendChild(toastStyle);
+// Inject toast + fade animation (safe, idempotent)
+if (typeof document !== "undefined" && !document.head.querySelector("[data-toast-style]")) {
+  const s = document.createElement("style");
+  s.setAttribute("data-toast-style", "1");
+  s.textContent = `
+    @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+    @keyframes fadeInScale { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+  `;
+  document.head.appendChild(s);
 }
 
 const MODULES = [
@@ -49,6 +53,11 @@ const MODULE_DETAILS = {
 function AppShell() {
   const { company, setCompany, data, computed, resetWorkspace, appConfig, updateConfig, notifications } = useContext(AppContext);
   const { fmt } = useCurrency();
+const [active, setActive]           = useState("m1");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  
     const insight = useMemo(() => {
     if (!computed || computed.length === 0) return null;
     const total = computed.length;
@@ -56,39 +65,48 @@ function AppShell() {
     const riskRate = (highRisk / total) * 100;
     let status = "";
     let color = "#475569";
-    if (riskRate >= appConfig.thresholds.high) {
+    const thr = appConfig?.thresholds || { high: 30, medium: 15 };
+    const clr = appConfig?.colors || { high: "#ef4444", medium: "#eab308", low: "#22c55e" };
+    if (riskRate >= thr.high) {
       status = "Critical Risk";
-      color = appConfig.colors.high;
-    } else if (riskRate >= appConfig.thresholds.medium) {
+      color = clr.high;
+    } else if (riskRate >= thr.medium) {
       status = "Medium Risk";
-      color = appConfig.colors.medium;
+      color = clr.medium;
     } else {
       status = "Stable";
-      color = appConfig.colors.low;
+      color = clr.low;
     }
     return { total, highRisk, riskRate, status, color };
   }, [computed, appConfig]);
 
-  const [active, setActive]           = useState("m1");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   useEffect(() => {
-  if (data && data.length > 0) {
-    setActive("m1");
-  }
-}, [data]);
+    if (data && data.length > 0 && active === "m1") return;
+    if (data && data.length > 0) setActive("m1");
+  }, [data?.length]); 
 
+// Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") {
+        setShowConfigModal(false);
+        setShowResetConfirm(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+  
   if (!company) return <CompanySetup onSave={setCompany} />;
 
   const mod = MODULES.find(m => m.id === active);
   const det = MODULE_DETAILS[active];
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     resetWorkspace();
     setShowResetConfirm(false);
     setActive("m1");
-  };
+  }, [resetWorkspace]);
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
@@ -116,12 +134,16 @@ function AppShell() {
       
       {/* ── Reset Confirm Modal ── */}
       {showResetConfirm && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
-          backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 2000, padding: 16,
-        }}>
-          <div style={{ background: "#fff", borderRadius: 18, padding: "32px 36px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
+        <div
+          onClick={() => setShowResetConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
+            backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
+            justifyContent: "center", zIndex: 2000, padding: 16,
+          }}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 18, padding: "32px 36px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
             <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>⚠️</div>
             <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", textAlign: "center", marginBottom: 8 }}>
               Change Workspace?
@@ -145,17 +167,22 @@ function AppShell() {
 
       {/* ── Config Modal ── */}
 {showConfigModal && (
-  <div style={{
-    position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(6px)",
-    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16
-  }}>
-    <div style={{ background: "#fff", borderRadius: 18, padding: "28px 32px", maxWidth: 420, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
+  <div
+    onClick={() => setShowConfigModal(false)}
+    style={{
+      position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
+      backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16
+    }}>
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{ background: "#fff", borderRadius: 18, padding: "28px 32px", maxWidth: 420, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700 }}>⚙️ Risk Configuration</div>
         <button onClick={() => setShowConfigModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>✕</button>
       </div>
       <div style={{ marginBottom: 20 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>High Risk Threshold</label>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>Risk Level Colors</label>
         <input
           type="number"
           value={appConfig.thresholds.high}
@@ -190,7 +217,7 @@ function AppShell() {
       </div>
       <button
         onClick={() => {
-          updateConfig({ thresholds: { high: 5, medium: 3 }, colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e", inactive: "#9ca3af" } });
+          updateConfig({ thresholds: { high: 30, medium: 15 }, colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" } });
         }}
         style={{ width: "100%", padding: "10px", background: "#f1f5f9", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 8 }}
       >
@@ -260,17 +287,17 @@ function AppShell() {
               key={m.id}
               onClick={() => !isDisabled && setActive(m.id)}
               disabled={isDisabled}
+              title={isDisabled ? `${m.label} — Upload data first` : m.label}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 9,
                 padding: "9px 10px", borderRadius: 9, border: "none",
                 cursor: isDisabled ? "not-allowed" : "pointer", marginBottom: 1,
                 background: active === m.id ? "rgba(245,158,11,0.12)" : "transparent",
-                color: active === m.id ? "#f59e0b" : "#64748b",
+                color: active === m.id ? "#f59e0b" : isDisabled ? "#334155" : "#64748b",
                 textAlign: "left", transition: "all 0.15s ease",
                 borderLeft: active === m.id ? "3px solid #f59e0b" : "3px solid transparent",
-                opacity: isDisabled ? 0.4 : 1,
-          pointerEvents: isDisabled ? "none" : "auto",
-          transform: isDisabled ? "scale(0.98)" : "scale(1)",
+                opacity: isDisabled ? 0.35 : 1,
+                pointerEvents: isDisabled ? "none" : "auto",
               }}
             >
               <span style={{ fontSize: 15, flexShrink: 0 }}>{m.icon}</span>
@@ -308,7 +335,7 @@ function AppShell() {
             </div>
             <div style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8" }}>
               {insight
-              ? `${insight.total} employees · ${company.name} · ${insight.highRisk} high risk · ${insight.riskRate.toFixed(0)}% · cliff ${fmt(company.salaryCliff || 0, true)}`
+              ? `${insight.total} employees · ${company.name} · ${insight.highRisk} high risk (${insight.riskRate.toFixed(0)}%)${company.salaryCliff ? ` · cliff ${fmt(company.salaryCliff, true)}` : ""}`
               : "No data — upload CSV or use sample data"}
                 </div>
           </div>
@@ -336,7 +363,10 @@ function AppShell() {
                 ⚙️
               </button>
 
-            <div style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14 }}>
+            <div
+              title={`${company.name} · ${company.industry || ""} · ${company.currency || "USD"}`}
+              style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "default" }}
+            >
               {company.name.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -349,7 +379,7 @@ function AppShell() {
             <DataUpload />
           </ErrorBoundary>
 
-          <ErrorBoundary>
+          <ErrorBoundary key={active}>
             {active === "m1" ? <M1Dashboard />
               : active === "m2" ? <M2RiskScorer />
               : active === "m3" ? <M3Salary />
