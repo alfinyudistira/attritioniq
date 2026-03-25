@@ -1,30 +1,37 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useApp, useHRData, useCurrency } from "../context/AppContext";
 
 // ── CUSTOM HOOK: AI Copilot via Vercel ──
 function useCopilot() {
   const [loading, setLoading] = useState(false);
-  const [response, setResponseState] = useState(() => localStorage.getItem("m2_ai_response") || "");
+  const [response, setResponseState] = useState(() => {
+    try { return localStorage.getItem("m2_ai_response") || ""; } catch { return ""; }
+  });
 
-  const setResponse = (val) => {
+  const setResponse = useCallback((val) => {
     setResponseState(val);
-    localStorage.setItem("m2_ai_response", val);
-  };
+    try { localStorage.setItem("m2_ai_response", val); } catch {}
+  }, []);
 
-  const askAI = async (prompt) => {
-    setLoading(true); setResponse("");
+  const askAI = useCallback(async (prompt) => {
+    setLoading(true);
+    setResponse("");
     try {
       const res = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ content: prompt }] })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ content: prompt }] }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setResponse(data.content?.[0]?.text || "No insights generated.");
+      setResponse(data.content?.[0]?.text || data.text || data.response || "No insights generated.");
     } catch (e) {
-      setResponse("⚠️ AI Error: Check your Vercel connection.");
+      setResponse(`⚠️ AI unavailable: ${e.message || "Check connection"}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [setResponse]);
+
   return { loading, response, askAI, setResponse };
 }
 
@@ -78,7 +85,7 @@ const Title = ({ children }) => <div style={{ fontSize: 15, fontWeight: 800, col
 export default function M2RiskScorer() {
   const { company } = useApp();
   const { computed, applyIntervention } = useHRData();
-  const { cfg } = useCurrency();
+  const { fmt, config: cfg } = useCurrency();
   const ai = useCopilot();
   
   const cliff = company?.salaryCliff || 5000;
@@ -86,36 +93,39 @@ export default function M2RiskScorer() {
   // ── PERSISTENT STATE ──
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem("m2_active_tab") || "target");
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem("m2_selected_id") || "");
-
-  useEffect(() => { localStorage.setItem("m2_active_tab", activeTab); }, [activeTab]);
-  useEffect(() => { localStorage.setItem("m2_selected_id", selectedId); }, [selectedId]);
-
+  useEffect(() => { try { localStorage.setItem("m2_active_tab", activeTab); } catch {} }, [activeTab]);
+  useEffect(() => { try { localStorage.setItem("m2_selected_id", selectedId); } catch {} }, [selectedId]);
   useEffect(() => {
-    if (!selectedId && computed.length > 0) {
+    if (computed.length === 0) return;
+    // Cek apakah selectedId masih valid di dataset saat ini
+    const stillExists = computed.some(c => c.EmployeeID === selectedId);
+    if (!selectedId || !stillExists) {
       const atRisk = computed.find(c => c.RiskPct >= 75) || computed[0];
       setSelectedId(atRisk.EmployeeID);
     }
   }, [computed, selectedId]);
-
   const activeEmp = useMemo(() => computed.find(c => c.EmployeeID === selectedId) || computed[0], [computed, selectedId]);
-
   const [simSalary, setSimSalary] = useState(() => Number(localStorage.getItem("m2_sim_sal")) || 0);
   const [simOt, setSimOt] = useState(() => localStorage.getItem("m2_sim_ot") || "No");
   const [simSat, setSimSat] = useState(() => Number(localStorage.getItem("m2_sim_sat")) || 5);
 
-  useEffect(() => { localStorage.setItem("m2_sim_sal", simSalary); }, [simSalary]);
-  useEffect(() => { localStorage.setItem("m2_sim_ot", simOt); }, [simOt]);
-  useEffect(() => { localStorage.setItem("m2_sim_sat", simSat); }, [simSat]);
+  useEffect(() => { try { localStorage.setItem("m2_sim_sal", simSalary); } catch {} }, [simSalary]);
+  useEffect(() => { try { localStorage.setItem("m2_sim_ot", simOt); } catch {} }, [simOt]);
+  useEffect(() => { try { localStorage.setItem("m2_sim_sat", simSat); } catch {} }, [simSat]);
 
+  const setAiResponse = ai.setResponse;
   useEffect(() => {
-    if (activeEmp && activeEmp.EmployeeID !== localStorage.getItem("m2_last_synced_emp")) {
+    if (!activeEmp) return;
+    let lastSynced = "";
+    try { lastSynced = localStorage.getItem("m2_last_synced_emp") || ""; } catch {}
+    if (activeEmp.EmployeeID !== lastSynced) {
       setSimSalary(Number(activeEmp.MonthlySalary) || 0);
       setSimOt(activeEmp.OvertimeStatus || "No");
       setSimSat(Number(activeEmp.JobSatisfaction) || 5);
-      localStorage.setItem("m2_last_synced_emp", activeEmp.EmployeeID);
-      ai.setResponse(""); 
+      try { localStorage.setItem("m2_last_synced_emp", activeEmp.EmployeeID); } catch {}
+      setAiResponse("");
     }
-  }, [activeEmp, ai]);
+  }, [activeEmp, setAiResponse]);
 
   // ── ENGINE CALCULATIONS ──
   const { score: simScore } = useMemo(() => computeRisk({ salary: simSalary, overtime: simOt, satisfaction: simSat, tenure: activeEmp?.YearsAtCompany }, cliff), [simSalary, simOt, simSat, activeEmp, cliff]);
@@ -130,38 +140,75 @@ export default function M2RiskScorer() {
     if (!activeEmp) return [];
     return computed
       .filter(c => c.EmployeeID !== activeEmp.EmployeeID && c.Department === activeEmp.Department)
-      .sort((a, b) => b.RiskPct - a.RiskPct).slice(0, 8); // Top 8 peers in same dept
+      .sort((a, b) => b.RiskPct - a.RiskPct)
+      .slice(0, 8);
   }, [computed, activeEmp]);
+
+  const peerPositions = useMemo(() => {
+    return peers.map((p, i) => {
+      const angle = (i / Math.max(peers.length, 1)) * (2 * Math.PI) - (Math.PI / 2);
+      const seed = p.EmployeeID.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const radiusVariance = ((seed % 50)); // 0–49, deterministik
+      const radius = 110 + radiusVariance;
+      return {
+        ...p,
+        x: 300 + radius * Math.cos(angle),
+        y: 175 + radius * Math.sin(angle),
+        level: getRiskLevel(p.RiskPct),
+      };
+    });
+  }, [peers]);
   
-  const isInfluencer = activeEmp && (Number(activeEmp.YearsAtCompany) >= 3 || Number(activeEmp.MonthlySalary) >= cliff * 1.5);
-  const chainProb = activeEmp ? Math.min(98, Math.round((activeEmp.RiskPct * peers.length) / 12) + 15) : 0;
+  const isInfluencer = useMemo(() =>
+    activeEmp && (Number(activeEmp.YearsAtCompany) >= 3 || Number(activeEmp.MonthlySalary) >= cliff * 1.5),
+  [activeEmp, cliff]);
+
+  const chainProb = useMemo(() =>
+    activeEmp ? Math.min(98, Math.round((activeEmp.RiskPct * peers.length) / 12) + 15) : 0,
+  [activeEmp, peers.length]);
 
   // ── BATCH EXPORT PIP (TAB 4) ──
-  const handleExportPIP = () => {
+  const handleExportPIP = useCallback(() => {
     const pipData = computed.filter(c => c.RiskPct >= 50);
-    const headers = ["EmployeeID", "Name", "Department", "Risk Score", "Urgent Action Required"];
-    const rows = pipData.map(d => `${d.EmployeeID},"${d.FirstName} ${d.LastName}",${d.Department},${d.RiskPct}%,${d.OvertimeStatus === "Yes" ? "Remove Overtime" : "Review Salary"}`);
+    if (pipData.length === 0) return;
+    const headers = ["EmployeeID", "Name", "Department", "Risk Score", "Overtime", "Salary", "Urgent Action"];
+    const rows = pipData.map(d =>
+      [d.EmployeeID, `"${d.FirstName} ${d.LastName}"`, d.Department, `${d.RiskPct}%`,
+       d.OvertimeStatus, d.MonthlySalary,
+       d.OvertimeStatus === "Yes" ? "Remove Overtime" : "Review Salary"].join(",")
+    );
     const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = `PIP_Candidates_${Date.now()}.csv`; a.click();
-  };
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }); // BOM for Excel
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `PIP_HighRisk_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href); // cleanup memory leak
+  }, [computed]);
 
-  // ── ACTION HANDLERS ──
-  const handleGenerateScript = () => {
-    const prompt = `Act as an HR Expert. The employee ${activeEmp.FirstName} (${activeEmp.Department}) is at ${activeEmp.RiskPct}% flight risk. I want to intervene by setting salary to ${simSalary}, overtime to ${simOt}, and boosting satisfaction to ${simSat} to drop risk to ${simScore}%. Write a 3-paragraph exact script for the manager to say in a 1-on-1 meeting to offer this intervention naturally in English. No intro/outro, just the script.`;
+// ── ACTION HANDLERS ──
+  const handleGenerateScript = useCallback(() => {
+    if (!activeEmp) return;
+    const prompt = `Act as an HR Expert. The employee ${activeEmp.FirstName} ${activeEmp.LastName} (${activeEmp.Department}) has a ${activeEmp.RiskPct}% flight risk score. I plan to intervene: set salary to ${simSalary}, overtime to ${simOt}, satisfaction target ${simSat}/10 — projected new risk: ${simScore}%. Write a 3-paragraph manager script for a 1-on-1 retention conversation. Be specific, empathetic, and actionable. No intro/outro — just the script.`;
     ai.askAI(prompt);
-  };
+  }, [activeEmp, simSalary, simOt, simSat, simScore, ai]);
 
-  const applyStrategy = (type) => {
+  const applyStrategy = useCallback((type) => {
+    if (!activeEmp) return;
     let updates = {};
     if (type === "salary") updates = { MonthlySalary: Math.round(Number(activeEmp.MonthlySalary) * 1.15) };
-    if (type === "ot") updates = { OvertimeStatus: "No" };
+    if (type === "ot")     updates = { OvertimeStatus: "No" };
     if (type === "mentor") updates = { JobSatisfaction: Math.min(10, Number(activeEmp.JobSatisfaction) + 3) };
-    applyIntervention(activeEmp.EmployeeID, updates);
-  };
+    if (Object.keys(updates).length > 0) applyIntervention(activeEmp.EmployeeID, updates);
+  }, [activeEmp, applyIntervention]);
 
-  if (!activeEmp) return <div style={{ padding: 40, textAlign: "center" }}>Loading Masterpiece...</div>;
+  if (!activeEmp) return (
+    <div style={{ padding: 60, textAlign: "center" }}>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>🎯</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>Predictive Lab</div>
+      <div style={{ fontSize: 13, color: "#94a3b8" }}>Upload employee data to activate the Risk Scorer.</div>
+    </div>
+  );
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -229,7 +276,14 @@ export default function M2RiskScorer() {
                   <span>Job Satisfaction</span>
                   <span style={{ color: simSat >= 7 ? "#22c55e" : "#ef4444" }}>{simSat}/10</span>
                 </div>
-                <input type="range" min={1} max={10} step={1} value={simSat} onChange={e => setSimSat(Number(e.target.value))} style={{ width: "100%", accentColor: "#0f172a" }} />
+                <input type="range"
+                  min={Math.round(cliff * 0.3)}
+                  max={Math.round(cliff * 3)}
+                  step={Math.round(cliff * 0.01) || 100}
+                  value={simSalary}
+                  onChange={e => setSimSalary(Number(e.target.value))}
+                  style={{ width: "100%", accentColor: "#0f172a" }}
+                />
               </div>
 
               <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
@@ -306,7 +360,9 @@ export default function M2RiskScorer() {
                     <div style={{ borderTop: "1px dashed #cbd5e1", margin: "6px 0" }} />
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                       <span style={{ color: "#0f172a", fontWeight: 700 }}>Net ROI Impact:</span>
-                      <span style={{ fontWeight: 800, color: netImpact > 0 ? "#16a34a" : "#dc2626" }}>+{cfg?.symbol}{netImpact.toLocaleString()}</span>
+                      <span style={{ fontWeight: 800, color: netImpact > 0 ? "#16a34a" : "#dc2626" }}>
+                        {netImpact > 0 ? "+" : ""}{cfg?.symbol}{Math.abs(netImpact).toLocaleString()}
+                      </span>
                     </div>
                   </div>
 
@@ -347,21 +403,16 @@ export default function M2RiskScorer() {
             <text x="300" y="215" textAnchor="middle" fontSize="13" fontWeight="800" fill="#0f172a">{activeEmp.FirstName}</text>
             <text x="300" y="230" textAnchor="middle" fontSize="10" fill="#ef4444">Epicenter ({activeEmp.RiskPct}%)</text>
 
-            {peers.map((p, i) => {
-              const angle = (i / peers.length) * (2 * Math.PI) - (Math.PI / 2);
-              const radius = 100 + (Math.random() * 50); 
-              const x = 300 + radius * Math.cos(angle);
-              const y = 175 + radius * Math.sin(angle);
-              const pLevel = getRiskLevel(p.RiskPct);
-              return (
-                <g key={p.EmployeeID}>
-                  <line x1="300" y1="175" x2={x} y2={y} stroke={pLevel.color} strokeWidth="2" strokeDasharray="4 4" opacity="0.6" />
-                  <circle cx={x} cy={y} r="14" fill={pLevel.color} />
-                  <text x={x} y={y - 20} textAnchor="middle" fontSize="11" fontWeight="700" fill="#1e293b">{p.FirstName}</text>
-                  <text x={x} y={y + 25} textAnchor="middle" fontSize="9" fill={pLevel.color}>{p.RiskPct}% Risk</text>
-                </g>
-              );
-            })}
+            {peerPositions.map((p) => (
+              <g key={p.EmployeeID}>
+                <line x1="300" y1="175" x2={p.x} y2={p.y} stroke={p.level.color} strokeWidth="2" strokeDasharray="4 4" opacity="0.6" />
+                <circle cx={p.x} cy={p.y} r="14" fill={p.level.color} opacity="0.9">
+                  <title>{p.FirstName} {p.LastName} · {p.RiskPct}% Risk</title>
+                </circle>
+                <text x={p.x} y={p.y - 20} textAnchor="middle" fontSize="11" fontWeight="700" fill="#1e293b">{p.FirstName}</text>
+                <text x={p.x} y={p.y + 25} textAnchor="middle" fontSize="9" fill={p.level.color}>{p.RiskPct}% Risk</text>
+              </g>
+            ))}
           </svg>
           <style>{`@keyframes pulse { 0% { r: 30; opacity: 0.4; } 100% { r: 80; opacity: 0; } } .pulse-anim { animation: pulse 2s infinite; }`}</style>
         </Card>
@@ -411,7 +462,7 @@ export default function M2RiskScorer() {
                   </tr>
                 </thead>
                 <tbody>
-                  {computed.sort((a,b) => b.RiskPct - a.RiskPct).slice(0, 15).map((emp, i) => (
+                  {[...computed].sort((a,b) => b.RiskPct - a.RiskPct).slice(0, 15).map((emp, i) => (
                     <tr key={emp.EmployeeID} style={{ borderBottom: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "12px", fontWeight: 800, color: i < 3 ? "#ef4444" : "#94a3b8" }}>#{i + 1}</td>
                       <td style={{ padding: "12px", fontWeight: 700 }}>{emp.FirstName} {emp.LastName}</td>
