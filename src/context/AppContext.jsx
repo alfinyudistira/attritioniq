@@ -1,21 +1,25 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Papa from "papaparse";
-
 
 export const AppContext = createContext(null);
 
 export function useApp() {
-  return useContext(AppContext);
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used inside <AppProvider>");
+  return ctx;
 }
 
-// ── Convenience hooks ──
 export function useCompany() {
-  const { company, setCompany, resetWorkspace } = useContext(AppContext);
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useCompany must be used inside <AppProvider>");
+  const { company, setCompany, resetWorkspace } = ctx;
   return { company, setCompany, resetWorkspace };
 }
 
 export function useCurrency() {
-  const { company } = useContext(AppContext);
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useCurrency must be used inside <AppProvider>");
+  const { company } = ctx;
   const currency = company?.currency || "USD";
   const fmt = useCallback(
     (val, compact = false) => formatCurrency(val, currency, compact),
@@ -25,11 +29,12 @@ export function useCurrency() {
 }
 
 export function useHRData() {
-  const { data, setData, computed, appConfig, updateConfig, applyIntervention } = useContext(AppContext);
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useHRData must be used inside <AppProvider>");
+  const { data, setData, computed, appConfig, updateConfig, applyIntervention } = ctx;
   return { data, setData, computed, appConfig, updateConfig, applyIntervention };
 }
 
-// ── Currency config ──
 const CURRENCY_CONFIG = {
   USD: { symbol: "$", locale: "en-US", name: "US Dollar" },
   IDR: { symbol: "Rp", locale: "id-ID", name: "Indonesian Rupiah" },
@@ -112,9 +117,10 @@ export const SAMPLE_DATA = [
 ];
 
 export function getGeneration(age) {
-  if (age < 28) return "Gen Z";
-  if (age <= 43) return "Millennial";
-  if (age <= 59) return "Gen X";
+  const a = Number(age);
+  if (!a || a <= 0) return "Unknown";
+  if (a < 28) return "Gen Z";
+  if (a <= 43) return "Millennial";
   return "Baby Boomer";
 }
 
@@ -138,8 +144,6 @@ export function getScoreColor(score, maxScore = 5, inverse = false) {
   }
 }
 
-
-// ── Fuzzy CSV column mapper ──
 const COLUMN_ALIASES = {
   EmployeeID: [
     "employeeid", "employee_id", "emp_id", "id", "empid", "employee id", "idkaryawan", "id pegawai", "no_pegawai", "nik",
@@ -432,19 +436,22 @@ export function AppProvider({ children }) {
     } catch { return []; }
   });
 
+  const DEFAULT_CONFIG = {
+    thresholds: { high: 30, medium: 15 },
+    colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
+  };
+
   const [appConfig, setAppConfig] = useState(() => {
     try {
       const saved = localStorage.getItem("attritioniq_config");
-      return saved ? JSON.parse(saved) : {
-        thresholds: { high: 30, medium: 15 },
-        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
-      };
-    } catch {
+      if (!saved) return DEFAULT_CONFIG;
+      const parsed = JSON.parse(saved);
+      
       return {
-        thresholds: { high: 30, medium: 15 },
-        colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
+        thresholds: { ...DEFAULT_CONFIG.thresholds, ...(parsed.thresholds || {}) },
+        colors: { ...DEFAULT_CONFIG.colors, ...(parsed.colors || {}) },
       };
-    }
+    } catch { return DEFAULT_CONFIG; }
   });
 
   // ── M9 → M1 pulse override ──
@@ -471,23 +478,22 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
-const setData = useCallback((rows) => {
-    setDataState(rows);
-    try {
-      if (rows && rows.length > 0) {
-        localStorage.setItem(LS_DATA_KEY, JSON.stringify(rows));
-      } else {
-        localStorage.removeItem(LS_DATA_KEY);
-      }
-    } catch {}
+const setData = useCallback((rowsOrUpdater) => {
+    setDataState(prev => {
+      const rows = typeof rowsOrUpdater === "function" ? rowsOrUpdater(prev) : rowsOrUpdater;
+      try {
+        if (rows && rows.length > 0) localStorage.setItem(LS_DATA_KEY, JSON.stringify(rows));
+        else localStorage.removeItem(LS_DATA_KEY);
+      } catch {}
+      return rows;
+    });
   }, []);
 
   const updateConfig = useCallback((patch) => {
     setAppConfig(prev => {
       const next = {
-        ...prev,
-        thresholds: { ...prev.thresholds, ...patch.thresholds },
-        colors: { ...prev.colors, ...patch.colors },
+        thresholds: { ...(prev.thresholds || {}), ...(patch.thresholds || {}) },
+        colors: { ...(prev.colors || {}), ...(patch.colors || {}) },
       };
       try { localStorage.setItem("attritioniq_config", JSON.stringify(next)); } catch {}
       return next;
@@ -498,15 +504,22 @@ const setData = useCallback((rows) => {
     setCompanyState(null);
     setDataState([]);
     setPulseOverrideState(null);
+    setAppConfig({
+      thresholds: { high: 30, medium: 15 },
+      colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
+    });
     try {
       localStorage.removeItem(LS_COMPANY_KEY);
       localStorage.removeItem(LS_DATA_KEY);
       localStorage.removeItem("attritioniq_pulse");
+      localStorage.removeItem(LS_CONFIG_KEY);
     } catch {}
   }, []);
 
   const computed = useMemo(() => {
     if (!data || data.length === 0) return [];
+    const thresholds = appConfig?.thresholds || { high: 30, medium: 15 };
+    const colors = appConfig?.colors || { high: "#ef4444", medium: "#eab308", low: "#22c55e" };
     return data.map(d => {
       let riskScore = 0;
 
@@ -536,44 +549,37 @@ const setData = useCallback((rows) => {
       const riskPct = Math.min(100, Math.round((riskScore / maxPossible) * 100));
 
       let riskLevel = "Low";
-      if (riskPct >= appConfig.thresholds.high) riskLevel = "High";
-      else if (riskPct >= appConfig.thresholds.medium) riskLevel = "Medium";
-
+      if (riskPct >= thresholds.high) riskLevel = "High";
+      else if (riskPct >= thresholds.medium) riskLevel = "Medium";
       return {
         ...d,
         RiskScore: riskScore,
         RiskPct: riskPct,
         RiskLevel: riskLevel,
         RiskColor:
-          riskLevel === "High"   ? appConfig.colors.high :
-          riskLevel === "Medium" ? appConfig.colors.medium :
-          appConfig.colors.low,
+          riskLevel === "High"   ? colors.high :
+          riskLevel === "Medium" ? colors.medium :
+          colors.low,
         Generation: getGeneration(d.Age),
       };
     });
   }, [data, appConfig]);
 
-  // ── Cross-module notification system ──
   const [notifications, setNotifications] = useState([]);
-
+  const notifCounterRef = useRef(0);
   const pushNotification = useCallback((msg, type = "info") => {
-    const id = Date.now();
+    const id = `notif_${Date.now()}_${++notifCounterRef.current}`;
     setNotifications(prev => [...prev, { id, msg, type }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 4000);
   }, []);
 
-  // ── Global Reactive Mutation (Masterpiece Feature) ──
   const applyIntervention = useCallback((employeeId, updates) => {
-    setData(prev => prev.map(emp => {
-      if (emp.EmployeeID === employeeId) {
-        // Gabungkan data lama dengan data intervensi baru
-        return { ...emp, ...updates };
-      }
-      return emp;
-    }));
-    pushNotification(`Intervention applied to ${employeeId}. System globally synced!`, "success");
+    setData(prev => prev.map(emp =>
+      emp.EmployeeID === employeeId ? { ...emp, ...updates } : emp
+    ));
+    pushNotification(`✅ ${employeeId} updated — all modules synced`, "success");
   }, [setData, pushNotification]);
   
     const contextValue = useMemo(() => ({
