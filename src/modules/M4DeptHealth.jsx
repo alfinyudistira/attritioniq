@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useApp, useCurrency, getGeneration, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, useCurrency, getGeneration, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Compute dept health scores ──
 function computeDeptHealth(employees, cliff) {
@@ -92,10 +92,14 @@ function computeDeptHealth(employees, cliff) {
       humanBuffer, burnoutIndex, survivorRisk, survivorLoad,
       riskVelocity, urgency, urgencyColor,
       metrics, healthScore,
+      withOT,
       genBreakdown: {
         genZ:       emps.filter(e => getGeneration(e.Age) === "Gen Z").length,
         millennial: emps.filter(e => getGeneration(e.Age) === "Millennial").length,
-        senior:     emps.filter(e => getGeneration(e.Age) === "Senior").length,
+        senior:     emps.filter(e => {
+          const g = getGeneration(e.Age);
+          return g === "Gen X" || g === "Baby Boomer";
+        }).length,
       },
       employees: emps,
     };
@@ -127,8 +131,11 @@ function TrafficLight({ light }) {
 function CriticalAlert({ dept, attritionRate, survivorLoad }) {
   const [visible, setVisible] = useState(true);
   useEffect(() => {
-    const interval = setInterval(() => setVisible(v => !v), 700);
-    return () => clearInterval(interval);
+    let mounted = true;
+    const interval = setInterval(() => {
+      if (mounted) setVisible(v => !v);
+    }, 700);
+    return () => { mounted = false; clearInterval(interval); };
   }, []);
 
   return (
@@ -160,7 +167,7 @@ function CriticalAlert({ dept, attritionRate, survivorLoad }) {
 }
 
 // ── Radar Chart (SVG) ──
-function RadarChart({ metrics, size = 160 }) {
+function RadarChart({ metrics, size = 160, cliff = 5000 }) {
   const keys = Object.keys(metrics);
   const n = keys.length;
   const cx = size / 2, cy = size / 2;
@@ -169,8 +176,9 @@ function RadarChart({ metrics, size = 160 }) {
 
   const metricToScore = (key, m) => {
     const val = parseFloat(m.value);
-    if (key === "satisfaction" || key === "humanBuffer") return Math.min(1, val / 10);
-    if (key === "salary") return 0.7; // normalized
+    if (key === "satisfaction") return Math.min(1, val / 10);
+    if (key === "humanBuffer") return Math.min(1, val / 100);
+    if (key === "salary") return Math.min(1, val / (metrics?.salary?._cliff || val * 1.2 || 1));
     if (key === "attrition" || key === "overtime" || key === "belowCliff") return Math.max(0, 1 - val / 100);
     return 0.5;
   };
@@ -380,7 +388,7 @@ function DeptDetail({ dept, allDepts, cliff, currSymbol = "$", fmt }) {
           {/* Radar */}
           <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px", marginBottom: 14, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 8 }}>Health Radar</div>
-            <RadarChart metrics={dept.metrics} size={150} />
+           <RadarChart metrics={dept.metrics} size={150} cliff={cliff} />
           </div>
 
           {/* Generation breakdown */}
@@ -462,7 +470,8 @@ function DeptDetail({ dept, allDepts, cliff, currSymbol = "$", fmt }) {
 
 // ── MAIN M4 ──
 export default function M4DeptHealth() {
-  const { data, company } = useApp();
+  const { company } = useApp();
+  const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
   const src = data.length > 0 ? data : SAMPLE_DATA;
@@ -472,33 +481,33 @@ export default function M4DeptHealth() {
   const [aiLoading, setAiLoading]   = useState(false);
   const [aiPlan, setAiPlan]         = useState(null);
   const [showAlerts, setShowAlerts] = useState(() => {
-  const saved = sessionStorage.getItem("m4_alerts");
-  return saved !== null ? JSON.parse(saved) : true;
-});
+    try {
+      const saved = sessionStorage.getItem("m4_alerts");
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch { return true; }
+  });
 
-useEffect(() => {
-  sessionStorage.setItem("m4_alerts", JSON.stringify(showAlerts));
-}, [showAlerts]);
+  useEffect(() => {
+    try { sessionStorage.setItem("m4_alerts", JSON.stringify(showAlerts)); } catch {}
+  }, [showAlerts]);
 
-  const depts = useMemo(() => computeDeptHealth(src, cliff), [src, cliff]);
-  const criticalDepts = depts.filter(d => d.survivorRisk);
-  const avgHealth = depts.length > 0 ? Math.round(depts.reduce((s, d) => s + d.healthScore, 0) / depts.length) : 0;
-  const selectedDept = depts.find(d => d.dept === selected) || depts[0];
+const depts = useMemo(() => computeDeptHealth(src, cliff), [src, cliff]);
+
+  const criticalDepts = useMemo(() => depts.filter(d => d.survivorRisk), [depts]);
+
+  const avgHealth = useMemo(() =>
+    depts.length > 0 ? Math.round(depts.reduce((s, d) => s + d.healthScore, 0) / depts.length) : 0,
+  [depts]);
+
+  const selectedDept = useMemo(() =>
+    depts.find(d => d.dept === selected) || depts[0],
+  [depts, selected]);
 
 // ── AI Intervention Plan ──
   const fetchAIPlan = useCallback(async (dept) => {
     setAiLoading(true);
     setAiPlan(null);
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `You are an HR intervention specialist at ${company?.name || "a company"} (${company?.industry || "services"} industry).
+    const prompt = `You are an HR intervention specialist at ${company?.name || "a company"} (${company?.industry || "services"} industry).
 
 Department: ${dept.dept}
 Health Score: ${dept.healthScore}/100
@@ -512,7 +521,7 @@ Key Issues:
 - Survivor Risk: ${dept.survivorRisk ? "YES - secondary burnout imminent" : "No"}
 - Risk Velocity: ${dept.riskVelocity}%
 
-Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
+Generate a 90-day intervention plan in this EXACT JSON format (no markdown, no code fences):
 {
   "diagnosis": "2 sentence diagnosis of root cause",
   "week1_14": "Immediate action: what to do in first 2 weeks",
@@ -521,17 +530,27 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
   "week61_90": "Long-term: what to do in weeks 9-12",
   "kpi": "One measurable KPI to track success",
   "risk_if_ignored": "What happens in 90 days if nothing is done"
-}`
-          }]
-        })
+}`;
+    try {
+      const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ content: prompt }] }),
       });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data2 = await response.json();
-      const text = data2.content?.[0]?.text || "{}";
-      setAiPlan(JSON.parse(text.replace(/```json|```/g, "").trim()));
-    } catch {
-      setAiPlan({ diagnosis: "AI unavailable. Please check connection.", week1_14: "—", week15_30: "—", week31_60: "—", week61_90: "—", kpi: "—", risk_if_ignored: "—" });
+      const text = data2.content?.[0]?.text || data2.text || data2.response || "{}";
+      const cleaned = text.replace(/```json|```/g, "").trim();
+      setAiPlan(JSON.parse(cleaned));
+    } catch (err) {
+      setAiPlan({
+        diagnosis: `AI unavailable: ${err?.message || "Check connection"}`,
+        week1_14: "—", week15_30: "—", week31_60: "—", week61_90: "—",
+        kpi: "—", risk_if_ignored: "—",
+      });
+    } finally {
+      setAiLoading(false);
     }
-    setAiLoading(false);
   }, [company]);
 
   // ── Export health report ──
@@ -545,11 +564,12 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
       d.riskVelocity, d.survivorRisk ? "YES" : "No"
     ].join(","));
     const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `dept_health_report_${Date.now()}.csv`;
     a.click();
+    URL.revokeObjectURL(a.href);
   }, [depts]);
   
   const TABS = [
@@ -625,8 +645,8 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
               { label: "Critical Depts", value: depts.filter(d => d.healthScore < 45).length, sub: "Need immediate action", color: "#ef4444", icon: "🚨" },
               { label: "Survivor Risk Depts", value: criticalDepts.length, sub: "Secondary burnout risk", color: "#f97316", icon: "⚠️" },
               { label: "Low Buffer Depts", value: depts.filter(d => d.humanBuffer < 30).length, sub: "Human capacity at limit", color: "#8b5cf6", icon: "🧠" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
+            ].map((k) => (
+              <div key={k.label} style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", right: 10, top: 8, fontSize: 18, opacity: 0.2 }}>{k.icon}</div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 26, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
@@ -709,7 +729,7 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
                     { label: "Burnout Index", key: d => d.burnoutIndex, fmt: v => `${v}%`, colorFn: v => v >= 70 ? "#ef4444" : v >= 40 ? "#f59e0b" : "#22c55e" },
                     { label: "Survivor Risk", key: d => d.survivorRisk ? "YES" : "No", fmt: v => v, colorFn: v => v === "YES" ? "#ef4444" : "#22c55e" },
                   ].map((row, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    <tr key={row.label} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                       <td style={{ padding: "8px 12px", fontWeight: 600, color: "#475569", fontSize: 11 }}>{row.label}</td>
                       {depts.map(d => {
                         const val = row.key(d);
@@ -817,7 +837,7 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
                   <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #bbf7d0" }}>
                     <div style={{ fontWeight: 700, fontSize: 12, color: "#166534", marginBottom: 6 }}>💰 Salary Cliff Fix</div>
                     <div style={{ fontSize: 11, color: "#14532d", lineHeight: 1.6 }}>
-                      {selectedDept.belowCliff} employees below {currSymbol}{cliff.toLocaleString()} cliff. Est. fix cost: {fmt(selectedDept.belowCliff * (cliff - selectedDept.avgSal), true)}/mo. ROI: reduces attrition risk immediately.
+                      {selectedDept.belowCliff} employees below {currSymbol}{cliff.toLocaleString()} cliff. Est. fix cost: {fmt(selectedDept.belowCliff * Math.max(0, cliff - selectedDept.avgSal), true)}/mo. ROI: reduces attrition risk immediately.
                     </div>
                   </div>
                 )}
@@ -898,8 +918,8 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
                   </tr>
                 </thead>
                 <tbody>
-                  {depts.map((d, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
+                  {depts.map((d) => (
+                    <tr key={d.dept} style={{ borderBottom: "1px solid #f8fafc" }}>
                       <td style={{ padding: "8px 10px", fontWeight: 600, color: "#1e293b" }}>{d.dept}</td>
                       <td style={{ padding: "8px 10px" }}>
                         <span style={{ fontWeight: 800, color: d.healthScore >= 70 ? "#22c55e" : d.healthScore >= 45 ? "#f59e0b" : "#ef4444" }}>{d.healthScore}</span>
@@ -940,8 +960,8 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown):
               { label: "High Urgency", value: depts.filter(d => d.urgency === "HIGH").length, color: "#f97316", icon: "⚡", sub: "need action this week" },
               { label: "Avg Org Health", value: `${avgHealth}/100`, color: avgHealth >= 70 ? "#22c55e" : avgHealth >= 45 ? "#f59e0b" : "#ef4444", icon: "🏥", sub: "weighted average" },
               { label: "Survivor Risk Depts", value: criticalDepts.length, color: "#8b5cf6", icon: "⚠️", sub: "secondary burnout risk" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 13, padding: "16px 18px", border: `1.5px solid ${k.color}22` }}>
+            ].map((k) => (
+              <div key={k.label} style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ fontSize: 22, marginBottom: 6 }}>{k.icon}</div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
