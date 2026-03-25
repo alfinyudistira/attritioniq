@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
 import { BarChart, DonutChart, ScatterPlot } from "../components/Charts";
 
@@ -29,10 +29,19 @@ function KPICard({ label, value, sub, color, icon, bg, title }) {
 function EditModal({ employee, onSave, onClose }) {
   const [form, setForm] = useState({ ...employee });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
-      <div style={{ background: "#fff", borderRadius: 18, padding: "28px 30px", width: "100%", maxWidth: 480, boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: "#fff", borderRadius: 18, padding: "28px 30px", width: "100%", maxWidth: 480, boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
             ✏️ Edit Employee
@@ -101,24 +110,26 @@ function EditModal({ employee, onSave, onClose }) {
 }
 
 export default function M1Dashboard() {
-    const { company, pulseOverride } = useApp();
+const { company, pulseOverride, appConfig } = useApp();
   const { data, setData, computed } = useHRData();
-  const { appConfig } = useApp(); 
   const { fmt, config: cfg } = useCurrency();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
-  const [deptF,   setDeptF]   = useState("All");
-  const [genF,    setGenF]    = useState("All");
-  const [statusF, setStatusF] = useState("All");
-  const [otF,     setOtF]     = useState("All");
+  const [deptF,   setDeptFRaw]   = useState("All");
+  const [genF,    setGenFRaw]    = useState("All");
+  const [statusF, setStatusFRaw] = useState("All");
+  const [otF,     setOtFRaw]     = useState("All");
+  const setDeptF   = useCallback((v) => { setDeptFRaw(v);   setPage(1); }, []);
+  const setGenF    = useCallback((v) => { setGenFRaw(v);    setPage(1); }, []);
+  const setStatusF = useCallback((v) => { setStatusFRaw(v); setPage(1); }, []);
+  const setOtF     = useCallback((v) => { setOtFRaw(v);     setPage(1); }, []);
   const [search,  setSearch]  = useState("");
   const [page,    setPage]    = useState(1);
   const PAGE_SIZE = 25;
 
   // Alert dismiss state
   const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
-  const dismissAlert = (key) => setDismissedAlerts(p => new Set([...p, key]));
-
+  const dismissAlert = useCallback((key) => setDismissedAlerts(p => new Set([...p, key])), []);
   // Inline edit state
   const [editingEmp, setEditingEmp] = useState(null);
 
@@ -127,34 +138,39 @@ export default function M1Dashboard() {
   const filtered = useMemo(() => computed.filter(d => {
     if (deptF !== "All" && d.Department !== deptF) return false;
     if (genF !== "All") {
-  if (genF === "Senior") {
-    if (d.Generation !== "Gen X" && d.Generation !== "Baby Boomer") return false;
-  } else {
-    if (d.Generation !== genF) return false;
-  }
-}
+      if (genF === "Senior") {
+        if (d.Generation !== "Gen X" && d.Generation !== "Baby Boomer") return false;
+      } else {
+        if (d.Generation !== genF) return false;
+      }
+    }
     if (statusF !== "All" && d.AttritionStatus !== statusF) return false;
     if (otF !== "All" && d.OvertimeStatus !== otF) return false;
-    if (search && !`${d.FirstName} ${d.LastName} ${d.Department} ${d.EmployeeID}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const haystack = `${d.FirstName || ""} ${d.LastName || ""} ${d.Department || ""} ${d.EmployeeID || ""}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
     return true;
-    }), [data, deptF, genF, statusF, otF, search]);
+  }), [computed, deptF, genF, statusF, otF, search]);
+  
+  const stats = useMemo(() => {
+    const total      = filtered.length;
+    const resigned   = filtered.filter(d => d.AttritionStatus === "Resigned").length;
+    const active     = filtered.filter(d => d.AttritionStatus === "Active").length;
+    const highRisk   = filtered.filter(d => d.AttritionStatus === "High Risk").length;
+    const flightRisk = total > 0 ? (((resigned + highRisk) / total) * 100).toFixed(1) : 0;
+    const withOT     = filtered.filter(d => d.OvertimeStatus === "Yes");
+    const noOT       = filtered.filter(d => d.OvertimeStatus === "No");
+    const otRate     = withOT.length > 0 ? ((withOT.filter(d => d.AttritionStatus === "Resigned").length / withOT.length) * 100).toFixed(1) : 0;
+    const noOtRate   = noOT.length  > 0  ? ((noOT.filter(d => d.AttritionStatus === "Resigned").length  / noOT.length)  * 100).toFixed(1) : 0;
+    const avgSalary  = total > 0 ? Math.round(filtered.reduce((s, d) => s + (d.MonthlySalary || 0), 0) / total) : 0;
+    const belowCliff = filtered.filter(d => (d.MonthlySalary || 0) < cliff).length;
+    const turnoverCost = resigned * avgSalary * 12 * multiplier;
+    return { total, resigned, active, highRisk, flightRisk, withOT, noOT, otRate, noOtRate, avgSalary, belowCliff, turnoverCost };
+  }, [filtered, cliff, multiplier]);
 
-  const total     = filtered.length;
-  const resigned  = filtered.filter(d => d.AttritionStatus === "Resigned").length;
-  const active    = filtered.filter(d => d.AttritionStatus === "Active").length;
-  const highRisk  = filtered.filter(d => d.AttritionStatus === "High Risk").length;
-  const flightRisk = total > 0 ? (((resigned + highRisk) / total) * 100).toFixed(1) : 0;
-
-  const withOT    = filtered.filter(d => d.OvertimeStatus === "Yes");
-  const noOT      = filtered.filter(d => d.OvertimeStatus === "No");
-  // Fixed: both use same definition of "at risk" (Resigned only for apples-to-apples)
-  const otRate    = withOT.length > 0 ? ((withOT.filter(d => d.AttritionStatus === "Resigned").length / withOT.length) * 100).toFixed(1) : 0;
-  const noOtRate  = noOT.length  > 0 ? ((noOT.filter(d => d.AttritionStatus === "Resigned").length  / noOT.length)  * 100).toFixed(1) : 0;
-
-  const avgSalary    = total > 0 ? Math.round(filtered.reduce((s, d) => s + (d.MonthlySalary || 0), 0) / total) : 0;
-  const belowCliff   = filtered.filter(d => d.MonthlySalary < cliff).length;
-  const turnoverCost = resigned * avgSalary * 12 * multiplier;
-
+  const { total, resigned, active, highRisk, flightRisk, withOT, noOT, otRate, noOtRate, avgSalary, belowCliff, turnoverCost } = stats;
   const deptStats = useMemo(() => {
     const map = {};
     filtered.forEach(d => {
@@ -165,24 +181,15 @@ export default function M1Dashboard() {
     return Object.values(map).map(d => ({ ...d, rate: d.total > 0 ? d.bad / d.total : 0 }));
   }, [filtered]);
 
-  const genData = [
-  { label: "Gen Z",     match: "Gen Z" },
-  { label: "Millennial",match: "Millennial" },
-  { label: "Senior",    match: (age) => {
-      const gen = getGeneration(age);
-      return gen === "Gen X" || gen === "Baby Boomer";
-    }
-  }
-].map(g => {
-  let grp;
-  if (typeof g.match === 'function') {
-    grp = filtered.filter(d => g.match(d.Age));
-  } else {
-    grp = filtered.filter(d => getGeneration(d.Age) === g.match);
-  }
-  const bad = grp.filter(d => d.AttritionStatus !== "Active").length;
-  return { label: g.label, rate: grp.length > 0 ? bad / grp.length : 0, count: grp.length };
-});
+  const genData = useMemo(() => [
+    { label: "Gen Z",      match: (d) => d.Generation === "Gen Z" },
+    { label: "Millennial", match: (d) => d.Generation === "Millennial" },
+    { label: "Senior",     match: (d) => d.Generation === "Gen X" || d.Generation === "Baby Boomer" },
+  ].map(g => {
+    const grp = filtered.filter(g.match);
+    const bad = grp.filter(d => d.AttritionStatus !== "Active").length;
+    return { label: g.label, rate: grp.length > 0 ? bad / grp.length : 0, count: grp.length };
+  }), [filtered]);
 
   const genZCrisis = genData.find(g => g.label === "Gen Z" && g.rate >= 0.8);
 
@@ -199,10 +206,13 @@ export default function M1Dashboard() {
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Inline save handler
-  const handleSaveEdit = (updated) => {
-    setData(data.map(d => d.EmployeeID === updated.EmployeeID ? { ...d, ...updated } : d));
-  };
+const { applyIntervention } = useHRData();
+
+  const handleSaveEdit = useCallback((updated) => {
+    // Use applyIntervention so toast fires + functional updater is safe
+    const { EmployeeID, ...updates } = updated;
+    applyIntervention(EmployeeID, updates);
+  }, [applyIntervention]);
 
   if (data.length === 0) {
     return (
@@ -412,9 +422,9 @@ export default function M1Dashboard() {
                     <td style={{ padding: "7px 10px" }}>
   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
     <div style={{ width: 36, height: 5, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
-      <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskLevel === "High" ? appConfig.colors.high : d.RiskLevel === "Medium" ? appConfig.colors.medium : appConfig.colors.low, borderRadius: 3 }} />
+     <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskColor || (d.RiskLevel === "High" ? "#ef4444" : d.RiskLevel === "Medium" ? "#eab308" : "#22c55e"), borderRadius: 3 }} />
     </div>
-    <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskLevel === "High" ? appConfig.colors.high : d.RiskLevel === "Medium" ? appConfig.colors.medium : appConfig.colors.low }}>{d.RiskPct || 0}%</span>
+    <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskColor || (d.RiskLevel === "High" ? "#ef4444" : d.RiskLevel === "Medium" ? "#eab308" : "#22c55e") }}>{d.RiskPct || 0}%</span>
   </div>
 </td>
                     <td style={{ padding: "7px 10px", textAlign: "center" }}> 
