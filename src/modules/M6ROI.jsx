@@ -193,9 +193,9 @@ function GanttChart({ interventions, breakEvenMonth }) {
         </g>
       )}
 
-      {/* Bottom month axis */}
+            {/* Bottom month axis */}
       <line x1={pad.l} y1={H - pad.b + 4} x2={W - pad.r} y2={H - pad.b + 4} stroke="#e2e8f0" strokeWidth={1} />
-      {{[0.5, 1.5, 2.5].map((m, i) => {
+      {([0.5, 1.5, 2.5]).map((m, i) => {
         const d = new Date();
         d.setMonth(d.getMonth() + i);
         const label = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
