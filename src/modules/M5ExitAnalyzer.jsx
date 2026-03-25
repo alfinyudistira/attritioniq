@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, useCurrency } from "../context/AppContext";
+import { useApp, useHRData, useCurrency } from "../context/AppContext";
 
 // ── Sample exit interviews based on PDF personas ──
 const SAMPLE_INTERVIEWS = [
@@ -25,15 +25,7 @@ const CATEGORIES = {
 // ── AI analysis ──
 async function analyzeWithAI(interviews, company) {
   const summaries = interviews.map(i => `[${i.dept}] "${i.text.slice(0, 200)}..."`).join("\n\n");
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are an HR analyst at ${company?.name || "a company"}. Analyze these ${interviews.length} exit interviews and provide:
+  const prompt = `You are an HR analyst at ${company?.name || "a company"}. Analyze these ${interviews.length} exit interviews and provide:
 
 ${summaries}
 
@@ -44,12 +36,16 @@ Respond in this exact JSON format (no markdown, no backticks):
   "hiddenPattern": "One sentence: a non-obvious pattern that connects multiple exit interviews",
   "retentionOpportunity": "One sentence: what would have convinced the most people to stay",
   "riskForecast": "One sentence: what will happen in the next 60 days if nothing changes"
-}`
-      }]
-    })
+}`;
+
+  const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ content: prompt }] }),
   });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
-  const text = data.content?.[0]?.text || "{}";
+  const text = data.content?.[0]?.text || data.text || data.response || "{}";
   try {
     return JSON.parse(text.replace(/```json|```/g, "").trim());
   } catch {
@@ -104,24 +100,39 @@ function extractKeywords(interviews) {
 }
 
 // ── Word Cloud SVG ──
+function seededRandom(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
 function WordCloud({ words }) {
   if (!words || words.length === 0) return null;
   const max = words[0]?.[1] || 1;
-  const positions = [];
-  const placed = [];
 
-  words.slice(0, 30).forEach(([word, count]) => {
-    const fontSize = Math.max(10, Math.min(28, (count / max) * 28));
-    const color = Object.values(CATEGORIES).find(c => c.keywords.includes(word))?.color || "#94a3b8";
-    let x, y, attempts = 0;
-    do {
-      x = 20 + Math.random() * 360;
-      y = 20 + Math.random() * 150;
-      attempts++;
-    } while (attempts < 30 && placed.some(p => Math.abs(p.x - x) < word.length * fontSize * 0.5 && Math.abs(p.y - y) < fontSize * 1.5));
-    placed.push({ x, y });
-    positions.push({ word, count, fontSize, color, x, y });
-  });
+  const positions = useMemo(() => {
+    const rand = seededRandom(
+      words.slice(0, 10).reduce((acc, [w]) => acc + w.charCodeAt(0), 42)
+    );
+    const placed = [];
+    const result = [];
+    words.slice(0, 30).forEach(([word, count]) => {
+      const fontSize = Math.max(10, Math.min(28, (count / max) * 28));
+      const color = Object.values(CATEGORIES).find(c => c.keywords.includes(word))?.color || "#94a3b8";
+      let x, y, attempts = 0;
+      do {
+        x = 20 + rand() * 360;
+        y = 20 + rand() * 150;
+        attempts++;
+      } while (attempts < 30 && placed.some(p => Math.abs(p.x - x) < word.length * fontSize * 0.5 && Math.abs(p.y - y) < fontSize * 1.5));
+      placed.push({ x, y });
+      result.push({ word, count, fontSize, color, x, y });
+    });
+    return result;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [words]);
 
   return (
     <svg width="100%" viewBox="0 0 400 180" style={{ overflow: "visible" }}>
@@ -301,7 +312,8 @@ function AddInterviewForm({ onAdd, deptOptions = [], currSymbol = "$" }) {
 
 // ── MAIN M5 ──
 export default function M5ExitAnalyzer() {
-  const { company, data } = useApp();
+  const { company } = useApp();
+  const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
   const [interviews, setInterviews]     = useState(SAMPLE_INTERVIEWS);
@@ -437,11 +449,12 @@ export default function M5ExitAnalyzer() {
       `"${(iv.text || "").slice(0, 100).replace(/"/g, "'")}"`
     ].join(","));
     const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `exit_interviews_${Date.now()}.csv`;
     a.click();
+    URL.revokeObjectURL(a.href);
   }, [analyzed]);
   
   const handleAI = useCallback(async () => {
@@ -449,11 +462,17 @@ export default function M5ExitAnalyzer() {
     setAiInsights(null);
     try {
       const result = await analyzeWithAI(interviews, company);
+      if (!result) throw new Error("AI returned empty response");
       setAiInsights(result);
-    } catch {
-      setAiInsights({ topTheme: "AI analysis unavailable.", urgentAction: "Please check your connection.", hiddenPattern: "", retentionOpportunity: "", riskForecast: "" });
+    } catch (err) {
+      setAiInsights({
+        topTheme: `AI unavailable: ${err?.message || "Check connection"}`,
+        urgentAction: "Please retry — if issue persists, check Vercel proxy status.",
+        hiddenPattern: "", retentionOpportunity: "", riskForecast: "",
+      });
+    } finally {
+      setAiLoading(false);
     }
-    setAiLoading(false);
   }, [interviews, company]);
 
   const TABS = [
@@ -499,8 +518,8 @@ export default function M5ExitAnalyzer() {
             { label: "Avg Sentiment", value: sentimentStats.avg, sub: `${sentimentStats.pct}% highly negative`, color: sentimentStats.avg < 35 ? "#ef4444" : sentimentStats.avg < 60 ? "#f59e0b" : "#22c55e", icon: "😔", bg: sentimentStats.avg < 35 ? "#fef2f2" : "#fffbeb" },
             { label: "Patterns Found", value: patterns.length, sub: "Actionable systemic issues", color: "#8b5cf6", icon: "🔍", bg: "#f5f3ff" },
             { label: "Avg Retainable", value: `${avgRetentionProbability}%`, sub: "Could have been prevented", color: avgRetentionProbability >= 60 ? "#22c55e" : avgRetentionProbability >= 35 ? "#f59e0b" : "#ef4444", icon: "💔", bg: avgRetentionProbability >= 60 ? "#f0fdf4" : "#fef2f2" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
+            ].map((k) => (
+              <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", right: 10, top: 8, fontSize: 18, opacity: 0.2 }}>{k.icon}</div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.1 }}>{k.value}</div>
@@ -633,7 +652,7 @@ export default function M5ExitAnalyzer() {
             {patterns.length === 0 ? (
               <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>No significant patterns detected yet</div>
             ) : patterns.map((p, i) => (
-              <div key={i} style={{ background: severityBg(p.severity), borderRadius: 10, padding: "12px 16px", border: `1.5px solid ${severityBorder(p.severity)}`, marginBottom: 10, display: "flex", gap: 10 }}>
+              <div key={`${p.severity}-${i}`} style={{ background: severityBg(p.severity), borderRadius: 10,
                 <span style={{ fontSize: 18, flexShrink: 0 }}>{p.icon}</span>
                 <div>
                   <span style={{ fontSize: 10, fontWeight: 700, color: severityColor(p.severity), textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 8 }}>
@@ -660,8 +679,8 @@ export default function M5ExitAnalyzer() {
                 </div>
               ))}
             </div>
-            {analyzed.map((iv, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+            {analyzed.map((iv) => (
+              <div key={iv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                 <span style={{ fontSize: 11, color: "#475569", width: 110, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{iv.name || `#${i + 1}`}</span>
                 <div style={{ flex: 1, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${iv.analysis.sentiment.score}%`, height: "100%", background: iv.analysis.sentiment.color, borderRadius: 3 }} />
@@ -835,7 +854,7 @@ export default function M5ExitAnalyzer() {
                     </thead>
                     <tbody>
                       {rows.map((row, i) => (
-                        <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <tr key={row.label} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                           <td style={{ padding: "8px 12px", fontWeight: 600, color: "#475569" }}>{row.label}</td>
                           <td style={{ padding: "8px 12px", color: "#1e293b" }}>{row.va}</td>
                           <td style={{ padding: "8px 12px", color: "#1e293b" }}>{row.vb}</td>
@@ -880,8 +899,8 @@ export default function M5ExitAnalyzer() {
                   </tr>
                 </thead>
                 <tbody>
-                  {analyzed.map((iv, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
+                  {analyzed.map((iv) => (
+                    <tr key={iv.id} style={{ borderBottom: "1px solid #f8fafc" }}>
                       <td style={{ padding: "7px 10px", fontWeight: 600, color: "#1e293b" }}>{iv.name || "Anonymous"}</td>
                       <td style={{ padding: "7px 10px", color: "#475569" }}>{iv.dept}</td>
                       <td style={{ padding: "7px 10px", color: "#94a3b8" }}>{iv.date}</td>
