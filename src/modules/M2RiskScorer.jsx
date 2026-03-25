@@ -431,7 +431,7 @@ export default function M2RiskScorer() {
             </div>
             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 20, borderRadius: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#d97706", textTransform: "uppercase", marginBottom: 4 }}>Saveable (Intervene Now)</div>
-              <div style={{ fontSize: 12, color: "#92400e", marginBottom: 12 }}>High risk but Satisfaction > 3. Fix salary/overtime immediately.</div>
+              <div style={{ fontSize: 12, color: "#92400e", marginBottom: 12 }}>High risk but Satisfaction &gt; 3. Fix salary/overtime immediately.</div>
               <div style={{ fontSize: 24, fontWeight: 800, color: "#f59e0b" }}>{computed.filter(c => c.RiskPct >= 50 && c.JobSatisfaction > 3).length} <span style={{ fontSize: 12, fontWeight: 600 }}>Employees</span></div>
             </div>
             <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: 20, borderRadius: 14 }}>
