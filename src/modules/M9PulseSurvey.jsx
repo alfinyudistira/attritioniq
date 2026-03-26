@@ -883,7 +883,6 @@ export default function M9PulseSurvey() {
           <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
             <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Raw Text Responses</div>
             {(selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)).map((r, i) => {
-              {(selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)).map((r, i) => {
               const color = r.sentiment === "positive" ? "#22c55e" : r.sentiment === "negative" ? "#ef4444" : "#f59e0b";
               const bg = r.sentiment === "positive" ? "#f0fdf4" : r.sentiment === "negative" ? "#fef2f2" : "#fffbeb";
               return (
@@ -904,7 +903,7 @@ export default function M9PulseSurvey() {
       {activeTab === "builder" && (
         <div>
           <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🛠️ Pulse Survey Builder</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🛠️ Survey Builder</div>
             <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>Select 2–5 questions for this week's survey · Mix scale + open-ended</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
