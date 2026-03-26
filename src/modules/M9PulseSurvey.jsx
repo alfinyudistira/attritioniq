@@ -563,7 +563,7 @@ export default function M9PulseSurvey() {
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{
-              padding: "8px 15px", borderRadius: 10, border: "none", cursor: "pointer",
+              padding: "8px 15px", borderRadius: 10, cursor: "pointer",
               background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
               color: activeTab === t.id ? "#fff" : "#64748b",
               fontWeight: activeTab === t.id ? 700 : 500, fontSize: 12,
