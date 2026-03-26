@@ -495,7 +495,7 @@ export default function M5ExitAnalyzer() {
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{
-              padding: "9px 18px", borderRadius: 10, border: "none", cursor: "pointer",
+              padding: "9px 18px", borderRadius: 10, cursor: "pointer",
               background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
               color: activeTab === t.id ? "#fff" : "#64748b",
               fontWeight: activeTab === t.id ? 700 : 500, fontSize: 13,
