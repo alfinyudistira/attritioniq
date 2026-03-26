@@ -417,6 +417,7 @@ export default function M9PulseSurvey() {
   const [aiLoading, setAiLoading] = useState({});
   const [liveStream, setLiveStream] = useState([]);
   const [streamActive, setStreamActive] = useState(false);
+  const [showWarnings, setShowWarnings] = useState(false);
   const streamRef = useRef(null);
 
   const history = useMemo(() => generatePulseHistory(data), [data]);
