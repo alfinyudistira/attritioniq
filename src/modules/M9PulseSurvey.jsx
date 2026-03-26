@@ -536,8 +536,24 @@ export default function M9PulseSurvey() {
       {/* Burnout Early Warning Banner */}
       {earlyWarnings.length > 0 && (
         <div style={{ marginBottom: 18 }}>
-          {earlyWarnings.map(w => (
-            <div key={w.dept} style={{ background: "#fef2f2", borderRadius: 12, padding: "12px 18px", border: "2px solid #ef4444", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => setShowWarnings(!showWarnings)}
+            style={{
+              width: "100%", background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 10,
+              padding: "10px 16px", display: "flex", justifyContent: "space-between",
+              alignItems: "center", cursor: "pointer", marginBottom: showWarnings ? 8 : 0,
+              color: "#dc2626", fontWeight: 700, fontSize: 13, transition: "all 0.2s"
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>🚨</span>
+              <span>{earlyWarnings.length} Critical Burnout Warnings</span>
+            </span>
+            <span>{showWarnings ? "Hide Warnings ▲" : "View Details ▼"}</span>
+          </button>
+
+          {showWarnings && earlyWarnings.map(w => (
+            <div key={w.dept} style={{ background: "#fef2f2", borderRadius: 12, padding: "12px 18px", border: "1.5px solid #ef4444", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ fontSize: 22, flexShrink: 0 }}>🔥</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 800, fontSize: 13, color: "#dc2626" }}>
@@ -557,6 +573,7 @@ export default function M9PulseSurvey() {
           ))}
         </div>
       )}
+
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 7, marginBottom: 20, flexWrap: "wrap" }}>
