@@ -1,5 +1,7 @@
 import { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppProvider, AppContext, useCurrency } from "./context/AppContext";
+import { GlobalProvider } from "./context/GlobalContext";
+import { ModuleDataProvider } from "./context/ModuleDataContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
 import M1Dashboard from "./modules/M1Dashboard";
@@ -399,8 +401,12 @@ const [active, setActive]           = useState("m1");
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
+    <GlobalProvider>
+      <ModuleDataProvider>
+        <AppProvider>
+          <AppShell />
+        </AppProvider>
+      </ModuleDataProvider>
+    </GlobalProvider>
   );
 }
