@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useApp, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Fatigue scoring engine ──
 function computeFatigueScore(shift) {
@@ -51,19 +51,25 @@ function computeFatigueScore(shift) {
 }
 
 // ── Build team fatigue from CSV data ──
-function buildTeamFatigue(data) {
+function buildTeamFatigue(data, stdHours = 40) {
+  // Kalkulasi OT threshold berdasarkan jam standar perusahaan
+  const otBaseHours = stdHours > 40 ? stdHours - 40 : 0;
   return data.map(e => {
     const hasOT = e.OvertimeStatus === "Yes";
     const dept = e.Department || "Unknown";
-    // Infer shift characteristics from data
+    // Infer shift characteristics — sensitif terhadap stdHours
     const shiftType = hasOT
       ? (e.JobSatisfaction <= 2 ? "Night" : "Evening")
       : "Day";
-    const duration = hasOT ? (e.JobSatisfaction <= 2 ? 12 : 10) : 8;
+    const duration = hasOT
+      ? (e.JobSatisfaction <= 2 ? Math.min(14, stdHours > 40 ? 13 : 12) : 10)
+      : Math.min(10, Math.round(stdHours / 5));
     const restHours = hasOT ? (e.JobSatisfaction <= 2 ? 7 : 9) : 14;
     const consecutiveDays = hasOT ? 6 : 5;
     const weekendWork = hasOT ? (e.JobSatisfaction <= 2 ? "Both" : "One") : "None";
-    const weeklyOTHours = hasOT ? (e.JobSatisfaction <= 2 ? 18 : 10) : 0;
+    const weeklyOTHours = hasOT
+      ? (e.JobSatisfaction <= 2 ? Math.max(15, otBaseHours + 8) : Math.max(10, otBaseHours))
+      : otBaseHours;
 
     const shift = { shiftType, duration, restHours, consecutiveDays, weekendWork, weeklyOTHours };
     const { score, factors, level } = computeFatigueScore(shift);
@@ -77,15 +83,7 @@ function buildTeamFatigue(data) {
 
 // ── AI Fatigue Insight ──
 async function fetchFatigueAI(teamStats, company) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are a workplace fatigue specialist at ${company?.name || "a company"}.
+  const prompt = `You are a workplace fatigue specialist at ${company?.name || "a company"}.
 
 Team Fatigue Report:
 - Total employees analyzed: ${teamStats.total}
@@ -100,12 +98,16 @@ Write 3 short paragraphs:
 2. Which departments need immediate schedule intervention
 3. Specific schedule optimization recommendation (e.g., rotation pattern, rest gap policy)
 
-Under 160 words. Direct, actionable. No bullet points.`
-      }]
-    })
+Under 160 words. Direct, actionable. No bullet points.`;
+
+  const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ content: prompt }] }),
   });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
-  return data.content?.[0]?.text || "AI insight unavailable.";
+  return data.content?.[0]?.text || data.text || data.response || "AI insight unavailable.";
 }
 
 // ── Fatigue Gauge ──
@@ -155,11 +157,11 @@ function FatigueFactorBar({ factor }) {
 
 // ── Schedule Optimizer ──
 function ScheduleOptimizer({ baseShift, company }) {
-  const [simShift, setSimShift] = useState({ ...baseShift });
+  const [simShift, setSimShift] = useState(() => ({ ...baseShift }));
   const base = computeFatigueScore(baseShift);
   const sim = computeFatigueScore(simShift);
   const delta = sim.score - base.score;
-  const set = (k, v) => setSimShift(p => ({ ...p, [k]: v }));
+  const set = useCallback((k, v) => setSimShift(p => ({ ...p, [k]: v })), []);
 
   return (
     <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginTop: 20 }}>
@@ -269,11 +271,11 @@ function ScheduleOptimizer({ baseShift, company }) {
 
 // ── Weekly Heatmap ──
 function WeeklyHeatmap({ teamFatigue }) {
-  const depts = [...new Set(teamFatigue.map(e => e.Department))];
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  // Simulate daily fatigue accumulation per dept
-  const deptFatigue = depts.map(dept => {
+  const deptFatigue = useMemo(() => {
+    const depts = [...new Set(teamFatigue.map(e => e.Department))];
+    return depts.map(dept => {
     const emps = teamFatigue.filter(e => e.Department === dept);
     const avgFatigue = emps.length > 0 ? Math.round(emps.reduce((s, e) => s + e.fatigueScore, 0) / emps.length) : 0;
     const hasOT = emps.filter(e => e.OvertimeStatus === "Yes").length / emps.length;
@@ -284,7 +286,8 @@ function WeeklyHeatmap({ teamFatigue }) {
       return Math.min(100, Math.round(avgFatigue * 0.7 + accumulation + weekend));
     });
     return { dept, dailyFatigue, avgFatigue };
-  });
+    });
+  }, [teamFatigue]);
 
   const cellColor = (val) => {
     if (val >= 75) return "#ef4444";
@@ -311,7 +314,7 @@ function WeeklyHeatmap({ teamFatigue }) {
             <tr key={d.dept}>
               <td style={{ padding: "6px 10px", fontWeight: 600, color: "#1e293b", fontSize: 12, whiteSpace: "nowrap" }}>{d.dept}</td>
               {d.dailyFatigue.map((val, i) => (
-                <td key={i} style={{ padding: "4px", textAlign: "center" }}>
+                <td key={days[i]} style={{ padding: "4px", textAlign: "center" }}>
                   <div style={{
                     background: cellColor(val), borderRadius: 6, padding: "5px 4px",
                     fontSize: 10, fontWeight: 700, color: "#fff",
@@ -395,7 +398,7 @@ function RotationRecommender({ teamFatigue }) {
   return (
     <div>
       {recommendations.map((r, i) => (
-        <div key={i} style={{ background: r.bg, borderRadius: 12, padding: "14px 16px", border: `1.5px solid ${r.border}`, marginBottom: 10 }}>
+        <div key={`${r.severity}-${r.title.slice(0, 20)}`} style={{ background: r.bg, borderRadius: 12, padding: "14px 16px", border: `1.5px solid ${r.border}`, marginBottom: 10 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
             <span style={{ fontSize: 18, flexShrink: 0 }}>{r.icon}</span>
             <div style={{ flex: 1 }}>
@@ -418,8 +421,11 @@ function RotationRecommender({ teamFatigue }) {
 
 // ── MAIN M7 ──
 export default function M7FatigueRadar() {
-  const { data, company } = useApp();
+  const { company } = useApp();
+  const { data } = useHRData();
   const src = data.length > 0 ? data : SAMPLE_DATA;
+  const stdHours = company?.avgWorkHoursPerWeek || 40;
+  const teamFatigue = useMemo(() => buildTeamFatigue(src, stdHours), [src, stdHours]);
   const [activeTab, setActiveTab] = useState("team");
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -460,7 +466,7 @@ export default function M7FatigueRadar() {
   }, [teamFatigue]);
 
   const singleResult = useMemo(() => computeFatigueScore(singleShift), [singleShift]);
-  const setS = (k, v) => setSingleShift(p => ({ ...p, [k]: v }));
+  const setS = useCallback((k, v) => setSingleShift(p => ({ ...p, [k]: v })), []);
 
   const handleAI = useCallback(async () => {
     setAiLoading(true);
@@ -468,10 +474,11 @@ export default function M7FatigueRadar() {
     try {
       const text = await fetchFatigueAI(teamStats, company);
       setAiText(text);
-    } catch {
-      setAiText("AI insight unavailable. Please check your connection.");
+    } catch (err) {
+      setAiText(`⚠️ AI unavailable: ${err?.message || "Check connection and retry."}`);
+    } finally {
+      setAiLoading(false);
     }
-    setAiLoading(false);
   }, [teamStats, company]);
 
   const TABS = [
@@ -514,8 +521,8 @@ export default function M7FatigueRadar() {
               { label: "Low Fatigue", value: teamStats.low, sub: "Score <25 — healthy", color: "#22c55e", icon: "✅", bg: "#f0fdf4" },
               { label: "Top Driver", value: teamStats.topDriver, sub: "Most common cause", color: "#8b5cf6", icon: "🔍", bg: "#f5f3ff" },
               { label: "Worst Dept", value: teamStats.worstDepts[0] || "—", sub: "Highest avg fatigue", color: "#dc2626", icon: "🏢", bg: "#fef2f2" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: k.bg, borderRadius: 13, padding: "13px 15px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
+            ].map((k) => (
+              <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "13px 15px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", right: 8, top: 8, fontSize: 16, opacity: 0.2 }}>{k.icon}</div>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.1 }}>{k.value}</div>
@@ -553,7 +560,7 @@ export default function M7FatigueRadar() {
             <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Top 10 At-Risk Employees</div>
               {[...teamFatigue].sort((a, b) => b.fatigueScore - a.fatigueScore).slice(0, 10).map((e, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div key={e.EmployeeID || i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 10, color: "#94a3b8", width: 18 }}>#{i + 1}</span>
                   <span style={{ fontSize: 11, color: "#1e293b", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {e.FirstName} {e.LastName}
@@ -611,7 +618,7 @@ export default function M7FatigueRadar() {
                 </thead>
                 <tbody>
                   {[...teamFatigue].sort((a, b) => b.fatigueScore - a.fatigueScore).slice(0, 25).map((e, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    <tr key={e.EmployeeID || i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                       <td style={{ padding: "7px 10px", color: "#1e293b", fontWeight: 500, whiteSpace: "nowrap" }}>{e.FirstName} {e.LastName}</td>
                       <td style={{ padding: "7px 10px", color: "#475569", fontSize: 11 }}>{e.Department}</td>
                       <td style={{ padding: "7px 10px", color: e.OvertimeStatus === "Yes" ? "#ef4444" : "#22c55e", fontWeight: 700 }}>{e.OvertimeStatus}</td>
@@ -736,7 +743,7 @@ export default function M7FatigueRadar() {
 
               <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Factor Breakdown</div>
-                {singleResult.factors.map((f, i) => <FatigueFactorBar key={i} factor={f} />)}
+                {singleResult.factors.map((f) => <FatigueFactorBar key={f.label} factor={f} />)}
               </div>
             </div>
           </div>
@@ -776,8 +783,8 @@ export default function M7FatigueRadar() {
                 { icon: "🌙", label: "Night Shifts", rule: "Limit night shifts to max 4 consecutive nights. Always follow with 2+ days off.", color: "#6366f1" },
                 { icon: "📅", label: "Weekend Policy", rule: "Guarantee at least 1 full weekend per month. Weekend work must be voluntary when possible.", color: "#f59e0b" },
                 { icon: "⚡", label: "Overtime Cap", rule: "Hard cap at 8h OT per week. Above 15h/week causes exponential fatigue compounding.", color: "#ef4444" },
-              ].map((p, i) => (
-                <div key={i} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: `1px solid ${p.color}22` }}>
+              ].map((p) => (
+                <div key={p.label} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: `1px solid ${p.color}22` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 14 }}>{p.icon}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: p.color }}>{p.label}</span>
@@ -797,8 +804,8 @@ export default function M7FatigueRadar() {
                 { icon: "🏥", text: "→ M4: Check Human Buffer for departments with avg fatigue >60" },
                 { icon: "📈", text: "→ M6: Include buffer staff cost in ROI calculator to cover rotation gaps" },
                 { icon: "🚪", text: "→ M5: Cross-reference fatigue data with exit interviews mentioning burnout/workload" },
-              ].map((item, i) => (
-                <div key={i} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa", fontSize: 11, color: "#64748b" }}>
+              ].map((item) => (
+                <div key={item.text.slice(0, 20)} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa", fontSize: 11, color: "#64748b" }}>
                   <span style={{ marginRight: 6 }}>{item.icon}</span>{item.text}
                 </div>
               ))}
