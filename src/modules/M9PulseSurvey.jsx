@@ -786,7 +786,7 @@ export default function M9PulseSurvey() {
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
                     <th style={{ padding: "7px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9" }}>Department</th>
-                    {history.map((w) => (
+                    {history.map((w, i) => (
                       <th key={w.week} style={{ padding: "7px 8px", textAlign: "center", color: "#64748b", fontWeight: 700, fontSize: 10, borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>
                         W{i + 1}
                       </th>
