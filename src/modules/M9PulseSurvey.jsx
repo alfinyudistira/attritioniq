@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useApp, SAMPLE_DATA } from "../context/AppContext";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useApp, useHRData, SAMPLE_DATA } from "../context/AppContext";
 
 // ── Question bank ──
 const QUESTION_BANK = [
@@ -18,10 +18,22 @@ const QUESTION_BANK = [
 ];
 
 // ── Simulated pulse data — 8 weeks ──
+// ── Seeded PRNG untuk deterministik — posisi/nilai stabil walau di-render ulang ──
+function seededRand(seed) {
+  let s = seed | 0;
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) | 0;
+    return (s >>> 0) / 0x100000000;
+  };
+}
+
 function generatePulseHistory(data) {
   const src = data.length > 0 ? data : SAMPLE_DATA;
   const depts = [...new Set(src.map(e => e.Department))];
   const weeks = ["Week 1","Week 2","Week 3","Week 4","Week 5","Week 6","Week 7","Week 8 (Current)"];
+
+  // Seed dari total karyawan + avg satisfaction = stabil selama data tidak berubah drastis
+  const dataSeed = src.reduce((acc, e) => acc + (e.JobSatisfaction || 5), 0);
 
   return weeks.map((week, wi) => {
     const deptData = {};
@@ -30,17 +42,19 @@ function generatePulseHistory(data) {
       const hasOT = emps.filter(e => e.OvertimeStatus === "Yes").length / Math.max(emps.length, 1);
       const avgSat = emps.length > 0 ? emps.reduce((s, e) => s + (e.JobSatisfaction || 5), 0) / emps.length : 5;
 
-      // Simulate degrading scores over weeks (crisis developing)
+      // Seed unik per dept per week — deterministik
+      const rand = seededRand(dataSeed * 31 + dept.charCodeAt(0) * 17 + wi * 7);
+
       const degradation = dept === "HR" ? 0 : wi * (hasOT * 2.5);
-      const responses = Math.floor(emps.length * (0.6 + Math.random() * 0.35));
+      const responses = Math.floor(emps.length * (0.6 + rand() * 0.35));
 
       deptData[dept] = {
-        workload: Math.max(1, Math.min(10, (avgSat * 0.9) - degradation * 0.3 + (Math.random() - 0.5))).toFixed(1),
-        recognition: Math.max(1, Math.min(10, (avgSat * 0.85) - degradation * 0.2 + (Math.random() - 0.5))).toFixed(1),
-        management: Math.max(1, Math.min(10, (avgSat * 0.95) - degradation * 0.15 + (Math.random() - 0.5))).toFixed(1),
-        enps: Math.max(-100, Math.min(100, (avgSat - 5) * 20 - degradation * 8 + (Math.random() * 10 - 5))).toFixed(0),
-        wellbeing: Math.max(1, Math.min(10, (avgSat * 0.88) - degradation * 0.35 + (Math.random() - 0.5))).toFixed(1),
-        energy: Math.max(1, Math.min(10, (avgSat * 0.9) - degradation * 0.4 + (Math.random() - 0.5))).toFixed(1),
+        workload:    Math.max(1, Math.min(10, (avgSat * 0.9)  - degradation * 0.3  + (rand() - 0.5))).toFixed(1),
+        recognition: Math.max(1, Math.min(10, (avgSat * 0.85) - degradation * 0.2  + (rand() - 0.5))).toFixed(1),
+        management:  Math.max(1, Math.min(10, (avgSat * 0.95) - degradation * 0.15 + (rand() - 0.5))).toFixed(1),
+        enps:        Math.max(-100, Math.min(100, (avgSat - 5) * 20 - degradation * 8 + (rand() * 10 - 5))).toFixed(0),
+        wellbeing:   Math.max(1, Math.min(10, (avgSat * 0.88) - degradation * 0.35 + (rand() - 0.5))).toFixed(1),
+        energy:      Math.max(1, Math.min(10, (avgSat * 0.9)  - degradation * 0.4  + (rand() - 0.5))).toFixed(1),
         responses,
         totalEmps: emps.length,
         responseRate: Math.round((responses / Math.max(emps.length, 1)) * 100),
@@ -77,15 +91,7 @@ function generatePulseHistory(data) {
 
 // ── AI Intervention Trigger ──
 async function fetchAIIntervention(alert, company) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are an HR intervention specialist at ${company?.name || "a company"}.
+  const prompt = `You are an HR intervention specialist at ${company?.name || "a company"}.
 
 CRITICAL ALERT: ${alert.dept} department pulse score dropped from ${alert.prevScore} to ${alert.currScore} (${alert.drop} point drop in one week).
 
@@ -99,12 +105,16 @@ Write an urgent intervention plan in 3 paragraphs:
 2. What must happen in the next 72 hours (specific actions, who does what)
 3. What to monitor over the next 2 weeks to confirm recovery
 
-Under 180 words. Urgent, specific, no jargon. No bullet points.`
-      }]
-    })
+Under 180 words. Urgent, specific, no jargon. No bullet points.`;
+
+  const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ content: prompt }] }),
   });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
-  return data.content?.[0]?.text || "AI intervention unavailable.";
+  return data.content?.[0]?.text || data.text || data.response || "AI intervention unavailable.";
 }
 
 // ── Components ──
@@ -155,6 +165,30 @@ function Sparkline({ values, color = "#f59e0b", width = 80, height = 28 }) {
 }
 
 // Word Cloud
+// Helper deterministik di luar component
+function getWordColor(w) {
+  const positioned = buildWordPositions(words, maxF);
+  const negative = ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"];
+  const positive = ["great","good","supported","excellent","motivated","growth","clear","happy","collaborative","appreciated"];
+  if (negative.includes(w)) return "#ef4444";
+  if (positive.includes(w)) return "#22c55e";
+  const palette = ["#3b82f6","#8b5cf6","#f59e0b","#10b981","#06b6d4"];
+  return palette[w.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % palette.length];
+}
+
+function buildWordPositions(words, maxF) {
+  const rand = seededRand(words.reduce((acc, [w]) => acc + w.charCodeAt(0), 0));
+  const placed = [];
+  return words.map(([word, count]) => {
+    const fs = Math.max(9, Math.min(26, (count / maxF) * 26));
+    let x, y, att = 0;
+    do { x = 15 + rand() * 370; y = 15 + rand() * 140; att++; }
+    while (att < 40 && placed.some(p => Math.abs(p.x - x) < word.length * fs * 0.45 && Math.abs(p.y - y) < fs * 1.4));
+    placed.push({ x, y });
+    return { word, count, fs, color: getWordColor(word), x, y };
+  });
+}
+
 function WordCloud({ responses }) {
   const freq = {};
   const stop = new Set(["the","and","was","were","had","that","this","with","from","they","for","but","not","been","when","also","just","more","after","into","about","very","would","could","which","there","what","than","then","some","my","me","i","a","an","to","of","in","on","is","it","at","by","be","as","or","no","we","so","up","do","go","if","week","this","feel"]);
@@ -171,26 +205,34 @@ function WordCloud({ responses }) {
     negative: ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"],
     positive: ["great","good","supported","excellent","motivated","growth","clear","happy","collaborative","appreciated"],
   };
-  const getColor = (w) => {
+  const getColor = useCallback((w) => {
     if (sentimentWords.negative.includes(w)) return "#ef4444";
     if (sentimentWords.positive.includes(w)) return "#22c55e";
-    return ["#3b82f6","#8b5cf6","#f59e0b","#10b981","#06b6d4"][Math.floor(Math.random() * 5)];
-  };
+    // Warna deterministik dari string kata — tidak random tiap render
+    const palette = ["#3b82f6","#8b5cf6","#f59e0b","#10b981","#06b6d4"];
+    const idx = w.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % palette.length;
+    return palette[idx];
+  }, []);
 
-  const placed = [];
-  const positioned = words.map(([word, count]) => {
-    const fs = Math.max(9, Math.min(26, (count / maxF) * 26));
-    let x, y, att = 0;
-    do { x = 15 + Math.random() * 370; y = 15 + Math.random() * 140; att++; }
-    while (att < 40 && placed.some(p => Math.abs(p.x - x) < word.length * fs * 0.45 && Math.abs(p.y - y) < fs * 1.4));
-    placed.push({ x, y });
-    return { word, count, fs, color: getColor(word), x, y };
-  });
+  // Posisi dihitung SEKALI — seed dari kata agar stabil
+  const positioned = useMemo(() => {
+    const rand = seededRand(words.reduce((acc, [w]) => acc + w.charCodeAt(0), 0));
+    const placed = [];
+    return words.map(([word, count]) => {
+      const fs = Math.max(9, Math.min(26, (count / maxF) * 26));
+      let x, y, att = 0;
+      do { x = 15 + rand() * 370; y = 15 + rand() * 140; att++; }
+      while (att < 40 && placed.some(p => Math.abs(p.x - x) < word.length * fs * 0.45 && Math.abs(p.y - y) < fs * 1.4));
+      placed.push({ x, y });
+      return { word, count, fs, color: getColor(word), x, y };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [words]);
 
   return (
     <svg width="100%" viewBox="0 0 400 170">
-      {positioned.map((p, i) => (
-        <text key={i} x={p.x} y={p.y} fontSize={p.fs} fill={p.color} fontWeight={p.count > 2 ? "700" : "500"} opacity={0.85}>
+      {positioned.map((p) => (
+        <text key={p.word} x={p.x} y={p.y} fontSize={p.fs} fill={p.color} fontWeight={p.count > 2 ? "700" : "500"} opacity={0.85}>
           {p.word}
         </text>
       ))}
@@ -203,18 +245,23 @@ function ResponseHeatmap({ responses }) {
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  // Simulate response distribution — after-hours responses = stress signal
-  const heatData = days.map((day, di) => hours.map(h => {
-    const isWeekend = di >= 5;
-    const isAfterHours = h < 7 || h > 19;
-    const isWorkHours = h >= 9 && h <= 17;
-    const hasHighStress = responses.filter(r => r.sentiment === "negative").length > responses.length * 0.5;
+  // Seed dari jumlah & sentimen responses — stabil selama responses tidak berubah
+  const hasHighStress = responses.filter(r => r.sentiment === "negative").length > responses.length * 0.5;
+  const heatSeed = responses.length * 13 + (hasHighStress ? 7 : 3);
 
-    if (isWeekend && isAfterHours) return hasHighStress ? Math.floor(Math.random() * 4) : 0;
-    if (isAfterHours) return hasHighStress ? Math.floor(Math.random() * 6) : Math.floor(Math.random() * 2);
-    if (isWorkHours) return Math.floor(Math.random() * 12) + 2;
-    return Math.floor(Math.random() * 5);
-  }));
+  const heatData = (() => {
+    const rand = seededRand(heatSeed);
+    return days.map((day, di) => hours.map(h => {
+      const isWeekend = di >= 5;
+      const isAfterHours = h < 7 || h > 19;
+      const isWorkHours = h >= 9 && h <= 17;
+
+      if (isWeekend && isAfterHours) return hasHighStress ? Math.floor(rand() * 4) : 0;
+      if (isAfterHours) return hasHighStress ? Math.floor(rand() * 6) : Math.floor(rand() * 2);
+      if (isWorkHours) return Math.floor(rand() * 12) + 2;
+      return Math.floor(rand() * 5);
+    }));
+  })();
 
   const maxVal = Math.max(...heatData.flat(), 1);
   const cellColor = (v) => {
@@ -245,12 +292,12 @@ function ResponseHeatmap({ responses }) {
             </div>
           ))}
           {days.map((day, di) => (
-            <>
-              <div key={day} style={{ fontSize: 9, color: "#94a3b8", display: "flex", alignItems: "center", fontWeight: 600 }}>{day}</div>
+            <React.Fragment key={day}>
+              <div style={{ fontSize: 9, color: "#94a3b8", display: "flex", alignItems: "center", fontWeight: 600 }}>{day}</div>
               {hours.map(h => (
-                <div key={h} style={{ height: 14, borderRadius: 2, background: cellColor(heatData[di][h]), transition: "background 0.3s" }} />
+                <div key={`${day}-${h}`} style={{ height: 14, borderRadius: 2, background: cellColor(heatData[di][h]), transition: "background 0.3s" }} />
               ))}
-            </>
+            </React.Fragment>
           ))}
         </div>
       </div>
@@ -358,7 +405,8 @@ function BenchmarkChart({ history, metric }) {
 
 // ── MAIN M9 ──
 export default function M9PulseSurvey() {
-  const { data, company, setPulseOverride, pushNotification } = useApp();
+  const { company, setPulseOverride, pushNotification } = useApp();
+  const { data } = useHRData();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [anonymous, setAnonymous] = useState(true);
   const [selectedQuestions, setSelectedQuestions] = useState(QUESTION_BANK.slice(0, 4).map(q => q.id));
@@ -390,7 +438,7 @@ export default function M9PulseSurvey() {
   }, [history, setPulseOverride]);
 
   const src = data.length > 0 ? data : SAMPLE_DATA;
-  const depts = [...new Set(src.map(e => e.Department))];
+  const depts = useMemo(() => [...new Set(src.map(e => e.Department))], [src]);
 
   // All text responses from history
   const allResponses = useMemo(() => history.flatMap(w => w.textResponses), [history]);
@@ -459,16 +507,16 @@ export default function M9PulseSurvey() {
         textThemes: textThemes || "No text responses available",
       }, company);
       setAiIntervention(p => ({ ...p, [dept]: text }));
-    } catch {
-      setAiIntervention(p => ({ ...p, [dept]: "AI intervention unavailable." }));
+    } catch (err) {
+      setAiIntervention(p => ({ ...p, [dept]: `⚠️ AI unavailable: ${err?.message || "Check connection."}` }));
+    } finally {
+      setAiLoading(p => ({ ...p, [dept]: false }));
     }
-    setAiLoading(p => ({ ...p, [dept]: false }));
   }, [current, prev, src, allResponses, company]);
 
-  const toggleQuestion = (id) => {
+  const toggleQuestion = useCallback((id) => {
     setSelectedQuestions(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  };
-
+  }, []);
   const selectedQObjs = QUESTION_BANK.filter(q => selectedQuestions.includes(q.id));
 
   const TABS = [
@@ -502,7 +550,7 @@ export default function M9PulseSurvey() {
               </div>
               <div style={{ display: "flex", gap: 4 }}>
                 {w.scores.map((s, i) => (
-                  <div key={i} style={{ width: 6, height: Math.max(4, (s / 100) * 30), background: s < 40 ? "#ef4444" : s < 60 ? "#f59e0b" : "#22c55e", borderRadius: 2, alignSelf: "flex-end" }} />
+                  <div key={`${w.dept}-score-${i}`} style={{ width: 6, height: Math.max(4, (s / 100) * 30), background: s < 40 ? "#ef4444" : s < 60 ? "#f59e0b" : "#22c55e", borderRadius: 2, alignSelf: "flex-end" }} />
                 ))}
               </div>
             </div>
@@ -539,8 +587,8 @@ export default function M9PulseSurvey() {
               { label: "Total Responses", value: Object.values(current.deptData).reduce((s, d) => s + d.responses, 0), sub: "Across all departments", color: "#8b5cf6", icon: "✅", bg: "#f5f3ff" },
               { label: "Week-on-Week", value: `${current.orgPulse > (prev?.orgPulse || 50) ? "+" : ""}${current.orgPulse - (prev?.orgPulse || 50)} pts`, sub: "Pulse score change", color: current.orgPulse >= (prev?.orgPulse || 50) ? "#22c55e" : "#ef4444", icon: "📈", bg: current.orgPulse >= (prev?.orgPulse || 50) ? "#f0fdf4" : "#fef2f2" },
               { label: "Lowest Dept", value: deptScores[0]?.dept || "—", sub: `Score: ${deptScores[0]?.pulseScore || 0}`, color: "#ef4444", icon: "⚠️", bg: "#fef2f2" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: k.bg, borderRadius: 13, padding: "13px 15px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
+            ].map((k) => (
+              <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "13px 15px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", right: 8, top: 8, fontSize: 16, opacity: 0.2 }}>{k.icon}</div>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.1 }}>{k.value}</div>
@@ -738,8 +786,8 @@ export default function M9PulseSurvey() {
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
                     <th style={{ padding: "7px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9" }}>Department</th>
-                    {history.map((w, i) => (
-                      <th key={i} style={{ padding: "7px 8px", textAlign: "center", color: "#64748b", fontWeight: 700, fontSize: 10, borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>
+                    {history.map((w) => (
+                      <th key={w.week} style={{ padding: "7px 8px", textAlign: "center", color: "#64748b", fontWeight: 700, fontSize: 10, borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>
                         W{i + 1}
                       </th>
                     ))}
@@ -756,7 +804,7 @@ export default function M9PulseSurvey() {
                           const color = s >= 70 ? "#22c55e" : s >= 50 ? "#f59e0b" : s >= 30 ? "#f97316" : "#ef4444";
                           const isLast = i === scores.length - 1;
                           return (
-                            <td key={i} style={{ padding: "5px 4px", textAlign: "center" }}>
+                            <td key={`w${i+1}`} style={{ padding: "5px 4px", textAlign: "center" }}>
                               <div style={{ background: isLast ? color : `${color}22`, borderRadius: 5, padding: "3px 5px", fontSize: 11, fontWeight: isLast ? 800 : 600, color: isLast ? "#fff" : color }}>
                                 {s}
                               </div>
@@ -796,8 +844,8 @@ export default function M9PulseSurvey() {
                 { icon: "🏥", text: "→ M4: Weekend responses from dept = burnout index needs recalculation" },
                 { icon: "🎯", text: "→ M2: Employees responding at 11PM have elevated flight risk — run score" },
                 { icon: "📈", text: "→ M6: After-hours patterns justify overtime cap investment in ROI calc" },
-              ].map((item, i) => (
-                <div key={i} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa", fontSize: 11, color: "#64748b" }}>
+              ].map((item) => (
+                <div key={item.icon} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa", fontSize: 11, color: "#64748b" }}>
                   <span style={{ marginRight: 6 }}>{item.icon}</span>{item.text}
                 </div>
               ))}
@@ -835,10 +883,11 @@ export default function M9PulseSurvey() {
           <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
             <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Raw Text Responses</div>
             {(selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)).map((r, i) => {
+              {(selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)).map((r, i) => {
               const color = r.sentiment === "positive" ? "#22c55e" : r.sentiment === "negative" ? "#ef4444" : "#f59e0b";
               const bg = r.sentiment === "positive" ? "#f0fdf4" : r.sentiment === "negative" ? "#fef2f2" : "#fffbeb";
               return (
-                <div key={i} style={{ background: bg, borderRadius: 9, padding: "10px 14px", border: `1px solid ${color}33`, marginBottom: 8 }}>
+                <div key={`${r.dept}-${i}`} style={{ background: bg, borderRadius: 9, padding: "10px 14px", border: `1px solid ${color}33`, marginBottom: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>{r.dept}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: "capitalize" }}>{r.sentiment}</span>
@@ -897,7 +946,7 @@ export default function M9PulseSurvey() {
             <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>🔗 Survey Link Generator</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {depts.map(dept => {
-                const link = `attritioniq.app/survey/${dept.toLowerCase().replace(/\s/g, "-")}/${Date.now().toString(36)}`;
+                const link = `attritioniq.app/survey/${dept.toLowerCase().replace(/\s/g, "-")}/${(dept.charCodeAt(0) * 31 + selectedQuestions.length).toString(36)}`;
                 return (
                   <div key={dept} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: "1.5px solid #f1f5f9" }}>
                     <div style={{ fontWeight: 600, fontSize: 12, color: "#1e293b", marginBottom: 6 }}>{dept}</div>
