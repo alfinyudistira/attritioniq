@@ -629,7 +629,7 @@ export default function M8TalentMatch() {
                   </tr>
                 </thead>
                 <tbody>
-                  {{orgMatches.slice(0, 20).map((e, i) => {
+                  {orgMatches.slice(0, 20).map((e, i) => {
                     const score = e.bestMatch.score;
                     const color = score >= 75 ? "#22c55e" : score >= 50 ? "#f59e0b" : score >= 30 ? "#3b82f6" : "#94a3b8";
                     const gen = getGeneration(e.Age);
