@@ -176,7 +176,7 @@ function ScheduleOptimizer({ baseShift, company }) {
             {["Day", "Evening", "Night"].map(t => (
               <button key={t} onClick={() => set("shiftType", t)}
                 style={{
-                  padding: "7px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+                  padding: "7px 12px", borderRadius: 8, cursor: "pointer",
                   background: simShift.shiftType === t ? (t === "Night" ? "#fef2f2" : t === "Evening" ? "#fffbeb" : "#f0fdf4") : "#f8fafc",
                   color: simShift.shiftType === t ? (t === "Night" ? "#ef4444" : t === "Evening" ? "#f59e0b" : "#16a34a") : "#94a3b8",
                   fontWeight: simShift.shiftType === t ? 700 : 500, fontSize: 12, textAlign: "left",
@@ -220,7 +220,7 @@ function ScheduleOptimizer({ baseShift, company }) {
             <div style={{ display: "flex", gap: 5 }}>
               {["None", "One", "Both"].map(w => (
                 <button key={w} onClick={() => set("weekendWork", w)}
-                  style={{ flex: 1, padding: "6px 4px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 10,
+                  style={{ flex: 1, padding: "6px 4px", borderRadius: 7, cursor: "pointer", fontSize: 10,
                     background: simShift.weekendWork === w ? (w === "Both" ? "#fef2f2" : w === "One" ? "#fffbeb" : "#f0fdf4") : "#f8fafc",
                     color: simShift.weekendWork === w ? (w === "Both" ? "#ef4444" : w === "One" ? "#f59e0b" : "#16a34a") : "#94a3b8",
                     fontWeight: simShift.weekendWork === w ? 700 : 500,
@@ -495,7 +495,7 @@ export default function M7FatigueRadar() {
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{
-              padding: "9px 18px", borderRadius: 10, border: "none", cursor: "pointer",
+              padding: "9px 18px", borderRadius: 10, cursor: "pointer",
               background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
               color: activeTab === t.id ? "#fff" : "#64748b",
               fontWeight: activeTab === t.id ? 700 : 500, fontSize: 13,
@@ -674,7 +674,7 @@ export default function M7FatigueRadar() {
                 <div style={{ display: "flex", gap: 8 }}>
                   {["Day", "Evening", "Night"].map(t => (
                     <button key={t} onClick={() => setS("shiftType", t)}
-                      style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12,
+                      style={{ flex: 1, padding: "8px", borderRadius: 8, cursor: "pointer", fontSize: 12,
                         background: singleShift.shiftType === t ? (t === "Night" ? "#fef2f2" : t === "Evening" ? "#fffbeb" : "#f0fdf4") : "#f8fafc",
                         color: singleShift.shiftType === t ? (t === "Night" ? "#ef4444" : t === "Evening" ? "#f59e0b" : "#16a34a") : "#94a3b8",
                         fontWeight: singleShift.shiftType === t ? 700 : 500,
@@ -706,7 +706,7 @@ export default function M7FatigueRadar() {
                 <div style={{ display: "flex", gap: 8 }}>
                   {["None", "One", "Both"].map(w => (
                     <button key={w} onClick={() => setS("weekendWork", w)}
-                      style={{ flex: 1, padding: "7px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11,
+                      style={{ flex: 1, padding: "7px", borderRadius: 8, cursor: "pointer", fontSize: 11,
                         background: singleShift.weekendWork === w ? (w === "Both" ? "#fef2f2" : w === "One" ? "#fffbeb" : "#f0fdf4") : "#f8fafc",
                         color: singleShift.weekendWork === w ? (w === "Both" ? "#ef4444" : w === "One" ? "#f59e0b" : "#16a34a") : "#94a3b8",
                         fontWeight: singleShift.weekendWork === w ? 700 : 500,
