@@ -425,7 +425,6 @@ export default function M7FatigueRadar() {
   const { data } = useHRData();
   const src = data.length > 0 ? data : SAMPLE_DATA;
   const stdHours = company?.avgWorkHoursPerWeek || 40;
-  const teamFatigue = useMemo(() => buildTeamFatigue(src, stdHours), [src, stdHours]);
   const [activeTab, setActiveTab] = useState("team");
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -437,8 +436,7 @@ export default function M7FatigueRadar() {
     weekendWork: "One", weeklyOTHours: 12,
   });
 
-  const teamFatigue = useMemo(() => buildTeamFatigue(src), [src]);
-
+  const teamFatigue = useMemo(() => buildTeamFatigue(src, stdHours), [src, stdHours]);
   const teamStats = useMemo(() => {
     const scores = teamFatigue.map(e => e.fatigueScore);
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0;
