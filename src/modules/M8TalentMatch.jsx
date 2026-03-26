@@ -242,7 +242,7 @@ function AtRiskPicker({ data, onSelect }) {
         {atRisk.map((e) => (
           <button key={e.EmployeeID} onClick={() => onSelect(e)}
             style={{
-              padding: "5px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11,
+              padding: "5px 12px", borderRadius: 20, cursor: "pointer", fontSize: 11,
               background: e.AttritionStatus === "Resigned" ? "#fef2f2" : "#fffbeb",
               color: e.AttritionStatus === "Resigned" ? "#dc2626" : "#b45309",
               fontWeight: 600,
@@ -436,7 +436,7 @@ export default function M8TalentMatch() {
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             style={{
-              padding: "9px 18px", borderRadius: 10, border: "none", cursor: "pointer",
+              padding: "9px 18px", borderRadius: 10, cursor: "pointer",
               background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
               color: activeTab === t.id ? "#fff" : "#64748b",
               fontWeight: activeTab === t.id ? 700 : 500, fontSize: 13,
