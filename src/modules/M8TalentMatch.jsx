@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, getGeneration, SAMPLE_DATA } from "../context/AppContext";
-
+import { useApp, useHRData, getGeneration, SAMPLE_DATA } from "../context/AppContext";
 // ── Skill taxonomy ──
 const SKILL_CATEGORIES = {
   "Customer & Sales": ["Customer Communication","Negotiation","CRM Tools","Lead Generation","Account Management","Sales Analytics","Objection Handling","Relationship Building"],
@@ -42,15 +41,7 @@ function computeMatchScore(candidateSkills, targetDept) {
 // ── AI Matchmaker ──
 async function fetchAIMatch(candidate, matches, company) {
   const topMatches = matches.slice(0, 3);
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: `You are an internal mobility specialist at ${company?.name || "a company"}.
+  const prompt = `You are an internal mobility specialist at ${company?.name || "a company"}.
 
 Candidate Profile:
 - Name: ${candidate.name || "Anonymous"}
@@ -67,12 +58,16 @@ Write 3 short paragraphs:
 2. Your top recommended transfer with specific reasoning
 3. A 30-day transition plan: what skills they need to develop before transfer
 
-Under 150 words. Be specific and actionable. No bullet points.`
-      }]
-    })
+Under 150 words. Be specific and actionable. No bullet points.`;
+
+  const response = await fetch("https://gemini-api-amber-iota.vercel.app/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ content: prompt }] }),
   });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
-  return data.content?.[0]?.text || "AI recommendation unavailable.";
+  return data.content?.[0]?.text || data.text || data.response || "AI recommendation unavailable.";
 }
 
 // ── Radar Chart for skill overlap ──
@@ -110,11 +105,11 @@ function SkillRadar({ candidateSkills, deptRequired, size = 200 }) {
         />
       ))}
       {gridPoints.map((p, i) => (
-        <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#e2e8f0" strokeWidth={1} />
+        <line key={`axis-${i}`} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#e2e8f0" strokeWidth={1} />
       ))}
       <polygon points={polygonStr} fill="#f59e0b" fillOpacity={0.25} stroke="#f59e0b" strokeWidth={2} />
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={4}
+        <circle key={`pt-${i}`} cx={p.x} cy={p.y} r={4}
           fill={p.has ? "#22c55e" : "#ef4444"}
           stroke="#fff" strokeWidth={1.5}
         />
@@ -244,8 +239,8 @@ function AtRiskPicker({ data, onSelect }) {
     <div>
       <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>Click an at-risk employee to auto-load their profile</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {atRisk.map((e, i) => (
-          <button key={i} onClick={() => onSelect(e)}
+        {atRisk.map((e) => (
+          <button key={e.EmployeeID} onClick={() => onSelect(e)}
             style={{
               padding: "5px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11,
               background: e.AttritionStatus === "Resigned" ? "#fef2f2" : "#fffbeb",
@@ -346,7 +341,8 @@ function OrgMobilityMap({ data }) {
 
 // ── MAIN M8 ──
 export default function M8TalentMatch() {
-  const { data, company } = useApp();
+  const { company } = useApp();
+  const { data } = useHRData();
   const src = data.length > 0 ? data : SAMPLE_DATA;
 
   const [activeTab, setActiveTab] = useState("matcher");
@@ -359,7 +355,7 @@ export default function M8TalentMatch() {
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  const setC = (k, v) => setCandidate(p => ({ ...p, [k]: v }));
+  const setC = useCallback((k, v) => setCandidate(p => ({ ...p, [k]: v })), []);
 
   // Compute matches for all depts
   const matches = useMemo(() => {
@@ -369,7 +365,9 @@ export default function M8TalentMatch() {
       .sort((a, b) => b.score - a.score);
   }, [candidate.skills, candidate.currentDept]);
 
-  const selectedMatch = matches.find(m => m.dept === selectedDept) || matches[0];
+  const selectedMatch = useMemo(() =>
+    matches.find(m => m.dept === selectedDept) || matches[0],
+  [matches, selectedDept]);
 
   // Auto-fill from at-risk employee
   const handleAtRiskSelect = (emp) => {
@@ -398,10 +396,11 @@ export default function M8TalentMatch() {
     try {
       const text = await fetchAIMatch(candidate, matches, company);
       setAiText(text);
-    } catch {
-      setAiText("AI recommendation unavailable. Please check your connection.");
+    } catch (err) {
+      setAiText(`⚠️ AI unavailable: ${err?.message || "Check connection and retry."}`);
+    } finally {
+      setAiLoading(false);
     }
-    setAiLoading(false);
   }, [candidate, matches, company]);
 
   // Org-wide at-risk with best match
@@ -485,7 +484,7 @@ export default function M8TalentMatch() {
                   {[
                     { label: "Tenure (yrs)", key: "tenure", step: 0.5 },
                     { label: "Age", key: "age", step: 1 },
-                    { label: "Salary ($)", key: "salary", step: 100 },
+                    { label: `Salary (${company?.currency || "USD"})`, key: "salary", step: 100 },
                   ].map(f => (
                     <div key={f.key}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{f.label}</div>
@@ -606,8 +605,8 @@ export default function M8TalentMatch() {
               { label: "Strong Matches (75%+)", value: orgMatches.filter(e => e.bestMatch.score >= 75).length, sub: "Ready for transfer now", color: "#22c55e", icon: "✅", bg: "#f0fdf4" },
               { label: "Possible Matches", value: orgMatches.filter(e => e.bestMatch.score >= 50 && e.bestMatch.score < 75).length, sub: "Need some upskilling", color: "#3b82f6", icon: "📚", bg: "#eff6ff" },
               { label: "Dept Most Needed", value: (() => { const freq = {}; orgMatches.forEach(e => { freq[e.bestMatch.dept] = (freq[e.bestMatch.dept] || 0) + 1; }); return Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"; })(), sub: "Most transfer requests", color: "#8b5cf6", icon: "🏢", bg: "#f5f3ff" },
-            ].map((k, i) => (
-              <div key={i} style={{ background: k.bg, borderRadius: 13, padding: "13px 15px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
+            ].map((k) => (
+              <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "13px 15px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", right: 8, top: 8, fontSize: 16, opacity: 0.2 }}>{k.icon}</div>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{k.value}</div>
@@ -630,12 +629,12 @@ export default function M8TalentMatch() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orgMatches.slice(0, 20).map((e, i) => {
+                  {{orgMatches.slice(0, 20).map((e, i) => {
                     const score = e.bestMatch.score;
                     const color = score >= 75 ? "#22c55e" : score >= 50 ? "#f59e0b" : score >= 30 ? "#3b82f6" : "#94a3b8";
                     const gen = getGeneration(e.Age);
                     return (
-                      <tr key={i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                      <tr key={e.EmployeeID} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                         <td style={{ padding: "7px 10px", color: "#1e293b", fontWeight: 500, whiteSpace: "nowrap" }}>
                           {e.FirstName} {e.LastName}
                           {gen === "Gen Z" && <span style={{ marginLeft: 4, background: "#fef3c7", color: "#92400e", fontSize: 8, fontWeight: 700, padding: "1px 4px", borderRadius: 4 }}>Gen Z</span>}
@@ -694,10 +693,10 @@ export default function M8TalentMatch() {
                 { from: "Technical Support", to: "IT", score: 60, insight: "Troubleshooting + system knowledge is directly transferable" },
                 { from: "IT", to: "Technical Support", score: 55, insight: "Technical depth helps, customer skills need development" },
                 { from: "Sales", to: "HR", score: 35, insight: "Relationship building + communication are strong crossover skills" },
-              ].map((t, i) => {
+              ].map((t) => {
                 const color = t.score >= 60 ? "#22c55e" : t.score >= 40 ? "#f59e0b" : "#3b82f6";
                 return (
-                  <div key={i} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: "1.5px solid #f1f5f9" }}>
+                  <div key={`${t.from}-${t.to}`} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: "1.5px solid #f1f5f9" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#1e293b" }}>{t.from}</span>
                       <span style={{ color: "#94a3b8" }}>→</span>
@@ -776,8 +775,8 @@ export default function M8TalentMatch() {
                 { icon: "📈", text: "→ M6: Internal transfer costs ~20% of replacement cost — factor into ROI calculator" },
                 { icon: "😴", text: "→ M7: Verify target dept isn't already at fatigue capacity before approving transfer" },
                 { icon: "💬", text: "→ M9: Use pulse surveys to check transfer candidate's satisfaction after 30 days" },
-              ].map((item, i) => (
-                <div key={i} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa", fontSize: 11, color: "#64748b" }}>
+              ].map((item) => (
+                <div key={item.icon} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #fed7aa", fontSize: 11, color: "#64748b" }}>
                   <span style={{ marginRight: 6 }}>{item.icon}</span>{item.text}
                 </div>
               ))}
