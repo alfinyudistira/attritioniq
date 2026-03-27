@@ -428,7 +428,8 @@ export default function M2RiskScorer() {
             ))}
           </svg>
           <style>{`@keyframes pulse { 0% { r: 30; opacity: 0.4; } 100% { r: 80; opacity: 0; } } .pulse-anim { animation: pulse 2s infinite; }`}</style>
-        </Card>
+         </>    
+                    </Card>
       )}
 
       {/* ── TAB 4: BULK RANKING & HEATMAP ── */}
