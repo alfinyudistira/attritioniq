@@ -67,6 +67,24 @@ function AppShell() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+    // ── Auto-Collapse Sidebar di Layar HP/Mobile (Wow Factor) ──
+  useEffect(() => {
+    const handleResize = () => {
+      // Jika lebar layar di bawah 768px (ukuran tablet/HP), otomatis tutup sidebar
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+    
+    // Jalankan sekali saat komponen pertama kali dimuat
+    handleResize(); 
+    
+    // Pantau perubahan ukuran layar secara real-time
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+
   // ── Keep GlobalContext currency in sync with company currency ──
   useEffect(() => {
     if (company?.currency) syncCurrency(company.currency);
@@ -392,35 +410,27 @@ function AppShell() {
               {mod?.icon} {mod?.label}
             </div>
             <div style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8" }}>
-              {insight
-              ? `${insight.total} employees · ${company.name} · ${insight.highRisk} high risk (${insight.riskRate.toFixed(0)}%)${company.salaryCliff ? ` · cliff ${fmt(company.salaryCliff, true)}` : ""}`
-              : "No data — upload CSV or use sample data"}
-                </div>
+              {data.length > 0 && insight
+                ? `${insight.total} employees · ${company.name} · ${insight.highRisk} high risk (${insight.riskRate.toFixed(0)}%)${company.salaryCliff ? ` · cliff ${fmt(company.salaryCliff, true)}` : ""}`
+                : "No data — upload CSV or use sample data"}
+            </div>
           </div>
-                   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              {insight && (
-                <div style={{
-                  background: insight.color + "22",
-                  border: `1px solid ${insight.color}55`,
-                  borderRadius: 20,
-                  padding: "4px 11px",
-                  fontSize: 10,
-                  color: insight.color,
-                  fontWeight: 700,
-                  whiteSpace: "nowrap"
-                }}>
-                  {insight.status} · {insight.highRisk} High Risk
-                </div>
-              )}
-              
-              <button 
-                onClick={() => setShowConfigModal(true)}
-                style={{ background: "#f1f5f9", border: "none", borderRadius: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18 }}
-                title="Settings"
-              >
-                ⚙️
-              </button>
-
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {data.length > 0 && insight && (
+              <div style={{
+                background: insight.color + "22",
+                border: `1px solid ${insight.color}55`,
+                borderRadius: 20,
+                padding: "4px 11px",
+                fontSize: 10,
+                color: insight.color,
+                fontWeight: 700,
+                whiteSpace: "nowrap"
+              }}>
+                {insight.status} · {insight.highRisk} High Risk
+              </div>
+            )}
+            
             {isSampleData && (
               <div style={{
                 background: "#fffbeb", border: "1px solid #fde68a",
@@ -431,6 +441,15 @@ function AppShell() {
                 📋 Sample Data
               </div>
             )}
+
+            <button 
+              onClick={() => setShowConfigModal(true)}
+              style={{ background: "#f1f5f9", border: "none", borderRadius: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, flexShrink: 0 }}
+              title="Settings"
+            >
+              ⚙️
+            </button>
+
             <div
               title={`${company.name} · ${company.industry || ""} · ${company.currency || "USD"}`}
               style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "default", flexShrink: 0 }}
@@ -440,6 +459,7 @@ function AppShell() {
           </div>
         </div>
 
+
                 {/* Content */}
         <div style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
           
@@ -447,22 +467,23 @@ function AppShell() {
             <DataUpload />
           </ErrorBoundary>
 
-          <ErrorBoundary key={active}>
-            {active === "m1" ? <M1Dashboard />
-              : active === "m2" ? <M2RiskScorer />
-              : active === "m3" ? <M3Salary />
-              : active === "m4" ? <M4DeptHealth />
-              : active === "m5" ? <M5ExitAnalyzer />
-              : active === "m6" ? <M6ROI />
-              : active === "m7" ? <M7FatigueRadar />
-              : active === "m8" ? <M8TalentMatch />
-              : active === "m9" ? <M9PulseSurvey />
-              : det ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
-              : null}
-          </ErrorBoundary>
-          
+                    <ErrorBoundary key={active}>
+            {/* Animasi Transisi Modul SaaS */}
+            <div key={active} className="module-fade-in">
+              {active === "m1" ? <M1Dashboard />
+                : active === "m2" ? <M2RiskScorer />
+                : active === "m3" ? <M3Salary />
+                : active === "m4" ? <M4DeptHealth />
+                : active === "m5" ? <M5ExitAnalyzer />
+                : active === "m6" ? <M6ROI />
+                : active === "m7" ? <M7FatigueRadar />
+                : active === "m8" ? <M8TalentMatch />
+                : active === "m9" ? <M9PulseSurvey />
+                : det ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
+                : null}
+            </div>
+          </ErrorBoundary>          
         </div>
-
       </main>
     </div>
   );
