@@ -1,5 +1,53 @@
 import { useState, useCallback } from "react";
 
+// ── Dark mode color resolver ──
+// SVG tidak bisa pakai CSS variables langsung di attribute fill/stroke
+// Solusi: baca computed style dari document root
+function useDarkMode() {
+  const [isDark, setIsDark] = useState(
+    () => document.documentElement.getAttribute("data-theme") === "dark"
+  );
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
+    });
+    observer.observe(document.documentElement, {
+      attributes: true, attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
+  return isDark;
+}
+
+// Token colors yang konsisten dengan GlobalContext theme
+const CHART_COLORS = {
+  light: {
+    text:        "#1e293b",
+    textMuted:   "#94a3b8",
+    textSubtle:  "#64748b",
+    grid:        "#f1f5f9",
+    axis:        "#e2e8f0",
+    background:  "#f8fafc",
+    tooltipBg:   "#ffffff",
+    tooltipBorder: "#e2e8f0",
+  },
+  dark: {
+    text:        "#f1f5f9",
+    textMuted:   "#475569",
+    textSubtle:  "#64748b",
+    grid:        "#1e293b",
+    axis:        "#334155",
+    background:  "#0f172a",
+    tooltipBg:   "#1e293b",
+    tooltipBorder: "#334155",
+  },
+};
+
+export function useChartColors() {
+  const isDark = useDarkMode();
+  return isDark ? CHART_COLORS.dark : CHART_COLORS.light;
+}
+
 export function useChartTooltip() {
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, content: null });
 
@@ -24,21 +72,28 @@ export function useChartTooltip() {
 }
 
 export function ChartTooltip({ tooltip }) {
+  const colors = useChartColors();
   if (!tooltip || !tooltip.show) return null;
+
+  // Clamp posisi agar tooltip tidak keluar viewport
+  const left = Math.min(tooltip.x + 12, window.innerWidth  - 200);
+  const top  = Math.min(tooltip.y + 12, window.innerHeight - 100);
+
   return (
     <div style={{
-      position: 'fixed',
-      left: tooltip.x + 10,
-      top: tooltip.y + 10,
-      backgroundColor: 'white',
-      border: '1px solid #e2e8f0',
-      padding: '8px',
-      borderRadius: '6px',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-      pointerEvents: 'none',
-      zIndex: 9999,
-      fontSize: '12px',
-      color: '#1e293b'
+      position: "fixed",
+      left, top,
+      background:   colors.tooltipBg,
+      border:       `1px solid ${colors.tooltipBorder}`,
+      padding:      "8px 12px",
+      borderRadius: "8px",
+      boxShadow:    "0 4px 16px rgba(15,23,42,0.12)",
+      pointerEvents: "none",
+      zIndex:       9999,
+      fontSize:     "12px",
+      color:        colors.text,
+      maxWidth:     240,
+      lineHeight:   1.5,
     }}>
       {tooltip.content}
     </div>
@@ -54,7 +109,7 @@ function NoData({ width = 300, height = 160, message = "No data" }) {
       aria-label={message}
       style={{ overflow: "visible" }}
     >
-      <rect x={0} y={0} width={width} height={height} fill="#f8fafc" rx={8} />
+      <rect x={0} y={0} width={width} height={height} fill={colors.background} rx={8} />
       <text x={width / 2} y={height / 2 - 8} textAnchor="middle" fontSize={18} fill="#e2e8f0">📊</text>
       <text x={width / 2} y={height / 2 + 12} textAnchor="middle" fontSize={11} fill="#cbd5e1">{message}</text>
     </svg>
@@ -85,6 +140,7 @@ export function BarChart({
   maxBars = 20,
 }) {
   const { tooltip, show, hide, move } = useChartTooltip();
+  const colors = useChartColors();
 
   if (!data || data.length === 0) return <NoData height={height} />;
 
@@ -154,13 +210,13 @@ export function BarChart({
             />
             <text
               x={x + barW / 2} y={labelY}
-              textAnchor="middle" fontSize={9} fill="#1e293b" fontWeight="700"
+              textAnchor="middle" fontSize={9} fill={colors.text} fontWeight="700"
             >
               {displayVal}
             </text>
             <text
               x={x + barW / 2} y={height - 8}
-              textAnchor="middle" fontSize={8} fill="#94a3b8"
+              textAnchor="middle" fontSize={8} fill={colors.textMuted}
             >
               {shortLabel}
             </text>
@@ -297,14 +353,20 @@ export function DonutChart({
       const iy1   = cy + ir * Math.sin(cumAngle);
       const ix2   = cx + ir * Math.cos(cumAngle - angle);
       const iy2   = cy + ir * Math.sin(cumAngle - angle);
-      // Large arc flag: use 1 if angle > π, special-case full circle
-      const lg    = angle > Math.PI ? 1 : 0;
-      return {
-        path: `M${x1},${y1} A${r},${r} 0 ${lg} 1 ${x2},${y2} L${ix1},${iy1} A${ir},${ir} 0 ${lg} 0 ${ix2},${iy2} Z`,
-        color: d.color,
-        label: d.label,
-        value: d.value,
-      };
+      const lg = angle > Math.PI ? 1 : 0;
+
+// Edge case: kalau hanya ada 1 data point dengan value 100%,
+// SVG arc dengan start === end tidak render apa-apa.
+// Solusi: gambar sebagai dua setengah lingkaran.
+const isFullCircle = Math.abs(angle - 2 * Math.PI) < 0.001;
+const path = isFullCircle
+  ? `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}
+     A${r},${r} 0 0 1 ${cx - r},${cy}
+     M${cx - ir},${cy} A${ir},${ir} 0 0 0 ${cx + ir},${cy}
+     A${ir},${ir} 0 0 0 ${cx - ir},${cy} Z`
+  : `M${x1},${y1} A${r},${r} 0 ${lg} 1 ${x2},${y2} L${ix1},${iy1} A${ir},${ir} 0 ${lg} 0 ${ix2},${iy2} Z`;
+
+return { path, color: d.color, label: d.label, value: d.value };
     });
 
   const displayCenter = centerLabel ?? String(total);
@@ -337,7 +399,7 @@ export function DonutChart({
       <text
         x={cx} y={cy + size * 0.13}
         textAnchor="middle" fontSize={size * 0.08}
-        fill="#64748b"
+        fill={colors.textSubtle}
       >
         {centerSub}
            </text>
@@ -416,7 +478,7 @@ export function ScatterPlot({
         <line
           key={v}
           x1={pad.l} y1={toY(v)} x2={pad.l + W} y2={toY(v)}
-          stroke="#f1f5f9" strokeWidth={1} strokeDasharray="3,3"
+          stroke={colors.grid} strokeWidth={1} strokeDasharray="3,3"
         />
       ))}
 
@@ -633,7 +695,7 @@ export function LineChart({
       ))}
 
       {/* X-axis */}
-      <line x1={pad.l} y1={pad.t + H} x2={pad.l + W} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
+      <line x1={pad.l} y1={pad.t + H} x2={pad.l + W} y2={pad.t + H} stroke={colors.axis} strokeWidth={1} />
 
       {/* Series */}
       {series.map((s, si) => {
