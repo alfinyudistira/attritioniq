@@ -37,6 +37,8 @@ export function BarChart({
   formatValue,
   maxBars = 20,
 }) {
+  const { tooltip, show, hide, move } = useChartTooltip();
+
   if (!data || data.length === 0) return <NoData height={height} />;
 
   const sliced  = data.slice(0, maxBars);
@@ -53,7 +55,9 @@ export function BarChart({
   const values  = sliced.map(d => Number(d[valueKey]) || 0);
   const max     = Math.max(...values, 0.01);
 
-  return (
+    return (
+    <>
+    <ChartTooltip tooltip={tooltip} />
     <svg
       width="100%"
       viewBox={`0 0 ${totalW} ${height}`}
@@ -92,13 +96,15 @@ export function BarChart({
         const labelY = Math.max(padT - 2, y - 5);
 
         return (
-          <g key={`bar-${i}`}>
+                    <g key={`bar-${i}`}>
             <rect
               x={x} y={y} width={barW} height={bh} rx={4}
               fill={color} opacity={0.88}
-            >
-              <title>{label}: {displayVal}</title>
-            </rect>
+              onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{label}<br/><span style={{color: color, fontSize: '13px'}}>{displayVal}</span></div>)}
+              onMouseMove={move}
+              onMouseLeave={hide}
+              style={{ cursor: "crosshair", transition: "opacity 0.2s" }}
+            />
             <text
               x={x + barW / 2} y={labelY}
               textAnchor="middle" fontSize={9} fill="#1e293b" fontWeight="700"
@@ -113,8 +119,9 @@ export function BarChart({
             </text>
           </g>
         );
-      })}
+            })}
     </svg>
+    </>
   );
 }
 
