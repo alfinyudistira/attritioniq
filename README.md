@@ -84,5 +84,3 @@ OvertimeStatus, JobSatisfaction, AttritionStatus, YearsAtCompany, Age
 Download the template inside the app.
 
 ---
-
-*Project 3 of 14 · HR Analytics Series · Pulse Digital Portfolio*
