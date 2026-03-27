@@ -1,44 +1,110 @@
-import React, { createContext, useState, useContext } from "react";
+import { createContext, useState, useContext, useCallback, useMemo, useEffect } from "react";
 
-// Data yang scalable: siap multiuser, multi company, multi preference
-const GlobalContext = createContext();
+// ─────────────────────────────────────────────────────────────────────────────
+// GlobalContext — app-wide UI preferences (theme, locale, sidebar state, etc.)
+// Intentionally separate from AppContext (which owns HR data & company config).
+// Bridge: GlobalProvider reads company.currency from AppContext on first mount
+// via the syncCurrency prop passed down from App.jsx.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LS_SETTINGS_KEY = "attritioniq_global_settings";
+
+const DEFAULT_SETTINGS = {
+  currency: "USD",   // kept in sync with AppContext.company.currency
+  locale: "en-US",
+  theme: "light",    // "light" | "dark"
+  sidebarOpen: true,
+  compactMode: false,
+};
+
+const GlobalContext = createContext(null);
 
 export const GlobalProvider = ({ children }) => {
-  const [profile, setProfile] = useState(null); // data user/company/info utama
-  const [settings, setSettings] = useState({
-    currency: "IDR",
-    locale: "id-ID",
-    theme: "light",
-    // tambahkan preference lain di sini
+  const [profile, setProfileState] = useState(null);
+
+  const [settings, setSettingsState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LS_SETTINGS_KEY);
+      if (!saved) return DEFAULT_SETTINGS;
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+    } catch { return DEFAULT_SETTINGS; }
   });
 
-  // Fungsi update, reset, dsb
-  const updateProfile = (data) => setProfile(data);
-  const updateSettings = (data) =>
-    setSettings((prev) => ({ ...prev, ...data }));
+  // ── Apply theme to <html> element whenever it changes ──
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.theme === "dark") {
+      root.setAttribute("data-theme", "dark");
+      root.style.colorScheme = "dark";
+    } else {
+      root.setAttribute("data-theme", "light");
+      root.style.colorScheme = "light";
+    }
+  }, [settings.theme]);
 
-  const resetAll = () => {
-    setProfile(null);
-    setSettings({
-      currency: "IDR",
-      locale: "id-ID",
-      theme: "light",
+  const setProfile = useCallback((data) => {
+    setProfileState(data);
+  }, []);
+
+  const updateSettings = useCallback((patch) => {
+    setSettingsState(prev => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(next)); } catch {}
+      return next;
     });
-  };
+  }, []);
+
+  // Called by App.jsx when company currency changes — keeps GlobalContext in sync
+  const syncCurrency = useCallback((currency) => {
+    if (!currency) return;
+    setSettingsState(prev => {
+      if (prev.currency === currency) return prev;
+      const next = { ...prev, currency };
+      try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const resetAll = useCallback(() => {
+    setProfileState(null);
+    setSettingsState(DEFAULT_SETTINGS);
+    try { localStorage.removeItem(LS_SETTINGS_KEY); } catch {}
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.style.colorScheme = "";
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    updateSettings({ theme: settings.theme === "dark" ? "light" : "dark" });
+  }, [settings.theme, updateSettings]);
+
+  const contextValue = useMemo(() => ({
+    profile,
+    setProfile,
+    settings,
+    updateSettings,
+    syncCurrency,
+    resetAll,
+    toggleTheme,
+    // Convenience shorthands
+    theme: settings.theme,
+    isDark: settings.theme === "dark",
+  }), [profile, setProfile, settings, updateSettings, syncCurrency, resetAll, toggleTheme]);
 
   return (
-    <GlobalContext.Provider
-      value={{
-        profile,
-        setProfile: updateProfile,
-        settings,
-        setSettings: updateSettings,
-        resetAll,
-      }}
-    >
+    <GlobalContext.Provider value={contextValue}>
       {children}
     </GlobalContext.Provider>
   );
 };
 
-export const useGlobal = () => useContext(GlobalContext);
+export function useGlobal() {
+  const ctx = useContext(GlobalContext);
+  if (!ctx) throw new Error("useGlobal must be used inside <GlobalProvider>");
+  return ctx;
+}
+
+// Convenience hook — just for theme, avoids full context subscription
+export function useTheme() {
+  const { theme, isDark, toggleTheme, updateSettings } = useGlobal();
+  return { theme, isDark, toggleTheme, updateSettings };
+}
