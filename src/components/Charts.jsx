@@ -220,6 +220,7 @@ export function DonutChart({
   centerLabel,
   centerSub = "total",
 }) {
+  const { tooltip, show, hide, move } = useChartTooltip();
   if (!data || data.length === 0) return <NoData width={size} height={size} />;
 
   const total = data.reduce((s, d) => s + (d.value || 0), 0);
@@ -261,16 +262,23 @@ export function DonutChart({
 
   const displayCenter = centerLabel ?? String(total);
 
-  return (
+    return (
+    <>
+    <ChartTooltip tooltip={tooltip} />
     <svg
       width={size} height={size}
       viewBox={`0 0 ${size} ${size}`}
       role="img" aria-label="Donut chart"
+      style={{ overflow: "visible" }}
     >
       {slices.map((s, i) => (
-        <path key={i} d={s.path} fill={s.color} opacity={0.9}>
-          <title>{s.label}: {s.value} ({((s.value/total)*100).toFixed(1)}%)</title>
-        </path>
+        <path 
+          key={i} d={s.path} fill={s.color} opacity={0.9}
+          onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{s.label}<br/><span style={{fontSize: '12px'}}>{s.value} ({((s.value/total)*100).toFixed(1)}%)</span></div>)}
+          onMouseMove={move}
+          onMouseLeave={hide}
+          style={{ cursor: "crosshair", transition: "opacity 0.2s" }}
+        />
       ))}
       <text
         x={cx} y={cy + 2}
@@ -285,8 +293,9 @@ export function DonutChart({
         fill="#64748b"
       >
         {centerSub}
-      </text>
+           </text>
     </svg>
+    </>
   );
 }
 
