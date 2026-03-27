@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Papa from "papaparse";
+import { idbGet, idbSet, idbDelete } from "../hooks/useModularStorage";
 
 export const AppContext = createContext(null);
 
@@ -428,14 +429,16 @@ export function AppProvider({ children }) {
     } catch { return null; }
   });
 
-  const [data, setDataState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LS_DATA_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+    const [data, setDataState] = useState([]);
 
-  // ── Session fingerprint — changes every time new data is loaded ──
+  useEffect(() => {
+    idbGet(LS_DATA_KEY).then((saved) => {
+      if (saved && Array.isArray(saved)) {
+        setDataState(saved);
+      }
+    });
+  }, []);
+
   // Modules subscribe to this to know when to flush their local state
   const [dataSessionId, setDataSessionId] = useState(() => {
     try {
@@ -490,17 +493,18 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
-const setData = useCallback((rowsOrUpdater, opts = {}) => {
+  const setData = useCallback((rowsOrUpdater, opts = {}) => {
     setDataState(prev => {
       const rows = typeof rowsOrUpdater === "function" ? rowsOrUpdater(prev) : rowsOrUpdater;
-      try {
-        if (rows && rows.length > 0) localStorage.setItem(LS_DATA_KEY, JSON.stringify(rows));
-        else localStorage.removeItem(LS_DATA_KEY);
-      } catch {}
+      // Simpan ke IndexedDB: Aman untuk data raksasa (5MB+)
+      if (rows && rows.length > 0) {
+        idbSet(LS_DATA_KEY, rows).catch(err => console.error("IDB Save Error:", err));
+      } else {
+        idbDelete(LS_DATA_KEY);
+      }
       return rows;
     });
     // Generate a new session ID so modules know to flush their stale local state.
-    // Skip this for internal updates like applyIntervention (opts.keepSession = true).
     if (!opts.keepSession) {
       const newId = generateSessionId();
       setDataSessionId(newId);
@@ -530,9 +534,9 @@ const setData = useCallback((rowsOrUpdater, opts = {}) => {
       thresholds: { high: 30, medium: 15 },
       colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
     });
-    try {
+        try {
       localStorage.removeItem(LS_COMPANY_KEY);
-      localStorage.removeItem(LS_DATA_KEY);
+      idbDelete(LS_DATA_KEY);
       localStorage.removeItem("attritioniq_pulse");
       localStorage.removeItem(LS_CONFIG_KEY);
       localStorage.setItem(LS_SESSION_KEY, freshId);
