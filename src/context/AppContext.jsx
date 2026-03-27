@@ -35,6 +35,13 @@ export function useHRData() {
   return { data, setData, computed, appConfig, updateConfig, applyIntervention };
 }
 
+// Hook for modules to detect when a new CSV session starts (to flush stale local state)
+export function useDataSession() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useDataSession must be used inside <AppProvider>");
+  return { dataSessionId: ctx.dataSessionId, isSampleData: ctx.isSampleData };
+}
+
 const CURRENCY_CONFIG = {
   USD: { symbol: "$", locale: "en-US", name: "US Dollar" },
   IDR: { symbol: "Rp", locale: "id-ID", name: "Indonesian Rupiah" },
@@ -200,21 +207,6 @@ const COLUMN_ALIASES = {
     "commute_distance", "jarak_tempat_tinggal", "travel_distance", "jarak_kerja"
   ]
 };
-
-const EXTRA_ALIASES = {
-  Age: ["umur_karyawan","usia_karyawan","age_year","usia_tahun","thn_umur","years_old"],
-  MonthlySalary: ["gaji_perbulan","salary_permonth","income_monthly","pay","takehome","take_home","salary_idr"],
-  Department: ["team","tim","unit","organization","org","fungsi"],
-  AttritionStatus: ["keluar","resign","cabut","out","leave","exit_status"],
-  JobSatisfaction: ["kepuasan_score","job_rate","feeling","mood","happy_score"],
-};
-
-Object.keys(EXTRA_ALIASES).forEach(key => {
-  COLUMN_ALIASES[key] = [
-    ...(COLUMN_ALIASES[key] || []),
-    ...EXTRA_ALIASES[key]
-  ];
-});
 
 function smartParseNumber(val) {
   if (typeof val === 'number') return val;
@@ -417,9 +409,16 @@ export function parseCSV(text) {
   .filter(r => r.EmployeeID);   
 }  
 
-const LS_COMPANY_KEY = "attritioniq_company";
-const LS_DATA_KEY    = "attritioniq_data";
-const LS_CONFIG_KEY  = "attritioniq_config";
+const LS_COMPANY_KEY  = "attritioniq_company";
+const LS_DATA_KEY     = "attritioniq_data";
+const LS_CONFIG_KEY   = "attritioniq_config";
+const LS_SESSION_KEY  = "attritioniq_session";
+const LS_ISSAMPLE_KEY = "attritioniq_issample";
+
+// Generates a short unique session ID — used to invalidate stale module storage
+function generateSessionId() {
+  return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export function AppProvider({ children }) {
   const [company, setCompanyState] = useState(() => {
@@ -434,6 +433,19 @@ export function AppProvider({ children }) {
       const saved = localStorage.getItem(LS_DATA_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
+  });
+
+  // ── Session fingerprint — changes every time new data is loaded ──
+  // Modules subscribe to this to know when to flush their local state
+  const [dataSessionId, setDataSessionId] = useState(() => {
+    try {
+      return localStorage.getItem(LS_SESSION_KEY) || generateSessionId();
+    } catch { return generateSessionId(); }
+  });
+
+  // ── Tracks whether current data is the built-in sample ──
+  const [isSampleData, setIsSampleData] = useState(() => {
+    try { return localStorage.getItem(LS_ISSAMPLE_KEY) === "1"; } catch { return false; }
   });
 
   const DEFAULT_CONFIG = {
@@ -478,7 +490,7 @@ export function AppProvider({ children }) {
     } catch {}
   }, []);
 
-const setData = useCallback((rowsOrUpdater) => {
+const setData = useCallback((rowsOrUpdater, opts = {}) => {
     setDataState(prev => {
       const rows = typeof rowsOrUpdater === "function" ? rowsOrUpdater(prev) : rowsOrUpdater;
       try {
@@ -487,6 +499,13 @@ const setData = useCallback((rowsOrUpdater) => {
       } catch {}
       return rows;
     });
+    // Generate a new session ID so modules know to flush their stale local state.
+    // Skip this for internal updates like applyIntervention (opts.keepSession = true).
+    if (!opts.keepSession) {
+      const newId = generateSessionId();
+      setDataSessionId(newId);
+      try { localStorage.setItem(LS_SESSION_KEY, newId); } catch {}
+    }
   }, []);
 
   const updateConfig = useCallback((patch) => {
@@ -501,9 +520,12 @@ const setData = useCallback((rowsOrUpdater) => {
   }, []);
 
     const resetWorkspace = useCallback(() => {
+    const freshId = generateSessionId();
     setCompanyState(null);
     setDataState([]);
     setPulseOverrideState(null);
+    setDataSessionId(freshId);
+    setIsSampleData(false);
     setAppConfig({
       thresholds: { high: 30, medium: 15 },
       colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
@@ -513,6 +535,8 @@ const setData = useCallback((rowsOrUpdater) => {
       localStorage.removeItem(LS_DATA_KEY);
       localStorage.removeItem("attritioniq_pulse");
       localStorage.removeItem(LS_CONFIG_KEY);
+      localStorage.setItem(LS_SESSION_KEY, freshId);
+      localStorage.removeItem(LS_ISSAMPLE_KEY);
     } catch {}
   }, []);
 
@@ -576,13 +600,23 @@ const setData = useCallback((rowsOrUpdater) => {
   }, []);
 
   const applyIntervention = useCallback((employeeId, updates) => {
+    // keepSession: true — intervention updates should NOT trigger module state flush
     setData(prev => prev.map(emp =>
       emp.EmployeeID === employeeId ? { ...emp, ...updates } : emp
-    ));
+    ), { keepSession: true });
     pushNotification(`✅ ${employeeId} updated — all modules synced`, "success");
   }, [setData, pushNotification]);
+
+  // Public setter for isSampleData — used by DataUpload when loading sample
+  const setSampleDataFlag = useCallback((val) => {
+    setIsSampleData(val);
+    try {
+      if (val) localStorage.setItem(LS_ISSAMPLE_KEY, "1");
+      else localStorage.removeItem(LS_ISSAMPLE_KEY);
+    } catch {}
+  }, []);
   
-    const contextValue = useMemo(() => ({
+  const contextValue = useMemo(() => ({
     company,
     setCompany,
     data,
@@ -596,7 +630,15 @@ const setData = useCallback((rowsOrUpdater) => {
     pulseOverride,
     setPulseOverride,
     applyIntervention,
-  }), [company, data, computed, setCompany, setData, resetWorkspace, appConfig, updateConfig, notifications, pushNotification, pulseOverride, setPulseOverride, applyIntervention]);
+    dataSessionId,
+    isSampleData,
+    setSampleDataFlag,
+  }), [
+    company, data, computed, setCompany, setData, resetWorkspace,
+    appConfig, updateConfig, notifications, pushNotification,
+    pulseOverride, setPulseOverride, applyIntervention,
+    dataSessionId, isSampleData, setSampleDataFlag,
+  ]);
   return (
     <AppContext.Provider value={contextValue}>
       {children}
