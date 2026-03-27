@@ -404,7 +404,6 @@ export default function M2RiskScorer() {
             </div>
           </div>
 
-                    <>
           <ChartTooltip tooltip={tooltip} />
           <svg width="100%" height="350" viewBox="0 0 600 350" style={{ background: "#f8fafc", borderRadius: 16, border: "1px solid #e2e8f0", overflow: "visible" }}>
             <circle cx="300" cy="175" r={isInfluencer ? "60" : "40"} fill={baseLevel.color} opacity="0.15" className="pulse-anim" />
@@ -428,7 +427,6 @@ export default function M2RiskScorer() {
             ))}
           </svg>
           <style>{`@keyframes pulse { 0% { r: 30; opacity: 0.4; } 100% { r: 80; opacity: 0; } } .pulse-anim { animation: pulse 2s infinite; }`}</style>
-         </>    
                     </Card>
       )}
 
