@@ -1,17 +1,17 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useApp, useHRData, useCurrency } from "../context/AppContext";
+import { useModuleData } from "../context/ModuleDataContext"; 
+import { ChartTooltip, useChartTooltip } from "../components/Charts";
 
 // ── CUSTOM HOOK: AI Copilot via Vercel ──
 function useCopilot() {
+  const { state, update } = useModuleData("m2"); // Integrasi ke Global Session
   const [loading, setLoading] = useState(false);
-  const [response, setResponseState] = useState(() => {
-    try { return localStorage.getItem("m2_ai_response") || ""; } catch { return ""; }
-  });
+  const response = state.aiResponse || "";
 
   const setResponse = useCallback((val) => {
-    setResponseState(val);
-    try { localStorage.setItem("m2_ai_response", val); } catch {}
-  }, []);
+    update({ aiResponse: val });
+  }, [update]);
 
   const askAI = useCallback(async (prompt) => {
     setLoading(true);
@@ -88,44 +88,51 @@ export default function M2RiskScorer() {
   const { fmt, config: cfg } = useCurrency();
   const ai = useCopilot();
   
-  const cliff = company?.salaryCliff || 5000;
+    const cliff = company?.salaryCliff || 5000;
+  const { tooltip, show, hide, move } = useChartTooltip();
   
-  // ── PERSISTENT STATE ──
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem("m2_active_tab") || "target");
-  const [selectedId, setSelectedId] = useState(() => localStorage.getItem("m2_selected_id") || "");
-  useEffect(() => { try { localStorage.setItem("m2_active_tab", activeTab); } catch {} }, [activeTab]);
-  useEffect(() => { try { localStorage.setItem("m2_selected_id", selectedId); } catch {} }, [selectedId]);
+  // ── SMART MODULAR STORAGE (SaaS Grade) ──
+  const { state: m2State, update: updateM2 } = useModuleData("m2");
+
+  const activeTab = m2State.activeTab || "target";
+  const selectedId = m2State.selectedId || "";
+  
+  const setActiveTab = (v) => updateM2({ activeTab: v });
+  const setSelectedId = (v) => updateM2({ selectedId: v });
+
+  // Validasi ID agar tidak crash jika CSV diganti
   useEffect(() => {
     if (computed.length === 0) return;
-    // Cek apakah selectedId masih valid di dataset saat ini
     const stillExists = computed.some(c => c.EmployeeID === selectedId);
     if (!selectedId || !stillExists) {
       const atRisk = computed.find(c => c.RiskPct >= 75) || computed[0];
       setSelectedId(atRisk.EmployeeID);
     }
-  }, [computed, selectedId]);
+  }, [computed, selectedId, setSelectedId]);
+
   const activeEmp = useMemo(() => computed.find(c => c.EmployeeID === selectedId) || computed[0], [computed, selectedId]);
-  const [simSalary, setSimSalary] = useState(() => Number(localStorage.getItem("m2_sim_sal")) || 0);
-  const [simOt, setSimOt] = useState(() => localStorage.getItem("m2_sim_ot") || "No");
-  const [simSat, setSimSat] = useState(() => Number(localStorage.getItem("m2_sim_sat")) || 5);
 
-  useEffect(() => { try { localStorage.setItem("m2_sim_sal", simSalary); } catch {} }, [simSalary]);
-  useEffect(() => { try { localStorage.setItem("m2_sim_ot", simOt); } catch {} }, [simOt]);
-  useEffect(() => { try { localStorage.setItem("m2_sim_sat", simSat); } catch {} }, [simSat]);
+  const simSalary = m2State.simSalary ?? 0;
+  const simOt = m2State.simOt || "No";
+  const simSat = m2State.simSat ?? 5;
 
-  const setAiResponse = ai.setResponse;
+  const setSimSalary = (v) => updateM2({ simSalary: v });
+  const setSimOt = (v) => updateM2({ simOt: v });
+  const setSimSat = (v) => updateM2({ simSat: v });
+
+  // Auto-sync slider saat karyawan diganti
   useEffect(() => {
     if (!activeEmp) return;
-    let lastSynced = "";
-    try { lastSynced = localStorage.getItem("m2_last_synced_emp") || ""; } catch {}
-    if (activeEmp.EmployeeID !== lastSynced) {
-      setSimSalary(Number(activeEmp.MonthlySalary) || 0);
-      setSimOt(activeEmp.OvertimeStatus || "No");
-      setSimSat(Number(activeEmp.JobSatisfaction) || 5);
-      try { localStorage.setItem("m2_last_synced_emp", activeEmp.EmployeeID); } catch {}
-      setAiResponse("");
+    if (activeEmp.EmployeeID !== m2State.lastSyncedEmp) {
+      updateM2({
+        simSalary: Number(activeEmp.MonthlySalary) || 0,
+        simOt: activeEmp.OvertimeStatus || "No",
+        simSat: Number(activeEmp.JobSatisfaction) || 5,
+        lastSyncedEmp: activeEmp.EmployeeID,
+        aiResponse: "" // Reset chat AI saat ganti orang
+      });
     }
-  }, [activeEmp, setAiResponse]);
+  }, [activeEmp, m2State.lastSyncedEmp, updateM2]);
 
   // ── ENGINE CALCULATIONS ──
   const { score: simScore } = useMemo(() => computeRisk({ salary: simSalary, overtime: simOt, satisfaction: simSat, tenure: activeEmp?.YearsAtCompany }, cliff), [simSalary, simOt, simSat, activeEmp, cliff]);
@@ -397,7 +404,9 @@ export default function M2RiskScorer() {
             </div>
           </div>
 
-          <svg width="100%" height="350" viewBox="0 0 600 350" style={{ background: "#f8fafc", borderRadius: 16, border: "1px solid #e2e8f0" }}>
+                    <>
+          <ChartTooltip tooltip={tooltip} />
+          <svg width="100%" height="350" viewBox="0 0 600 350" style={{ background: "#f8fafc", borderRadius: 16, border: "1px solid #e2e8f0", overflow: "visible" }}>
             <circle cx="300" cy="175" r={isInfluencer ? "60" : "40"} fill={baseLevel.color} opacity="0.15" className="pulse-anim" />
             <circle cx="300" cy="175" r="25" fill={baseLevel.color} />
             <text x="300" y="215" textAnchor="middle" fontSize="13" fontWeight="800" fill="#0f172a">{activeEmp.FirstName}</text>
@@ -406,9 +415,13 @@ export default function M2RiskScorer() {
             {peerPositions.map((p) => (
               <g key={p.EmployeeID}>
                 <line x1="300" y1="175" x2={p.x} y2={p.y} stroke={p.level.color} strokeWidth="2" strokeDasharray="4 4" opacity="0.6" />
-                <circle cx={p.x} cy={p.y} r="14" fill={p.level.color} opacity="0.9">
-                  <title>{p.FirstName} {p.LastName} · {p.RiskPct}% Risk</title>
-                </circle>
+                <circle 
+                  cx={p.x} cy={p.y} r="14" fill={p.level.color} opacity="0.9"
+                  onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{p.FirstName} {p.LastName}<br/><span style={{fontSize: '11px', color: p.level.color}}>{p.RiskPct}% Risk</span></div>)}
+                  onMouseMove={move}
+                  onMouseLeave={hide}
+                  style={{ cursor: "crosshair", transition: "all 0.2s" }}
+                />
                 <text x={p.x} y={p.y - 20} textAnchor="middle" fontSize="11" fontWeight="700" fill="#1e293b">{p.FirstName}</text>
                 <text x={p.x} y={p.y + 25} textAnchor="middle" fontSize="9" fill={p.level.color}>{p.RiskPct}% Risk</text>
               </g>
