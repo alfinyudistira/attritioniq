@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
+import { useModuleData } from "../context/ModuleDataContext"; 
 import { BarChart, DonutChart, ScatterPlot } from "../components/Charts";
 
 function FilterBtn({ val, cur, onSet }) {
@@ -115,16 +116,25 @@ const { company, pulseOverride, appConfig } = useApp();
   const { fmt, config: cfg } = useCurrency();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
-  const [deptF,   setDeptFRaw]   = useState("All");
-  const [genF,    setGenFRaw]    = useState("All");
-  const [statusF, setStatusFRaw] = useState("All");
-  const [otF,     setOtFRaw]     = useState("All");
-  const setDeptF   = useCallback((v) => { setDeptFRaw(v);   setPage(1); }, []);
-  const setGenF    = useCallback((v) => { setGenFRaw(v);    setPage(1); }, []);
-  const setStatusF = useCallback((v) => { setStatusFRaw(v); setPage(1); }, []);
-  const setOtF     = useCallback((v) => { setOtFRaw(v);     setPage(1); }, []);
-  const [search,  setSearch]  = useState("");
-  const [page,    setPage]    = useState(1);
+  
+    // ── Smart Modular Storage: Filter tidak akan ke-reset walau pindah modul ──
+  const { state: m1State, update: updateM1 } = useModuleData("m1");
+  
+  const deptF   = m1State.deptF || "All";
+  const genF    = m1State.genF || "All";
+  const statusF = m1State.statusF || "All";
+  const otF     = m1State.otF || "All";
+  const search  = m1State.search || "";
+  const page    = m1State.page || 1;
+  const setDeptF   = useCallback((v) => { updateM1({ deptF: v, page: 1 }); }, [updateM1]);
+  const setGenF    = useCallback((v) => { updateM1({ genF: v, page: 1 }); }, [updateM1]);
+  const setStatusF = useCallback((v) => { updateM1({ statusF: v, page: 1 }); }, [updateM1]);
+  const setOtF     = useCallback((v) => { updateM1({ otF: v, page: 1 }); }, [updateM1]);
+  const setSearch  = useCallback((v) => { updateM1({ search: v, page: 1 }); }, [updateM1]);
+  const setPage = useCallback((valOrFn) => {
+    updateM1({ page: typeof valOrFn === 'function' ? valOrFn(page) : valOrFn });
+  }, [page, updateM1]);
+  
   const PAGE_SIZE = 25;
 
   // Alert dismiss state
