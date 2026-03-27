@@ -1,3 +1,50 @@
+import { useState, useCallback } from "react";
+
+export function useChartTooltip() {
+  const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, content: null });
+
+  const show = useCallback((e, content) => {
+    setTooltip({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      content
+    });
+  }, []);
+
+  const hide = useCallback(() => {
+    setTooltip(prev => ({ ...prev, show: false }));
+  }, []);
+
+  const move = useCallback((e) => {
+    setTooltip(prev => ({ ...prev, x: e.clientX, y: e.clientY }));
+  }, []);
+
+  return { tooltip, show, hide, move };
+}
+
+export function ChartTooltip({ tooltip }) {
+  if (!tooltip || !tooltip.show) return null;
+  return (
+    <div style={{
+      position: 'fixed',
+      left: tooltip.x + 10,
+      top: tooltip.y + 10,
+      backgroundColor: 'white',
+      border: '1px solid #e2e8f0',
+      padding: '8px',
+      borderRadius: '6px',
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+      pointerEvents: 'none',
+      zIndex: 9999,
+      fontSize: '12px',
+      color: '#1e293b'
+    }}>
+      {tooltip.content}
+    </div>
+  );
+}
+
 function NoData({ width = 300, height = 160, message = "No data" }) {
   return (
     <svg
