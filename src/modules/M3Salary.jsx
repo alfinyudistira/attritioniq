@@ -4,7 +4,7 @@ import { useApp, useHRData, useCurrency, getGeneration, getStatusColor, SAMPLE_D
 // ── Detect salary cliff from data ──
 function detectCliff(data, manualCliff) {
   if (!data || data.length === 0) return manualCliff || 5000;
-  // Find salary point where attrition rate jumps dramatically
+  // Find salary point where attrition rate jumps dramatically 
   const sorted = [...data].sort((a, b) => (a.MonthlySalary || 0) - (b.MonthlySalary || 0));
   const brackets = {};
   sorted.forEach(e => {
