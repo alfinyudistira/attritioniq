@@ -55,29 +55,41 @@ export const ModuleDataProvider = ({ children, dataSessionId }) => {
 
   // ── Session change detection — flush all module state when CSV changes ──
   useEffect(() => {
-    if (!dataSessionId) return;
-    const storedSession = localStorage.getItem(LS_MOD_SESSION_KEY);
+  if (!dataSessionId) return;
+  const storedSession = localStorage.getItem(LS_MOD_SESSION_KEY);
 
-    if (storedSession && storedSession !== dataSessionId) {
-      // New CSV session detected — wipe all persisted module state
-      clearAllModulesFromStorage();
-      setModulesData({});
-    }
+  if (storedSession && storedSession !== dataSessionId) {
+    // Session baru terdeteksi — wipe semua state modul
+    clearAllModulesFromStorage();
+    setModulesData({});
 
-    if (dataSessionId !== prevSessionRef.current) {
-      prevSessionRef.current = dataSessionId;
-      try { localStorage.setItem(LS_MOD_SESSION_KEY, dataSessionId); } catch {}
-    }
-  }, [dataSessionId]);
+    // Juga wipe IndexedDB entries dengan prefix lama
+    // supaya tidak ada orphan data yang nyangkut
+    import("../hooks/useModularStorage").then(({ idbClearPrefix }) => {
+      idbClearPrefix(`mod__${storedSession}`).catch(() => {});
+    });
+  }
+
+  if (dataSessionId !== prevSessionRef.current) {
+    prevSessionRef.current = dataSessionId;
+    try { localStorage.setItem(LS_MOD_SESSION_KEY, dataSessionId); } catch {}
+  }
+}, [dataSessionId]);
 
   // ── Update a module's entire state (merges with existing) ──
-  const updateModule = useCallback((name, data) => {
-    setModulesData(prev => {
-      const next = { ...prev, [name]: { ...(prev[name] || {}), ...data } };
-      saveModuleToStorage(name, next[name]);
-      return next;
-    });
-  }, []);
+  const updateModule = useCallback((name, patch) => {
+  if (!name || typeof patch !== "object" || patch === null) return;
+  setModulesData(prev => {
+    const current = prev[name] || {};
+    // Deep merge satu level — cegah patch menghapus key yang tidak disebut
+    const next = {
+      ...prev,
+      [name]: { ...current, ...patch },
+    };
+    saveModuleToStorage(name, next[name]);
+    return next;
+  });
+}, []);
 
   // ── Update a single field inside a module's state ──
   const setModuleField = useCallback((name, field, value) => {
@@ -108,8 +120,14 @@ export const ModuleDataProvider = ({ children, dataSessionId }) => {
 
   // ── Lazy-load a module's state from storage on first access ──
   const getModule = useCallback((name) => {
-    return modulesData[name] ?? loadModuleFromStorage(name);
-  }, [modulesData]);
+  // Cek session dulu sebelum baca dari storage
+  // Kalau session belum divalidasi, jangan kembalikan data lama
+  const storedSession = localStorage.getItem(LS_MOD_SESSION_KEY);
+  if (dataSessionId && storedSession && storedSession !== dataSessionId) {
+    return modulesData[name] ?? {};
+  }
+  return modulesData[name] ?? loadModuleFromStorage(name);
+}, [modulesData, dataSessionId]);
 
   const contextValue = useMemo(() => ({
     modulesData,
