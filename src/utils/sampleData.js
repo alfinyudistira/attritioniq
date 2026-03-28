@@ -20,10 +20,16 @@ export const SAMPLE_DATA_METADATA = {
   ],
 };
 
+// Set untuk O(1) lookup — lebih cepat dari Array.includes() untuk 50+ IDs
+const SAMPLE_ID_SET = new Set(SAMPLE_DATA_METADATA.sampleIds);
+
 export function isSampleRow(row) {
   if (!row?.EmployeeID) return false;
-  return SAMPLE_DATA_METADATA.sampleIds.includes(String(row.EmployeeID));
+  return SAMPLE_ID_SET.has(String(row.EmployeeID));
 }
+
+// Alias lebih deskriptif untuk dipakai di modul
+export const isSampleEmployee = isSampleRow;
 
 export function getSampleSummary() {
   const { totalRows, departments, name } = SAMPLE_DATA_METADATA;
@@ -32,22 +38,4 @@ export function getSampleSummary() {
 
 export function getSampleDepartments() {
   return [...SAMPLE_DATA_METADATA.departments];
-}
-
-export const SAMPLE_ACTIVE_KEY = (_modul) => "attritioniq_issample";
-
-export function setSampleActive(_modul, _aktif = true) {
-  if (process.env.NODE_ENV === "development") {
-    console.warn("[sampleData] setSampleActive is deprecated. Use AppContext.setSampleDataFlag.");
-  }
-}
-
-export function isSampleActive(_modul) {
-  try { return localStorage.getItem("attritioniq_issample") === "1"; } catch { return false; }
-}
-
-export function clearSampleData(_modul) {
-  if (process.env.NODE_ENV === "development") {
-    console.warn("[sampleData] clearSampleData is deprecated. Use AppContext.setData([]) instead.");
-  }
 }
