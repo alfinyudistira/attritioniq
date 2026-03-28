@@ -13,6 +13,23 @@ const CURRENCY_SYMBOLS = { USD: "$", IDR: "Rp", EUR: "€", GBP: "£", SGD: "S$"
 
 const NUMBER_FIELDS = ["salaryCliff", "replacementMultiplier", "avgWorkHoursPerWeek", "targetTurnover"];
 
+const LS_DRAFT_KEY = "attritioniq_setup_draft";
+
+function saveDraft(form) {
+  try { localStorage.setItem(LS_DRAFT_KEY, JSON.stringify(form)); } catch {}
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(LS_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(LS_DRAFT_KEY); } catch {}
+}
+
 const FIELD_LIMITS = {
   salaryCliff:            { min: 1,    max: 999_999_999 },
   replacementMultiplier:  { min: 0.1,  max: 10 },
@@ -21,7 +38,9 @@ const FIELD_LIMITS = {
 };
 
 export default function CompanySetup({ onSave }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => {
+  const draft = loadDraft();
+  return {
     name: "",
     industry: "Manufacturing",
     currency: "USD",
@@ -29,8 +48,13 @@ export default function CompanySetup({ onSave }) {
     replacementMultiplier: 1.5,
     targetTurnover: 10,
     avgWorkHoursPerWeek: 40,
-  });
-  const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(false);
+    ...draft,
+  };
+});
+
+const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(
+  () => !!loadDraft()?.salaryCliff
+);
   useEffect(() => {
   if (!hasEditedSalaryCliff) {
     const defaultCliff = DEFAULT_CLIFF_BY_CURRENCY[form.currency] ?? 5000;
@@ -38,22 +62,26 @@ export default function CompanySetup({ onSave }) {
   }
 }, [form.currency, hasEditedSalaryCliff]);
   const set = (key, val) => {
-    if (key === "salaryCliff") setHasEditedSalaryCliff(true);
-    let finalVal = val;
-    if (NUMBER_FIELDS.includes(key)) {
-      if (val === "" || val === "-") {
-        finalVal = "";
-      } else {
-        const n = Number(val);
-        const lim = FIELD_LIMITS[key];
-        // Only clamp on blur, allow typing freely — just store number
-        finalVal = isNaN(n) ? "" : n;
-        // Hard cap: prevent absurd values silently
-        if (lim && n > lim.max) finalVal = lim.max;
-      }
+  if (key === "salaryCliff") setHasEditedSalaryCliff(true);
+  let finalVal = val;
+  if (NUMBER_FIELDS.includes(key)) {
+    if (val === "" || val === "-") {
+      finalVal = "";
+    } else {
+      const n = Number(val);
+      const lim = FIELD_LIMITS[key];
+      finalVal = isNaN(n) ? "" : n;
+      if (lim && n > lim.max) finalVal = lim.max;
     }
-    setForm(p => ({ ...p, [key]: finalVal }));
-  };
+  }
+  setForm(p => {
+    const next = { ...p, [key]: finalVal };
+    // Auto-save setiap perubahan — debounce tidak perlu
+    // karena localStorage.setItem sangat cepat (sync, <1ms)
+    saveDraft(next);
+    return next;
+  });
+};
   const numErrors = {
     salaryCliff:           (!form.salaryCliff || Number(form.salaryCliff) < 1),
     replacementMultiplier: (!form.replacementMultiplier || Number(form.replacementMultiplier) < 0.1),
@@ -66,7 +94,15 @@ export default function CompanySetup({ onSave }) {
   const currSymbol = CURRENCY_SYMBOLS[form.currency] || "$";
   const fields = [
     { label: "Company Name",   key: "name",   type: "text",   placeholder: "e.g. Pulse Digital" },
-    { label: "Industry",       key: "industry", type: "select", opts: ["Manufacturing","Retail","Technology","Healthcare","Finance","Services","Education","Logistics","Energy","Other"] },
+    { label: "Industry", key: "industry", type: "select",
+  opts: [
+    "Technology","Finance","Healthcare","Manufacturing",
+    "Retail","Education","Logistics","Energy",
+    "Hospitality","Media & Entertainment","Real Estate",
+    "Telecommunications","Government","Non-Profit",
+    "Construction","Agriculture","Services","Other"
+  ]
+},
     { label: "Currency",       key: "currency", type: "select", opts: ["USD","IDR","EUR","GBP","SGD"] },
     {
       label: `Salary Safety Cliff (${currSymbol}/month)`,
@@ -213,7 +249,11 @@ export default function CompanySetup({ onSave }) {
 </div>
         
         <button
-          onClick={() => valid && onSave(form)}
+  onClick={() => {
+    if (!valid) return;
+    clearDraft();
+    onSave(form);
+  }}
           style={{
             width: "100%", padding: "14px",
             background: valid ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#e2e8f0",
