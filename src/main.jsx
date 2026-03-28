@@ -89,10 +89,19 @@ class RootErrorBoundary extends React.Component {
       console.error('[AttritionIQ] Root crash:', error, info);
     }
   }
-  render() {
-    if (this.state.crashed) return React.createElement(RootErrorFallback);
-    return this.props.children;
+  // Di dalam RootErrorBoundary, ganti render method:
+render() {
+  if (this.state.crashed) {
+    // Tampilkan error detail di layar
+    return React.createElement('div', {
+      style: { minHeight: '100vh', padding: 20, background: '#fff' }
+    },
+      React.createElement('pre', {
+        style: { whiteSpace: 'pre-wrap', fontSize: 12, color: 'red' }
+      }, this.state.errorMsg + '\n\n' + (this.state.errorInfo?.componentStack || ''))
+    );
   }
+  return this.props.children;
 }
 
 // ── Mount ───────────────────────────────────────────────────────────────────
