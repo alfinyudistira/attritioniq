@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 import { useApp, parseCSV, SAMPLE_DATA } from "../context/AppContext";
-import { getMappingReport, validateMappedData } from "../utils/autoMapping";
+import { getMappingReport, validateMappedData, normalizeJobSatisfaction } from "../utils/autoMapping";
 import { SAMPLE_DATA_METADATA } from "../utils/sampleData";
 
 const CSV_TEMPLATE = `EmployeeID,FirstName,LastName,Department,MonthlySalary,OvertimeStatus,JobSatisfaction,AttritionStatus,YearsAtCompany,Age
@@ -77,7 +77,14 @@ if (file.size > 5 * 1024 * 1024) {
       try {
         const text   = e.target.result;
         const parsed = parseCSV(text);
-
+parsed.forEach(row => {
+  if (row.JobSatisfaction !== undefined && row.JobSatisfaction !== null && row.JobSatisfaction !== "") {
+    const normalized = normalizeJobSatisfaction(row.JobSatisfaction);
+    if (normalized !== null) {
+      row.JobSatisfaction = normalized;
+    }
+  }
+});
         if (parsed.length === 0) {
           setStatus({ text: "No valid rows found. Check that your CSV has an EmployeeID column (or similar).", type: "error" });
           setParsing(false);
