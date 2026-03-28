@@ -120,31 +120,43 @@ export function useTheme() {
 }
 
 
-// Tambahkan ini di bagian bawah GlobalContext.jsx
+// ── useWindowSize — reactive window dimensions ──
+// Dipakai App.jsx untuk auto-collapse sidebar di mobile
+// tanpa addEventListener manual yang berulang di setiap komponen
+//
+// Usage:
+//   const { isMobile, isTablet, width } = useWindowSize();
+//
 export function useWindowSize() {
-  const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0,
-  });
+  const [size, setSize] = useState(() => ({
+    width:    typeof window !== "undefined" ? window.innerWidth  : 1280,
+    height:   typeof window !== "undefined" ? window.innerHeight : 800,
+    isMobile: typeof window !== "undefined" ? window.innerWidth  < 768  : false,
+    isTablet: typeof window !== "undefined" ? window.innerWidth  < 1024 : false,
+  }));
 
   useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
+    let rafId;
+    const handler = () => {
+      // Pakai requestAnimationFrame agar tidak flood resize events
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        setSize({
+          width:    w,
+          height:   h,
+          isMobile: w < 768,
+          isTablet: w < 1024,
+        });
       });
     };
-
-    window.addEventListener("resize", handleResize);
-    handleResize(); // Panggil saat mount
-
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("resize", handler);
+    return () => {
+      window.removeEventListener("resize", handler);
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
-  return {
-    ...windowSize,
-    isMobile: windowSize.width < 768,
-    isTablet: windowSize.width >= 768 && windowSize.width < 1024,
-    isDesktop: windowSize.width >= 1024,
-  };
+  return size;
 }
