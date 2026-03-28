@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { AppProvider, AppContext, useCurrency, useDataSession } from "./context/AppContext";
-import { GlobalProvider, useGlobal } from "./context/GlobalContext";
+import { GlobalProvider, useGlobal, useWindowSize } from "./context/GlobalContext";
 import { ModuleDataProvider } from "./context/ModuleDataContext";
 import CompanySetup from "./components/CompanySetup";
 import DataUpload from "./components/DataUpload";
@@ -15,19 +15,6 @@ import M8TalentMatch from "./modules/M8TalentMatch";
 import M9PulseSurvey from "./modules/M9PulseSurvey";
 import ComingSoon from "./modules/ComingSoon";
 import ErrorBoundary from "./components/ErrorBoundary";
-
-
-// Inject toast + fade animation (safe, idempotent)
-if (typeof document !== "undefined" && !document.head.querySelector("[data-toast-style]")) {
-  const s = document.createElement("style");
-  s.setAttribute("data-toast-style", "1");
-  s.textContent = `
-    @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
-    @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
-    @keyframes fadeInScale { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
-  `;
-  document.head.appendChild(s);
-}
 
 const MODULES = [
   { id: "m1", label: "Attrition Dashboard",   icon: "📊", short: "M1", live: true },
@@ -60,30 +47,19 @@ function AppShell() {
   } = useContext(AppContext);
   const { fmt } = useCurrency();
   const { dataSessionId } = useDataSession();
-  const { syncCurrency, updateSettings, settings } = useGlobal();
+  const { syncCurrency, updateSettings, settings, isDark, toggleTheme } = useGlobal();
 
   const [active, setActive]           = useState("m1");
   const [sidebarOpen, setSidebarOpen] = useState(() => settings.sidebarOpen ?? true);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-    // ── Auto-Collapse Sidebar di Layar HP/Mobile (Wow Factor) ──
-  useEffect(() => {
-    const handleResize = () => {
-      // Jika lebar layar di bawah 768px (ukuran tablet/HP), otomatis tutup sidebar
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
-      }
-    };
-    
-    // Jalankan sekali saat komponen pertama kali dimuat
-    handleResize(); 
-    
-    // Pantau perubahan ukuran layar secara real-time
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    // ── Auto-Collapse Sidebar di Layar HP/Mobile
+  const { isMobile, isTablet } = useWindowSize();
 
+useEffect(() => {
+  if (isMobile) setSidebarOpen(false);
+}, [isMobile]);
 
   // ── Keep GlobalContext currency in sync with company currency ──
   useEffect(() => {
@@ -111,13 +87,13 @@ function AppShell() {
 
   // ── Switch to M1 only when data first appears from empty state ──
   // Does NOT interrupt user if they're already navigating other modules
-  const prevDataLengthRef = useMemo(() => ({ current: data.length }), []);
-  useEffect(() => {
-    if (data.length > 0 && prevDataLengthRef.current === 0) {
-      setActive("m1");
-    }
-    prevDataLengthRef.current = data.length;
-  }, [data.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const prevDataLengthRef = useRef(0);
+useEffect(() => {
+  if (data.length > 0 && prevDataLengthRef.current === 0) {
+    setActive("m1");
+  }
+  prevDataLengthRef.current = data.length;
+}, [data.length]);
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -153,18 +129,35 @@ function AppShell() {
         pointerEvents: "none",
       }}>
         {notifications.map(n => (
-          <div key={n.id} style={{
-            background: n.type === "error" ? "#fef2f2" : n.type === "success" ? "#f0fdf4" : "#f8fafc",
-            border: `1.5px solid ${n.type === "error" ? "#fecaca" : n.type === "success" ? "#bbf7d0" : "#e2e8f0"}`,
-            color: n.type === "error" ? "#dc2626" : n.type === "success" ? "#16a34a" : "#475569",
-            borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 600,
-            boxShadow: "0 4px 20px rgba(15,23,42,0.12)",
-            animation: "slideIn 0.25s ease",
-            maxWidth: 320,
-          }}>
-            {n.type === "success" ? "✅ " : n.type === "error" ? "❌ " : "ℹ️ "}{n.msg}
-          </div>
-        ))}
+  <div key={n.id} style={{
+    background:
+      n.type === "error"   ? "#fef2f2" :
+      n.type === "success" ? "#f0fdf4" :
+      n.type === "warning" ? "#fffbeb" : "#f8fafc",
+    border: `1.5px solid ${
+      n.type === "error"   ? "#fecaca" :
+      n.type === "success" ? "#bbf7d0" :
+      n.type === "warning" ? "#fde68a" : "#e2e8f0"
+    }`,
+    color:
+      n.type === "error"   ? "#dc2626" :
+      n.type === "success" ? "#16a34a" :
+      n.type === "warning" ? "#b45309" : "#475569",
+    borderRadius: 12, padding: "10px 16px",
+    fontSize: 13, fontWeight: 600,
+    boxShadow: "0 4px 20px rgba(15,23,42,0.12)",
+    animation: "slideIn 0.25s ease",
+    maxWidth: 320,
+    display: "flex", alignItems: "flex-start", gap: 8,
+  }}>
+    <span style={{ flexShrink: 0, fontSize: 15 }}>
+      {n.type === "success" ? "✅" :
+       n.type === "error"   ? "❌" :
+       n.type === "warning" ? "⚠️" : "ℹ️"}
+    </span>
+    <span style={{ lineHeight: 1.5 }}>{n.msg}</span>
+  </div>
+))}
       </div>
       
       {/* ── Reset Confirm Modal ── */}
@@ -390,15 +383,39 @@ function AppShell() {
           })}
         </nav>
 
-        {/* Collapse */}
-        <div style={{ padding: "10px 8px", borderTop: "1px solid #1e293b" }}>
-          <button
-            onClick={() => setSidebarOpen(p => !p)}
-            style={{ width: "100%", padding: "7px", borderRadius: 8, border: "1px solid #1e293b", background: "transparent", color: "#475569", cursor: "pointer", fontSize: 13 }}
-          >
-            {sidebarOpen ? "◀ Collapse" : "▶"}
-          </button>
-        </div>
+        {/* Theme toggle + Collapse */}
+<div style={{ padding: "10px 8px", borderTop: "1px solid #1e293b", display: "flex", flexDirection: "column", gap: 6 }}>
+  <button
+    onClick={toggleTheme}
+    title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+    style={{
+      width: "100%", padding: "7px", borderRadius: 8,
+      border: "1px solid #1e293b", background: "transparent",
+      color: "#475569", cursor: "pointer", fontSize: 13,
+      display: "flex", alignItems: "center",
+      justifyContent: sidebarOpen ? "flex-start" : "center",
+      gap: 8,
+    }}
+  >
+    <span style={{ fontSize: 15 }}>{isDark ? "☀️" : "🌙"}</span>
+    {sidebarOpen && (
+      <span style={{ fontSize: 11, color: "#64748b" }}>
+        {isDark ? "Light Mode" : "Dark Mode"}
+      </span>
+    )}
+  </button>
+
+  <button
+    onClick={() => setSidebarOpen(p => !p)}
+    style={{
+      width: "100%", padding: "7px", borderRadius: 8,
+      border: "1px solid #1e293b", background: "transparent",
+      color: "#475569", cursor: "pointer", fontSize: 13,
+    }}
+  >
+    {sidebarOpen ? "◀ Collapse" : "▶"}
+  </button>
+</div>
       </aside>
 
       {/* ── Main ── */}
@@ -493,8 +510,14 @@ function AppShell() {
 // Must sit INSIDE AppProvider but OUTSIDE the Providers that need the values.
 function AppBridge({ children }) {
   const { dataSessionId } = useDataSession();
+
+  // Guard: pastikan dataSessionId selalu string valid
+  // Kalau undefined/null sampai ke ModuleDataProvider,
+  // semua session check di ModuleDataContext akan skip
+  const safeSessionId = dataSessionId || "default_session";
+
   return (
-    <ModuleDataProvider dataSessionId={dataSessionId}>
+    <ModuleDataProvider dataSessionId={safeSessionId}>
       {children}
     </ModuleDataProvider>
   );
