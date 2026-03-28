@@ -70,12 +70,18 @@ const syncCurrency = useCallback((currency, companyName) => {
 }, []);
 
   const resetAll = useCallback(() => {
-    setProfileState(null);
-    setSettingsState(DEFAULT_SETTINGS);
-    try { localStorage.removeItem(LS_SETTINGS_KEY); } catch {}
-    document.documentElement.removeAttribute("data-theme");
-    document.documentElement.style.colorScheme = "";
-  }, []);
+  setProfileState(null);
+  setSettingsState(DEFAULT_SETTINGS);
+  try {
+    localStorage.removeItem(LS_SETTINGS_KEY);
+    // Bersihkan semua key GlobalContext — termasuk lastCompany
+    const keysToRemove = Object.keys(localStorage)
+      .filter(k => k.startsWith("attritioniq_global"));
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch {}
+  document.documentElement.removeAttribute("data-theme");
+  document.documentElement.style.colorScheme = "";
+}, []);
 
   const toggleTheme = useCallback(() => {
     updateSettings({ theme: settings.theme === "dark" ? "light" : "dark" });
