@@ -79,29 +79,29 @@ function RootErrorFallback() {
 class RootErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { crashed: false };
+    this.state = { crashed: false, errorMsg: "", errorInfo: null };
   }
-  static getDerivedStateFromError() {
-    return { crashed: true };
+  static getDerivedStateFromError(error) {
+    return { crashed: true, errorMsg: error.toString() };
   }
   componentDidCatch(error, info) {
     if (isDev) {
       console.error('[AttritionIQ] Root crash:', error, info);
     }
+    this.setState({ errorInfo: info });
   }
-  // Di dalam RootErrorBoundary, ganti render method:
-render() {
-  if (this.state.crashed) {
-    // Tampilkan error detail di layar
-    return React.createElement('div', {
-      style: { minHeight: '100vh', padding: 20, background: '#fff' }
-    },
-      React.createElement('pre', {
-        style: { whiteSpace: 'pre-wrap', fontSize: 12, color: 'red' }
-      }, this.state.errorMsg + '\n\n' + (this.state.errorInfo?.componentStack || ''))
-    );
+  render() {
+    if (this.state.crashed) {
+      return React.createElement('div', {
+        style: { minHeight: '100vh', padding: 20, background: '#fff' }
+      },
+        React.createElement('pre', {
+          style: { whiteSpace: 'pre-wrap', fontSize: 12, color: 'red' }
+        }, this.state.errorMsg + '\n\n' + (this.state.errorInfo?.componentStack || ''))
+      );
+    }
+    return this.props.children;
   }
-  return this.props.children;
 }
 
 // ── Mount ───────────────────────────────────────────────────────────────────
