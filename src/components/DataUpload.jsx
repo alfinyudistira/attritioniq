@@ -27,8 +27,12 @@ export default function DataUpload() {
   const { data, setData, pushNotification, setSampleDataFlag, isSampleData } = useApp();
   const [dragging, setDragging]     = useState(false);
   const [status, setStatus]         = useState(null);   // { text, type: "success"|"error"|"warning" }
-  const [mappingReport, setMappingReport] = useState(null);   // from getMappingReport()
-  const [validation, setValidation] = useState(null);   // from validateMappedData()
+  const [mappingReport, setMappingReport]         = useState(null);
+const [validation, setValidation]               = useState(null);
+const [ambiguousQueue, setAmbiguousQueue]        = useState([]); // kolom yang perlu konfirmasi
+const [confirmedMappings, setConfirmedMappings] = useState({}); // { rawHeader: canonical }
+const [showAmbiguousModal, setShowAmbiguousModal] = useState(false);
+const [pendingRows, setPendingRows]              = useState(null); // rows ditahan sampai user konfirmasi
   const [fileInfo, setFileInfo]     = useState(null);
   const [parsing, setParsing]       = useState(false);
   const [showConfirmSample, setShowConfirmSample] = useState(false);
@@ -49,11 +53,18 @@ export default function DataUpload() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setStatus({ text: "File too large (max 5MB). For best performance, keep CSV under 5,000 rows.", type: "error" });
-      pushNotification("File too large — max 5MB", "error");
-      return;
-    }
+    const MAX_SIZE_MB = 15;
+if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+  setStatus({
+    text: `File too large (max ${MAX_SIZE_MB}MB). For best performance, keep CSV under 50,000 rows.`,
+    type: "error",
+  });
+  pushNotification(`File too large — max ${MAX_SIZE_MB}MB`, "error");
+  return;
+}
+if (file.size > 5 * 1024 * 1024) {
+  pushNotification("Large file detected — parsing may take a moment", "warning");
+}
 
     setParsing(true);
     setStatus(null);
@@ -80,9 +91,22 @@ export default function DataUpload() {
         // ── Data quality validation ──
         const validation = validateMappedData(parsed);
 
-        // ── Commit to AppContext — triggers new dataSessionId automatically ──
-        setData(parsed);
-        setSampleDataFlag(false);   // this is real data, not sample
+        // ── Cek apakah ada kolom ambigu yang perlu konfirmasi user ──
+if (report.needsConfirmation && report.ambiguousMappings.length > 0) {
+  // Tahan data — minta konfirmasi dulu
+  setPendingRows(parsed);
+  setAmbiguousQueue(report.ambiguousMappings);
+  setConfirmedMappings({});
+  setShowAmbiguousModal(true);
+  setMappingReport(report);
+  setValidation(validateMappedData(parsed));
+  setParsing(false);
+  return; // jangan commit dulu
+}
+
+// Tidak ada ambiguitas — langsung commit
+setData(parsed, { isSample: false });
+setSampleDataFlag(false);
 
         // ── Build status message ──
         const warnCount = validation.warnings.length;
@@ -219,6 +243,139 @@ export default function DataUpload() {
         </div>
       )}
 
+      {/* ── Ambiguous Column Confirmation Modal ── */}
+{showAmbiguousModal && ambiguousQueue.length > 0 && (
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Confirm ambiguous column mappings"
+    onClick={() => setShowAmbiguousModal(false)}
+    style={{
+      position: "fixed", inset: 0,
+      background: "rgba(15,23,42,0.55)",
+      backdropFilter: "blur(5px)",
+      display: "flex", alignItems: "center",
+      justifyContent: "center", zIndex: 3000, padding: 16,
+    }}
+  >
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{
+        background: "#fff", borderRadius: 18,
+        padding: "28px 30px", maxWidth: 480,
+        width: "100%",
+        boxShadow: "0 24px 60px rgba(15,23,42,0.2)",
+      }}
+    >
+      <div style={{ fontSize: 24, marginBottom: 10 }}>🔍</div>
+      <div style={{
+        fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 6,
+      }}>
+        Confirm Column Mappings
+      </div>
+      <div style={{
+        fontSize: 12, color: "#64748b", lineHeight: 1.6, marginBottom: 20,
+      }}>
+        These columns were auto-detected but need your confirmation.
+        Select the correct field for each one.
+      </div>
+
+      {ambiguousQueue.map(m => (
+        <div key={m.rawHeader} style={{ marginBottom: 14 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: "#475569",
+            textTransform: "uppercase", letterSpacing: "0.06em",
+            marginBottom: 6,
+          }}>
+            Your column: <span style={{ color: "#0f172a" }}>"{m.rawHeader}"</span>
+            <span style={{
+              marginLeft: 8, background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 4, padding: "1px 6px",
+              fontSize: 9, color: "#92400e",
+            }}>
+              {Math.round(m.confidence * 100)}% match
+            </span>
+          </div>
+          <select
+            value={confirmedMappings[m.rawHeader] ?? m.canonical}
+            onChange={e => setConfirmedMappings(p => ({
+              ...p, [m.rawHeader]: e.target.value,
+            }))}
+            style={{
+              width: "100%", padding: "9px 12px", borderRadius: 9,
+              border: "1.5px solid #e2e8f0", fontSize: 13,
+              color: "#1e293b", background: "#f8fafc", cursor: "pointer",
+            }}
+          >
+            <option value="">— Skip this column —</option>
+            {["EmployeeID","FirstName","LastName","Department",
+              "MonthlySalary","OvertimeStatus","JobSatisfaction",
+              "AttritionStatus","YearsAtCompany","Age",
+              "PerformanceScore","WorkModel","CommuteDistance",
+              "Gender","JoinDate","EducationLevel",
+            ].map(f => (
+              <option key={f} value={f}>
+                {f} {f === m.canonical ? "(auto-detected)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <button
+          onClick={() => {
+            // User batalkan — commit tanpa re-mapping
+            setShowAmbiguousModal(false);
+            setData(pendingRows, { isSample: false });
+            setSampleDataFlag(false);
+            setPendingRows(null);
+          }}
+          style={{
+            flex: 1, padding: "11px", borderRadius: 10,
+            border: "1.5px solid #e2e8f0", background: "#f8fafc",
+            color: "#475569", fontWeight: 700,
+            cursor: "pointer", fontSize: 13,
+          }}
+        >
+          Use Auto-Detection
+        </button>
+        <button
+          onClick={() => {
+            // Apply confirmed mappings ke pendingRows
+            const remapped = (pendingRows || []).map(row => {
+              const newRow = { ...row };
+              ambiguousQueue.forEach(m => {
+                const chosen = confirmedMappings[m.rawHeader];
+                if (chosen && chosen !== m.canonical && row[m.canonical] !== undefined) {
+                  newRow[chosen] = row[m.canonical];
+                  if (chosen !== m.canonical) delete newRow[m.canonical];
+                }
+              });
+              return newRow;
+            });
+            setData(remapped, { isSample: false });
+            setSampleDataFlag(false);
+            setShowAmbiguousModal(false);
+            setPendingRows(null);
+            pushNotification("Column mappings confirmed — data synced", "success");
+          }}
+          style={{
+            flex: 1, padding: "11px", borderRadius: 10,
+            border: "none",
+            background: "linear-gradient(135deg,#f59e0b,#ef4444)",
+            color: "#fff", fontWeight: 700,
+            cursor: "pointer", fontSize: 13,
+          }}
+        >
+          Confirm & Import
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       {/* ── Header row ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
         <div>
@@ -246,11 +403,22 @@ export default function DataUpload() {
             style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #f59e0b", background: "#fffbeb", fontSize: 12, color: "#b45309", cursor: "pointer", fontWeight: 700 }}
           >Use Sample Data</button>
           {data.length > 0 && (
-            <button
-              onClick={handleClear}
-              style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fef2f2", fontSize: 12, color: "#dc2626", cursor: "pointer", fontWeight: 600 }}
-            >✕ Clear</button>
-          )}
+  <button
+    onClick={handleClear}
+    title="Clear all data and reset workspace"
+    style={{
+      padding: "7px 13px", borderRadius: 8,
+      border: "1.5px solid #fecaca", background: "#fef2f2",
+      fontSize: 12, color: "#dc2626", cursor: "pointer", fontWeight: 600,
+      display: "flex", alignItems: "center", gap: 5,
+    }}
+  >
+    <span>✕</span>
+    <span>
+      {isSampleData ? "Clear Sample" : "Clear Data"}
+    </span>
+  </button>
+)}
         </div>
       </div>
 
