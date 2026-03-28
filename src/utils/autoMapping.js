@@ -185,6 +185,40 @@ export function inferColumnType(sampleValues = []) {
   return "text";
 }
 
+export function normalizeJobSatisfaction(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const num = Number(value);
+  if (!isNaN(num) && num >= 1 && num <= 10) return num;
+  const str = String(value).toLowerCase().trim();
+  const textToNumber = {
+    // 1 (sangat rendah)
+    "very low": 1, "verylow": 1, "extremely low": 1, "terendah": 1, "sangat rendah": 1,
+    "lowest": 1, "1": 1,
+    // 2 (rendah)
+    "low": 2, "rendah": 2, "2": 2,
+    // 3 (agak rendah)
+    "somewhat low": 3, "agak rendah": 3, "below average": 3, "3": 3,
+    // 4 (sedikit di bawah rata-rata)
+    "slightly low": 4, "4": 4,
+    // 5 (cukup / rata-rata)
+    "medium": 5, "average": 5, "cukup": 5, "sedang": 5, "5": 5,
+    // 6 (agak tinggi)
+    "somewhat high": 6, "above average": 6, "agak tinggi": 6, "6": 6,
+    // 7 (tinggi)
+    "high": 7, "tinggi": 7, "7": 7,
+    // 8 (sangat tinggi)
+    "very high": 8, "veryhigh": 8, "sangat tinggi": 8, "8": 8,
+    // 9 (sangat tinggi plus)
+    "extremely high": 9, "luar biasa": 9, "9": 9,
+    // 10 (maksimal)
+    "max": 10, "perfect": 10, "sempurna": 10, "10": 10,
+  };
+
+  // Cek exact match
+  if (textToNumber[str]) return textToNumber[str];
+  return null; 
+}
+
 export function validateMappedData(rows = []) {
   const warnings      = [];
   const errors        = [];
