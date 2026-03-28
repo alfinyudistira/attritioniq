@@ -63,8 +63,8 @@ useEffect(() => {
 
   // ── Keep GlobalContext currency in sync with company currency ──
   useEffect(() => {
-    if (company?.currency) syncCurrency(company.currency);
-  }, [company?.currency, syncCurrency]);
+  if (company?.currency) syncCurrency(company.currency, company.name);
+}, [company?.currency, company?.name, syncCurrency]);
 
   // ── Persist sidebar state to GlobalContext settings ──
   useEffect(() => {
