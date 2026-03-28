@@ -54,16 +54,20 @@ export const GlobalProvider = ({ children }) => {
     });
   }, []);
 
-  // Called by App.jsx when company currency changes — keeps GlobalContext in sync
-  const syncCurrency = useCallback((currency) => {
-    if (!currency) return;
-    setSettingsState(prev => {
-      if (prev.currency === currency) return prev;
-      const next = { ...prev, currency };
-      try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }, []);
+const syncCurrency = useCallback((currency, companyName) => {
+  if (!currency) return;
+  setSettingsState(prev => {
+    if (prev.currency === currency && prev.lastCompany === companyName) return prev;
+    const next = {
+      ...prev,
+      currency,
+      // Simpan nama company terakhir sebagai penanda session
+      lastCompany: companyName ?? prev.lastCompany,
+    };
+    try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(next)); } catch {}
+    return next;
+  });
+}, []);
 
   const resetAll = useCallback(() => {
     setProfileState(null);
