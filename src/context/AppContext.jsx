@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Papa from "papaparse";
 import { idbGet, idbSet, idbDelete } from "../hooks/useModularStorage";
+import { mapSingleHeader, normalizeHeaderStr, normalizeJobSatisfaction } from "../utils/autoMapping";
 
 export const AppContext = createContext(null);
 
@@ -152,63 +153,6 @@ export function getScoreColor(score, maxScore = 5, inverse = false) {
   }
 }
 
-const COLUMN_ALIASES = {
-  EmployeeID: [
-    "employeeid", "employee_id", "emp_id", "id", "empid", "employee id", "idkaryawan", "id pegawai", "no_pegawai", "nik",
-    "empcode", "emp code", "kode karyawan", "nomor induk", "nip", "nrp"
-  ],
-  FirstName: [
-    "firstname", "first_name", "first", "namadepan", "nama", "name", "nama_awal", "nama_karyawan",
-    "fname", "givenname", "given_name", "nama depan", "nama_pertama"
-  ],
-  LastName: [
-    "lastname", "last_name", "last", "namabelakang", "marga", "surname",
-    "lname", "familyname", "family_name", "nama belakang", "nama_akhir"
-  ],
-  Department: [
-    "department", "dept", "divisi", "division", "bagian", "departemen", "unit_kerja", "div",
-    "team", "tim", "unit", "organization", "org", "fungsi", "dept_name", "department_name", "bidang"
-  ],
-  MonthlySalary: [
-    "monthlysalary", "monthly_salary", "salary", "gaji", "gaji_bulanan", "sal", "monthly salary", "gaji bulanan",
-    "pendapatan", "upah", "gajih", "base_salary", "gaji_perbulan", "salary_permonth", "income_monthly", "pay",
-    "takehome", "take_home", "salary_idr", "gajipokok", "gaji pokok", "gaji bersih", "gaji_kotor", "gross_salary"
-  ],
-  OvertimeStatus: [
-    "overtimestatus", "overtime_status", "overtime", "lembur", "ot", "over time", "status_lembur", "suka_lembur",
-    "lembur_status", "is_overtime", "overtime_yn", "lembur_yn"
-  ],
-  JobSatisfaction: [
-    "jobsatisfaction", "job_satisfaction", "satisfaction", "kepuasan", "satisf", "job satisfaction", "kepuasan_kerja",
-    "skor_puas", "kepuasan_score", "job_rate", "feeling", "mood", "happy_score", "rating_kepuasan", "puas",
-    "tingkat kepuasan", "score", "satisfaction_level"
-  ],
-  AttritionStatus: [
-    "attritionstatus", "attrition_status", "attrition", "status", "statusattrisi", "status_keluar", "turnover", "status_karyawan",
-    "keluar", "resign", "cabut", "out", "leave", "exit_status", "status_aktif", "status_keaktifan", "status_pegawai"
-  ],
-  YearsAtCompany: [
-    "yearsatcompany", "years_at_company", "tenure", "lama_kerja", "years", "masa kerja", "yearsemployed", "masa_bakti",
-    "pengalaman_di_sini", "masakerja", "lama_bekerja", "tahun_kerja", "thn_kerja", "tahun_bekerja", "total_years"
-  ],
-  Age: [
-    "age", "umur", "usia", "thn", "tahun_lahir", "umur_karyawan", "usia_karyawan", "age_year", "usia_tahun", "thn_umur",
-    "years_old", "age_years", "umur_tahun", "tahun_umur", "umur_thn", "usia_thn"
-  ],
-  PerformanceScore: [
-    "performancescore", "performance", "kinerja", "skor_kinerja", "rating", "nilai_kinerja", "kpi",
-    "performance_rating", "score_kinerja", "evaluation", "eval_score"
-  ],
-  WorkModel: [
-    "workmodel", "work_model", "tipe_kerja", "remote", "onsite", "wfa", "wfh", "wfo", "sistem_kerja",
-    "work_type", "work_location", "model_kerja", "jenis_pekerjaan"
-  ],
-  CommuteDistance: [
-    "commutedistance", "commute", "jarak_tempuh", "jarak", "jarak_rumah", "distance",
-    "commute_distance", "jarak_tempat_tinggal", "travel_distance", "jarak_kerja"
-  ]
-};
-
 function smartParseNumber(val) {
   if (typeof val === 'number') return val;
   if (val === null || val === undefined || String(val).trim() === "") return "";
@@ -252,77 +196,11 @@ function smartParseNumber(val) {
   return isNaN(num) ? val : num; 
 }
 
-function normalizeHeader(h) {
-  return h.toLowerCase().replace(/[\s_\-\.]+/g, "").trim();
-}
-
-function similarity(a, b) {
-  const s1 = a.toLowerCase();
-  const s2 = b.toLowerCase();
-  
-  if (s1 === s2) return 1.0;
-  if (s1.includes(s2) || s2.includes(s1)) return 0.8; 
-
-  const costs = new Array();
-  for (let i = 0; i <= s1.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= s2.length; j++) {
-      if (i === 0) costs[j] = j;
-      else {
-        if (j > 0) {
-          let newValue = costs[j - 1];
-          if (s1.charAt(i - 1) !== s2.charAt(j - 1))
-            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-          costs[j - 1] = lastValue;
-          lastValue = newValue;
-        }
-      }
-    }
-    if (i > 0) costs[s2.length] = lastValue;
-  }
-  
-  const maxLen = Math.max(s1.length, s2.length);
-  return (maxLen - costs[s2.length]) / maxLen;
-}
-
-
-function mapHeader(raw) {
-  const norm = normalizeHeader(raw);
-
-  for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
-    if (normalizeHeader(canonical) === norm) return canonical;
-    if (aliases.some(a => normalizeHeader(a) === norm)) return canonical;
-  }
-
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
-    for (const alias of aliases) {
-      const score = similarity(norm, normalizeHeader(alias));
-      if (score >= 0.75 && score > bestScore) { 
-        bestScore = score;
-        bestMatch = canonical;
-      }
-    }
-  }
-
-  if (bestScore > 0.7) return bestMatch;
-
-  return raw;
-}
-
-
 const TEXT_NORMALIZATION = {
   AttritionStatus: {
     "resigned": "Resigned", "resign": "Resigned", "keluar": "Resigned", "cabut": "Resigned", "quit": "Resigned", "rsgn": "Resigned", "out": "Resigned", "minggat": "Resigned",
     "high risk": "High Risk", "risk": "High Risk", "berisiko": "High Risk", "bahaya": "High Risk", "warning": "High Risk",
     "active": "Active", "aktif": "Active", "still": "Active", "stay": "Active", "aman": "Active", "bertahan": "Active",
-  },
-  JobSatisfaction: {
-    "sangat puas": 5, "puas": 4, "cukup": 3, "tidak puas": 2, "sangat tidak puas": 1,
-    "very satisfied": 5, "satisfied": 4, "neutral": 3, "dissatisfied": 2, "very dissatisfied": 1,
-    "excellent": 5, "good": 4, "average": 3, "poor": 2, "bad": 1, "b aja": 3, "lumayan": 3, "jelek": 2, "parah": 1,
   },
   OvertimeStatus: {
     "yes": "Yes", "y": "Yes", "1": "Yes", "true": "Yes", "ya": "Yes", "yoi": "Yes", "sering": "Yes", "lembur": "Yes", "ot": "Yes",
@@ -358,11 +236,12 @@ if (enriched.OvertimeStatus) {
 }
   if (enriched.Department) {
   enriched.Department = normalizeTextValue('Department', enriched.Department);
-}
-if (enriched.JobSatisfaction && typeof enriched.JobSatisfaction === 'string') {
 
-  const mapped = normalizeTextValue('JobSatisfaction', enriched.JobSatisfaction);
-  if (typeof mapped === 'number') enriched.JobSatisfaction = mapped;
+  if (enriched.JobSatisfaction !== undefined) {
+  enriched.SatisfactionLabel =
+    enriched.JobSatisfaction <= 3  ? "Low" :
+    enriched.JobSatisfaction <= 6  ? "Medium" :
+    enriched.JobSatisfaction <= 8  ? "High" : "Very High";
 }
 
   if (enriched.Age) {
@@ -388,7 +267,10 @@ export function parseCSV(text) {
   const results = Papa.parse(text.trim(), {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (header) => mapHeader(header),
+    transformHeader: (header) => {
+      const result = mapSingleHeader(header);
+      return result ? result.canonical : header;
+    },
   });
 
   return results.data
