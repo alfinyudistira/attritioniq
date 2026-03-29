@@ -1,30 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useModularStorage — Hybrid IndexedDB + localStorage storage for AttritionIQ
-//
-// Strategy:
-//   • localStorage  → small config-like state (slider values, filters, booleans)
-//                     Synchronous, instant, survives tab close.
-//   • IndexedDB     → large data (bulk arrays, computed results, AI outputs)
-//                     Async, higher quota (~50% disk), survives tab close.
-//
-// Session safety:
-//   Both layers are keyed with dataSessionId. When a new CSV is uploaded,
-//   the session ID changes → stale data from the previous CSV is never shown.
-//
-// TTL:
-//   Entries older than TTL_MS (default 7 days) are treated as expired and
-//   silently dropped, preventing stale data from accumulating indefinitely.
-// ─────────────────────────────────────────────────────────────────────────────
-
 const DB_NAME    = "attritioniq_idb";
 const DB_VERSION = 1;
 const IDB_STORE  = "module_data";
 const LS_PREFIX  = "attritioniq.ls.";
-const TTL_MS     = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-// ── IndexedDB singleton ───────────────────────────────────────────────────────
+const TTL_MS     = 7 * 24 * 60 * 60 * 1000;
 
 let _dbPromise = null;
 
@@ -44,14 +24,12 @@ function getDB() {
     };
     req.onsuccess = (e) => resolve(e.target.result);
     req.onerror   = (e) => {
-      _dbPromise = null; // allow retry
+      _dbPromise = null;
       reject(e.target.error);
     };
   });
   return _dbPromise;
 }
-
-// ── IndexedDB public utilities (importable by any module) ─────────────────────
 
 export async function idbSet(key, value) {
   try {
@@ -147,9 +125,7 @@ export async function idbClearPrefix(prefix) {
   } catch { return []; }
 }
 
-// ── localStorage utilities (synchronous, for small config state) ──────────────
-
-function lsSet(key, value, ttlMs = TTL_MS) {
+export function lsSet(key, value, ttlMs = TTL_MS) {
   try {
     const entry = { value, savedAt: Date.now(), ttlMs };
     localStorage.setItem(key, JSON.stringify(entry));
@@ -157,12 +133,11 @@ function lsSet(key, value, ttlMs = TTL_MS) {
   } catch { return false; }
 }
 
-function lsGet(key) {
+export function lsGet(key) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return undefined;
     const entry = JSON.parse(raw);
-    // TTL check
     if (entry.ttlMs > 0 && Date.now() - entry.savedAt > entry.ttlMs) {
       localStorage.removeItem(key);
       return undefined;
@@ -174,28 +149,6 @@ function lsGet(key) {
 function lsDelete(key) {
   try { localStorage.removeItem(key); return true; } catch { return false; }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// useModularStorage
-//
-// Usage (localStorage, small state):
-//   const [filters, setFilters, { clear }] = useModularStorage(
-//     "m3_filters", defaultFilters, { dataSessionId, storage: "local" }
-//   );
-//
-// Usage (IndexedDB, large data):
-//   const [results, setResults, { clear, isLoading }] = useModularStorage(
-//     "m3_results", [], { dataSessionId, storage: "idb" }
-//   );
-//
-// Parameters:
-//   key           — unique string key for this piece of state
-//   defaultValue  — value to use when nothing is stored or session changes
-//   options:
-//     dataSessionId — (string) current CSV session ID from AppContext
-//     storage       — "local" (default) | "idb"
-//     ttlMs         — override TTL (default 7 days). 0 = no expiry.
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function useModularStorage(key, defaultValue, options = {}) {
   const {
@@ -214,7 +167,6 @@ export function useModularStorage(key, defaultValue, options = {}) {
   const mountedRef   = useRef(true);
   const prevSessionRef = useRef(dataSessionId);
 
-  // ── On mount: load from storage ──
   useEffect(() => {
     mountedRef.current = true;
 
@@ -231,36 +183,29 @@ export function useModularStorage(key, defaultValue, options = {}) {
     }
 
     return () => { mountedRef.current = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Session change: flush stale state, reset to default ──
+  }, []);
+  
   useEffect(() => {
     if (!dataSessionId) return;
     if (prevSessionRef.current === dataSessionId) return;
 
-    // Session changed — wipe old data, restore default
     prevSessionRef.current = dataSessionId;
     setStateRaw(defaultValue);
 
-    // Clean up old storage entry (best-effort, no await needed)
     if (isIDB) {
       idbDelete(idbKey);
     } else {
-      // Remove all LS entries with the old session prefix
       try {
         const keysToDelete = Object.keys(localStorage)
           .filter(k => k.startsWith(`${LS_PREFIX}${key}__`));
         keysToDelete.forEach(k => localStorage.removeItem(k));
       } catch {}
     }
-  }, [dataSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Setter: update state and persist ──
+  }, [dataSessionId]);
   const setState = useCallback((valOrUpdater) => {
     setStateRaw(prev => {
       const next = typeof valOrUpdater === "function" ? valOrUpdater(prev) : valOrUpdater;
 
-      // Persist to correct storage layer
       if (isIDB) {
         idbSet(idbKey, next).catch(err =>
           console.warn("[useModularStorage] IDB persist failed:", err)
@@ -286,32 +231,12 @@ export function useModularStorage(key, defaultValue, options = {}) {
   return [state, setState, { isLoading, clear }];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useIDBState — convenience wrapper specifically for IndexedDB
-// Drop-in for useState but backed by IndexedDB with session safety.
-//
-// Usage:
-//   const [aiOutput, setAiOutput, { isLoading, clear }] = useIDBState(
-//     "m5_ai_output", null, dataSessionId
-//   );
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function useIDBState(key, defaultValue, dataSessionId = "") {
   return useModularStorage(key, defaultValue, {
     dataSessionId,
     storage: "idb",
   });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// useLocalState — convenience wrapper specifically for localStorage
-// Drop-in for useState but persisted and session-safe.
-//
-// Usage:
-//   const [filters, setFilters, { clear }] = useLocalState(
-//     "m3_filters", defaultFilters, dataSessionId
-//   );
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function useLocalState(key, defaultValue, dataSessionId = "") {
   return useModularStorage(key, defaultValue, {
