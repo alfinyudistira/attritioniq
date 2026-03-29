@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useApp, useHRData, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData } from "../context/AppContext";
+import { useModuleData } from "../context/ModuleDataContext";
 
-// ── Fatigue scoring engine ──
 function computeFatigueScore(shift) {
   let score = 0;
   const factors = [];
@@ -50,14 +50,11 @@ function computeFatigueScore(shift) {
   return { score: final, factors, level };
 }
 
-// ── Build team fatigue from CSV data ──
 function buildTeamFatigue(data, stdHours = 40) {
-  // Kalkulasi OT threshold berdasarkan jam standar perusahaan
   const otBaseHours = stdHours > 40 ? stdHours - 40 : 0;
   return data.map(e => {
     const hasOT = e.OvertimeStatus === "Yes";
     const dept = e.Department || "Unknown";
-    // Infer shift characteristics — sensitif terhadap stdHours
     const shiftType = hasOT
       ? (e.JobSatisfaction <= 2 ? "Night" : "Evening")
       : "Day";
@@ -68,8 +65,8 @@ function buildTeamFatigue(data, stdHours = 40) {
     const consecutiveDays = hasOT ? 6 : 5;
     const weekendWork = hasOT ? (e.JobSatisfaction <= 2 ? "Both" : "One") : "None";
     const weeklyOTHours = hasOT
-      ? (e.JobSatisfaction <= 2 ? Math.max(15, otBaseHours + 8) : Math.max(10, otBaseHours))
-      : otBaseHours;
+  ? (e.JobSatisfaction <= 2 ? Math.max(15, otBaseHours + 8) : Math.max(8, otBaseHours + 4))
+  : 0;
 
     const shift = { shiftType, duration, restHours, consecutiveDays, weekendWork, weeklyOTHours };
     const { score, factors, level } = computeFatigueScore(shift);
@@ -156,13 +153,17 @@ function FatigueFactorBar({ factor }) {
 }
 
 // ── Schedule Optimizer ──
-function ScheduleOptimizer({ baseShift, company }) {
-  const [simShift, setSimShift] = useState(() => ({ ...baseShift }));
+const [simShift, setSimShift] = useState(() => ({ ...baseShift }));
+  useEffect(() => {
+    setSimShift({ ...baseShift });
+  }, [
+    baseShift.shiftType, baseShift.duration, baseShift.restHours,
+    baseShift.consecutiveDays, baseShift.weekendWork, baseShift.weeklyOTHours,
+  ]);
   const base = computeFatigueScore(baseShift);
   const sim = computeFatigueScore(simShift);
   const delta = sim.score - base.score;
   const set = useCallback((k, v) => setSimShift(p => ({ ...p, [k]: v })), []);
-
   return (
     <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginTop: 20 }}>
       <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🔧 Schedule Optimizer</div>
@@ -423,18 +424,21 @@ function RotationRecommender({ teamFatigue }) {
 export default function M7FatigueRadar() {
   const { company } = useApp();
   const { data } = useHRData();
-  const src = data.length > 0 ? data : SAMPLE_DATA;
   const stdHours = company?.avgWorkHoursPerWeek || 40;
-  const [activeTab, setActiveTab] = useState("team");
-  const [aiText, setAiText] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
+  const { state: m7State, update: updateM7 } = useModuleData("m7");
 
-  // Single employee analyzer
-  const [singleShift, setSingleShift] = useState({
-    name: "", dept: "Technical Support", shiftType: "Evening",
-    duration: 10, restHours: 9, consecutiveDays: 6,
-    weekendWork: "One", weeklyOTHours: 12,
-  });
+const activeTab   = m7State.activeTab   || "team";
+const singleShift = m7State.singleShift || {
+  name: "", dept: "Technical Support", shiftType: "Evening",
+  duration: 10, restHours: 9, consecutiveDays: 6,
+  weekendWork: "One", weeklyOTHours: 12,
+};
+const setActiveTab = useCallback((v) => updateM7({ activeTab: v }), [updateM7]);
+const setS = useCallback((k, v) => {
+  updateM7({ singleShift: { ...singleShift, [k]: v } });
+}, [singleShift, updateM7]);
+const [aiText, setAiText]       = useState("");
+const [aiLoading, setAiLoading] = useState(false);
 
   const teamFatigue = useMemo(() => buildTeamFatigue(src, stdHours), [src, stdHours]);
   const teamStats = useMemo(() => {
@@ -479,15 +483,23 @@ export default function M7FatigueRadar() {
     }
   }, [teamStats, company]);
 
+  if (data.length === 0) {
+  return (
+    <div style={{ textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>😴</div>
+      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Shift & Fatigue Radar</div>
+      <div style={{ fontSize: 14, color: "#94a3b8" }}>Upload your HR CSV to analyze team fatigue patterns and get schedule optimization recommendations.</div>
+    </div>
+  );
+}
+const src = data;
   const TABS = [
     { id: "team", label: "👥 Team Overview" },
     { id: "heatmap", label: "🌡️ Fatigue Heatmap" },
     { id: "single", label: "🎯 Single Employee" },
     { id: "recommendations", label: "💡 Rotation Plan" },
   ];
-
   const inputStyle = { width: "100%", padding: "8px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 13, color: "#1e293b", background: "#f8fafc", outline: "none", boxSizing: "border-box" };
-
   return (
     <div>
       {/* Tabs */}
