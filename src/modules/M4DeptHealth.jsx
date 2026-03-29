@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useApp, useHRData, useCurrency, getGeneration, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, useCurrency, getGeneration } from "../context/AppContext";
+import { SAMPLE_DATA } from "../utils/sampleData";
 
-// ── Compute dept health scores ──
 function computeDeptHealth(employees, cliff) {
   const deptMap = {};
   employees.forEach(e => {
@@ -24,24 +24,19 @@ function computeDeptHealth(employees, cliff) {
     const belowCliff = emps.filter(e => (e.MonthlySalary || 0) < cliff).length;
     const belowCliffPct = total > 0 ? (belowCliff / total) * 100 : 0;
 
-    // Human Buffer Metric — measures how much "slack" exists before human capacity breaks
-    // Formula: (100 - overtimePct) * (avgSat/10) * (active/total) — higher = more buffer
     const humanBuffer = total > 0
       ? Math.round(((100 - overtimePct) / 100) * (avgSat / 10) * (active / total) * 100)
       : 50;
 
-    // Burnout Index — inverse of human buffer + overtime pressure
     const burnoutIndex = Math.min(100, Math.round(
       (overtimePct * 0.4) + ((10 - avgSat) * 5) + (attritionRate * 0.3)
     ));
 
-    // Survivor Burnout Risk — if attrition >40%, survivors absorb workload
     const survivorRisk = attritionRate > 40;
     const survivorLoad = survivorRisk && active > 0
       ? Math.round(((resigned + highRisk) / active) * 100)
       : 0;
 
-    // Traffic light per metric
     const trafficLight = (val, thresholds, invert = false) => {
       const [red, yellow] = thresholds;
       if (!invert) {
@@ -55,7 +50,6 @@ function computeDeptHealth(employees, cliff) {
       }
     };
 
-    // Risk Velocity — composite speed of deterioration
     const riskVelocity = Math.min(100, Math.round(
       (attritionRate * 0.4) +
       (overtimePct * 0.3) +
@@ -63,10 +57,8 @@ function computeDeptHealth(employees, cliff) {
       (belowCliffPct * 0.2)
     ));
 
-    // Intervention urgency
     const urgency = riskVelocity >= 70 ? "CRITICAL" : riskVelocity >= 45 ? "HIGH" : riskVelocity >= 25 ? "MEDIUM" : "LOW";
     const urgencyColor = riskVelocity >= 70 ? "#ef4444" : riskVelocity >= 45 ? "#f97316" : riskVelocity >= 25 ? "#f59e0b" : "#22c55e";
-
     const metrics = {
       attrition:   { value: attritionRate.toFixed(1), unit: "%",  light: trafficLight(attritionRate, [40, 20]),        label: "Attrition Rate" },
       overtime:    { value: overtimePct.toFixed(1),   unit: "%",  light: trafficLight(overtimePct, [70, 40]),          label: "Overtime Exposure" },
@@ -76,7 +68,6 @@ function computeDeptHealth(employees, cliff) {
       humanBuffer: { value: humanBuffer,               unit: "%",  light: trafficLight(humanBuffer, [40, 60], true),   label: "Human Buffer" },
     };
 
-    // Overall health score (weighted)
     const healthScore = Math.round(
       (100 - attritionRate) * 0.3 +
       (100 - overtimePct) * 0.2 +
@@ -84,7 +75,6 @@ function computeDeptHealth(employees, cliff) {
       Math.min(100, (avgSal / cliff) * 100) * 0.15 +
       humanBuffer * 0.15
     );
-
     return {
       dept, total, resigned, highRisk, active,
       attritionRate, overtimePct, avgSat, avgSal,
@@ -106,7 +96,6 @@ function computeDeptHealth(employees, cliff) {
   }).sort((a, b) => a.healthScore - b.healthScore);
 }
 
-// ── Traffic Light Component ──
 function TrafficLight({ light }) {
   const colors = {
     red: { on: "#ef4444", off: "#fecaca" },
@@ -127,7 +116,6 @@ function TrafficLight({ light }) {
   );
 }
 
-// ── Blinking CRITICAL Alert ──
 function CriticalAlert({ dept, attritionRate, survivorLoad }) {
   const [visible, setVisible] = useState(true);
   useEffect(() => {
@@ -166,7 +154,6 @@ function CriticalAlert({ dept, attritionRate, survivorLoad }) {
   );
 }
 
-// ── Radar Chart (SVG) ──
 function RadarChart({ metrics, size = 160, cliff = 5000 }) {
   const keys = Object.keys(metrics);
   const n = keys.length;
@@ -178,7 +165,7 @@ function RadarChart({ metrics, size = 160, cliff = 5000 }) {
     const val = parseFloat(m.value);
     if (key === "satisfaction") return Math.min(1, val / 10);
     if (key === "humanBuffer") return Math.min(1, val / 100);
-    if (key === "salary") return Math.min(1, val / (metrics?.salary?._cliff || val * 1.2 || 1));
+    if (key === "salary") return Math.min(1, val / (cliff || val * 1.2 || 1));
     if (key === "attrition" || key === "overtime" || key === "belowCliff") return Math.max(0, 1 - val / 100);
     return 0.5;
   };
@@ -474,7 +461,16 @@ export default function M4DeptHealth() {
   const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
-  const src = data.length > 0 ? data : SAMPLE_DATA;
+  if (data.length === 0) {
+  return (
+    <div style={{ textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🏥</div>
+      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Department Health Monitor</div>
+      <div style={{ fontSize: 14, color: "#94a3b8" }}>Upload your HR CSV to see department health scores, burnout alerts, and intervention plans.</div>
+    </div>
+  );
+}
+const src = data;
   const cliff = company?.salaryCliff || 5000;
   const [selected, setSelected]     = useState(null);
   const [activeTab, setActiveTab]   = useState("overview");
