@@ -69,3 +69,20 @@ input, select, textarea {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+
+/* ── Radar Pulse Animation ── */
+@keyframes pulse-radar {
+  0% { 
+    r: 30; 
+    opacity: 0.4; 
+  }
+  100% { 
+    r: 80; 
+    opacity: 0; 
+  }
+}
+
+.pulse-anim {
+  animation: pulse-radar 2s infinite;
+}
