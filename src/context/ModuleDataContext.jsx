@@ -1,20 +1,9 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ModuleDataContext — per-module UI state (filters, slider positions, form
-// values, etc.) that should survive tab navigation but reset when a new CSV
-// session begins. Uses localStorage for lightweight config-like state.
-//
-// For heavy payloads (bulk computed results), modules should use
-// useModularStorage (IndexedDB) directly. This context is for small state.
-// ─────────────────────────────────────────────────────────────────────────────
+import { idbClearPrefix } from "../hooks/useModularStorage";
 
 const LS_MODULE_PREFIX = "attritioniq.mod.";
 const LS_MOD_SESSION_KEY = "attritioniq.mod.session";
-
 const ModuleDataContext = createContext(null);
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function loadModuleFromStorage(name) {
   try {
@@ -44,30 +33,20 @@ function clearAllModulesFromStorage() {
   } catch {}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const ModuleDataProvider = ({ children, dataSessionId }) => {
-  // dataSessionId is passed from AppContext (via App.jsx) — when it changes,
-  // all module state is flushed so stale data never bleeds into a new CSV session.
 
   const prevSessionRef = useRef(null);
   const [modulesData, setModulesData] = useState({});
 
-  // ── Session change detection — flush all module state when CSV changes ──
   useEffect(() => {
   if (!dataSessionId) return;
   const storedSession = localStorage.getItem(LS_MOD_SESSION_KEY);
 
   if (storedSession && storedSession !== dataSessionId) {
-    // Session baru terdeteksi — wipe semua state modul
     clearAllModulesFromStorage();
     setModulesData({});
 
-    // Juga wipe IndexedDB entries dengan prefix lama
-    // supaya tidak ada orphan data yang nyangkut
-    import("../hooks/useModularStorage").then(({ idbClearPrefix }) => {
-      idbClearPrefix(`mod__${storedSession}`).catch(() => {});
-    });
+idbClearPrefix(`mod__${storedSession}`).catch(() => {});
   }
 
   if (dataSessionId !== prevSessionRef.current) {
