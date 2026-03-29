@@ -1,25 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useTheme } from "../context/GlobalContext";
 
-// ── Dark mode color resolver ──
-// SVG tidak bisa pakai CSS variables langsung di attribute fill/stroke
-// Solusi: baca computed style dari document root
-function useDarkMode() {
-  const [isDark, setIsDark] = useState(
-    () => document.documentElement.getAttribute("data-theme") === "dark"
-  );
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
-    });
-    observer.observe(document.documentElement, {
-      attributes: true, attributeFilter: ["data-theme"],
-    });
-    return () => observer.disconnect();
-  }, []);
-  return isDark;
+export function useChartColors() {
+  const { isDark } = useTheme();
+  return isDark ? CHART_COLORS.dark : CHART_COLORS.light;
 }
 
-// Token colors yang konsisten dengan GlobalContext theme
 const CHART_COLORS = {
   light: {
     text:        "#1e293b",
@@ -75,7 +61,6 @@ export function ChartTooltip({ tooltip }) {
   const colors = useChartColors();
   if (!tooltip || !tooltip.show) return null;
 
-  // Clamp posisi agar tooltip tidak keluar viewport
   const left = Math.min(tooltip.x + 12, window.innerWidth  - 200);
   const top  = Math.min(tooltip.y + 12, window.innerHeight - 100);
 
@@ -101,6 +86,7 @@ export function ChartTooltip({ tooltip }) {
 }
 
 function NoData({ width = 300, height = 160, message = "No data" }) {
+const colors = useChartColors();
   return (
     <svg
       width="100%"
@@ -117,18 +103,6 @@ function NoData({ width = 300, height = 160, message = "No data" }) {
 }
 
 function clamp(val, min, max) { return Math.min(max, Math.max(min, val)); }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BarChart
-// Props:
-//   data        — array of objects
-//   valueKey    — key for the numeric value
-//   labelKey    — key for the bar label
-//   colorFn     — (item) => colorString, optional
-//   height      — SVG height, default 180
-//   formatValue — (val) => string, optional
-//   maxBars     — cap how many bars to show, default 20
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function BarChart({
   data,
@@ -147,14 +121,12 @@ export function BarChart({
   const sliced  = data.slice(0, maxBars);
   const count   = sliced.length;
   const totalW  = 300;
-  const padB    = 32;  // bottom padding for labels
-  const padT    = 20;  // top padding for value labels
+  const padB    = 32; 
+  const padT    = 20; 
   const chartH  = height - padB - padT;
 
-  // Cap bar width so it never fills the full chart on 1–2 items
   const slotW   = totalW / count;
   const barW    = clamp(Math.floor(slotW * 0.65), 12, 48);
-
   const values  = sliced.map(d => Number(d[valueKey]) || 0);
   const max     = Math.max(...values, 0.01);
 
@@ -228,16 +200,6 @@ export function BarChart({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HorizontalBarChart
-// Best for rankings (top departments, exit reasons, etc.)
-// Props:
-//   data        — array of { label, value, color? }
-//   formatValue — (val) => string, optional
-//   height      — total SVG height, auto-calculated if omitted
-//   maxItems    — cap rows, default 10
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function HorizontalBarChart({
   data,
   formatValue,
@@ -308,15 +270,6 @@ export function HorizontalBarChart({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DonutChart
-// Props:
-//   data        — array of { label, value, color }
-//   size        — diameter, default 140
-//   centerLabel — text shown in center, default total count
-//   centerSub   — subtext below center label, default "total"
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function DonutChart({
   data,
   size = 140,
@@ -324,6 +277,7 @@ export function DonutChart({
   centerSub = "total",
 }) {
   const { tooltip, show, hide, move } = useChartTooltip();
+  const colors = useChartColors();
   if (!data || data.length === 0) return <NoData width={size} height={size} />;
 
   const total = data.reduce((s, d) => s + (d.value || 0), 0);
@@ -355,9 +309,6 @@ export function DonutChart({
       const iy2   = cy + ir * Math.sin(cumAngle - angle);
       const lg = angle > Math.PI ? 1 : 0;
 
-// Edge case: kalau hanya ada 1 data point dengan value 100%,
-// SVG arc dengan start === end tidak render apa-apa.
-// Solusi: gambar sebagai dua setengah lingkaran.
 const isFullCircle = Math.abs(angle - 2 * Math.PI) < 0.001;
 const path = isFullCircle
   ? `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}
@@ -370,7 +321,6 @@ return { path, color: d.color, label: d.label, value: d.value };
     });
 
   const displayCenter = centerLabel ?? String(total);
-
     return (
     <>
     <ChartTooltip tooltip={tooltip} />
@@ -408,16 +358,6 @@ return { path, color: d.color, label: d.label, value: d.value };
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ScatterPlot
-// Props:
-//   data           — array of employee objects with MonthlySalary, JobSatisfaction
-//   cliffValue     — vertical dashed line position
-//   currencySymbol — for cliff label and tooltip
-//   currencyLocale — for number formatting in tooltip
-//   width / height
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function ScatterPlot({
   data,
   cliffValue = 5000,
@@ -426,8 +366,8 @@ export function ScatterPlot({
   width = 300,
   height = 160,
 }) {
+  const colors = useChartColors();
   if (!data || data.length === 0) return <NoData width={width} height={height} />;
-
   const validData = data.filter(d => d.MonthlySalary != null && !isNaN(Number(d.MonthlySalary)));
   if (validData.length === 0) return <NoData width={width} height={height} message="No salary data" />;
 
@@ -435,7 +375,6 @@ export function ScatterPlot({
   const pad = { l: 34, r: 20, t: 14, b: 30 };
   const W   = width  - pad.l - pad.r;
   const H   = height - pad.t - pad.b;
-
   const rawMin = Math.min(...salaries);
   const rawMax = Math.max(...salaries);
   // Ensure cliff is always visible even if outside data range
