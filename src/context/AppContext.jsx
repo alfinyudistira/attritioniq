@@ -236,13 +236,11 @@ if (enriched.OvertimeStatus) {
 }
   if (enriched.Department) {
   enriched.Department = normalizeTextValue('Department', enriched.Department);
-
+  } 
   if (enriched.JobSatisfaction !== undefined) {
-  enriched.SatisfactionLabel =
-    enriched.JobSatisfaction <= 3  ? "Low" :
-    enriched.JobSatisfaction <= 6  ? "Medium" :
-    enriched.JobSatisfaction <= 8  ? "High" : "Very High";
-}
+    const mapped = normalizeJobSatisfaction(enriched.JobSatisfaction);
+    if (mapped !== null) enriched.JobSatisfaction = mapped;
+  }
 
   if (enriched.Age) {
     enriched.Generation = getGeneration(enriched.Age);
@@ -254,10 +252,11 @@ if (enriched.OvertimeStatus) {
     else enriched.SalaryLevel = "Low";
   }
 
-  if (enriched.JobSatisfaction) {
+  if (enriched.JobSatisfaction !== undefined) {
     enriched.SatisfactionLabel =
-      enriched.JobSatisfaction <= 2 ? "Low" :
-      enriched.JobSatisfaction <= 4 ? "Medium" : "High";
+      enriched.JobSatisfaction <= 3  ? "Low" :
+      enriched.JobSatisfaction <= 6  ? "Medium" :
+      enriched.JobSatisfaction <= 8  ? "High" : "Very High";
   }
 
   return enriched;
