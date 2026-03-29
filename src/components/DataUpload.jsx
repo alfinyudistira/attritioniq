@@ -26,13 +26,13 @@ if (typeof document !== "undefined" && !document.head.querySelector("[data-uploa
 export default function DataUpload() {
   const { data, setData, pushNotification, setSampleDataFlag, isSampleData } = useApp();
   const [dragging, setDragging]     = useState(false);
-  const [status, setStatus]         = useState(null);   // { text, type: "success"|"error"|"warning" }
+  const [status, setStatus]         = useState(null); 
   const [mappingReport, setMappingReport]         = useState(null);
 const [validation, setValidation]               = useState(null);
-const [ambiguousQueue, setAmbiguousQueue]        = useState([]); // kolom yang perlu konfirmasi
-const [confirmedMappings, setConfirmedMappings] = useState({}); // { rawHeader: canonical }
+const [ambiguousQueue, setAmbiguousQueue]        = useState([]);
+const [confirmedMappings, setConfirmedMappings] = useState({}); 
 const [showAmbiguousModal, setShowAmbiguousModal] = useState(false);
-const [pendingRows, setPendingRows]              = useState(null); // rows ditahan sampai user konfirmasi
+const [pendingRows, setPendingRows]              = useState(null); 
   const [fileInfo, setFileInfo]     = useState(null);
   const [parsing, setParsing]       = useState(false);
   const [showConfirmSample, setShowConfirmSample] = useState(false);
@@ -41,7 +41,6 @@ const [pendingRows, setPendingRows]              = useState(null); // rows ditah
   const handleFile = useCallback((file) => {
     if (!file) return;
 
-    // Guard: only CSV / plain text
     const isCSV = file.type === "text/csv"
       || file.type === "text/plain"
       || file.name.toLowerCase().endsWith(".csv")
@@ -77,41 +76,30 @@ if (file.size > 5 * 1024 * 1024) {
       try {
         const text   = e.target.result;
         const parsed = parseCSV(text);
-parsed.forEach(row => {
-  if (row.JobSatisfaction !== undefined && row.JobSatisfaction !== null && row.JobSatisfaction !== "") {
-    const normalized = normalizeJobSatisfaction(row.JobSatisfaction);
-    if (normalized !== null) {
-      row.JobSatisfaction = normalized;
-    }
-  }
-});
         if (parsed.length === 0) {
           setStatus({ text: "No valid rows found. Check that your CSV has an EmployeeID column (or similar).", type: "error" });
           setParsing(false);
           return;
         }
 
-        // ── Mapping report using autoMapping utilities ──
         const rawHeaders = Object.keys(parsed[0] || {});
         const report     = getMappingReport(rawHeaders);
-
-        // ── Data quality validation ──
         const validation = validateMappedData(parsed);
 
-        // ── Cek apakah ada kolom ambigu yang perlu konfirmasi user ──
-if (report.needsConfirmation && report.ambiguousMappings.length > 0) {
-  // Tahan data — minta konfirmasi dulu
+const FUZZY_CONFIDENCE_THRESHOLD = 0.80;
+const columnsNeedingConfirmation = report.fuzzyMappings.filter(
+  m => m.confidence < FUZZY_CONFIDENCE_THRESHOLD
+);
+if (columnsNeedingConfirmation.length > 0) {
   setPendingRows(parsed);
-  setAmbiguousQueue(report.ambiguousMappings);
+  setAmbiguousQueue(columnsNeedingConfirmation);
   setConfirmedMappings({});
   setShowAmbiguousModal(true);
   setMappingReport(report);
   setValidation(validateMappedData(parsed));
   setParsing(false);
-  return; // jangan commit dulu
+  return;
 }
-
-// Tidak ada ambiguitas — langsung commit
 setData(parsed, { isSample: false });
 setSampleDataFlag(false);
 
