@@ -191,30 +191,28 @@ export function normalizeJobSatisfaction(value) {
   if (!isNaN(num) && num >= 1 && num <= 10) return num;
   const str = String(value).toLowerCase().trim();
   const textToNumber = {
-    // 1 (sangat rendah)
     "very low": 1, "verylow": 1, "extremely low": 1, "terendah": 1, "sangat rendah": 1,
-    "lowest": 1, "1": 1,
-    // 2 (rendah)
-    "low": 2, "rendah": 2, "2": 2,
-    // 3 (agak rendah)
-    "somewhat low": 3, "agak rendah": 3, "below average": 3, "3": 3,
-    // 4 (sedikit di bawah rata-rata)
+    "lowest": 1, "1": 1, "sangat tidak puas": 1, "very dissatisfied": 1, "parah": 1, "bad": 1,
+    
+    "low": 2, "rendah": 2, "2": 2, "jelek": 2,
+    
+    "somewhat low": 3, "agak rendah": 3, "below average": 3, "3": 3, "tidak puas": 3, "dissatisfied": 3, "poor": 3,
+    
     "slightly low": 4, "4": 4,
-    // 5 (cukup / rata-rata)
-    "medium": 5, "average": 5, "cukup": 5, "sedang": 5, "5": 5,
-    // 6 (agak tinggi)
+    
+    "medium": 5, "average": 5, "cukup": 5, "sedang": 5, "5": 5, "b aja": 5, "lumayan": 5, "neutral": 5,
+    
     "somewhat high": 6, "above average": 6, "agak tinggi": 6, "6": 6,
-    // 7 (tinggi)
-    "high": 7, "tinggi": 7, "7": 7,
-    // 8 (sangat tinggi)
+    
+    "high": 7, "tinggi": 7, "7": 7, "puas": 7, "satisfied": 7, "good": 7,
+    
     "very high": 8, "veryhigh": 8, "sangat tinggi": 8, "8": 8,
-    // 9 (sangat tinggi plus)
-    "extremely high": 9, "luar biasa": 9, "9": 9,
-    // 10 (maksimal)
-    "max": 10, "perfect": 10, "sempurna": 10, "10": 10,
+    
+    "extremely high": 9, "luar biasa": 9, "9": 9, "sangat puas": 9, "very satisfied": 9,
+    
+    "max": 10, "perfect": 10, "sempurna": 10, "10": 10, "excellent": 10,
   };
 
-  // Cek exact match
   if (textToNumber[str]) return textToNumber[str];
   return null; 
 }
