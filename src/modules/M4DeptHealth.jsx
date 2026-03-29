@@ -521,7 +521,7 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown, no c
       const cleaned = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
 if (!parsed.diagnosis || !parsed.week1_14) {
-  throw new Error("Respon AI tidak lengkap");
+  throw new Error("Incomplete AI response ");
 }
 setAiPlan(parsed);
     } catch (err) {
