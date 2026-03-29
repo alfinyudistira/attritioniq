@@ -146,20 +146,108 @@ function smartParseNumber(val) {
 
 const TEXT_NORMALIZATION = {
   AttritionStatus: {
-    "resigned": "Resigned", "resign": "Resigned", "keluar": "Resigned", "cabut": "Resigned", "quit": "Resigned", "rsgn": "Resigned", "out": "Resigned", "minggat": "Resigned",
-    "high risk": "High Risk", "risk": "High Risk", "berisiko": "High Risk", "bahaya": "High Risk", "warning": "High Risk",
-    "active": "Active", "aktif": "Active", "still": "Active", "stay": "Active", "aman": "Active", "bertahan": "Active",
+    // ── Resigned / Keluar ──
+    "resigned": "Resigned", "resign": "Resigned", "keluar": "Resigned", "cabut": "Resigned",
+    "quit": "Resigned", "rsgn": "Resigned", "out": "Resigned", "minggat": "Resigned",
+    "left": "Resigned", "terminated": "Resigned", "fired": "Resigned", "exit": "Resigned",
+    "voluntarily left": "Resigned", "voluntary": "Resigned", "separation": "Resigned",
+    "attrition": "Resigned", "churned": "Resigned", "offboarded": "Resigned",
+    "berhenti": "Resigned", "mengundurkan diri": "Resigned", "mundur": "Resigned",
+    "putus kontrak": "Resigned", "kontrak habis": "Resigned",
+    // ── Yes = Resigned (format boolean CSV umum: AttritionStatus Yes/No) ──
+    "yes": "Resigned", "1": "Resigned", "true": "Resigned",
+
+    // ── High Risk / Berisiko ──
+    "high risk": "High Risk", "highrisk": "High Risk", "risk": "High Risk",
+    "berisiko": "High Risk", "bahaya": "High Risk", "warning": "High Risk",
+    "at risk": "High Risk", "atrisk": "High Risk", "flight risk": "High Risk",
+    "potential resign": "High Risk", "likely to leave": "High Risk",
+    "waspada": "High Risk", "rawan": "High Risk", "terancam": "High Risk",
+    "medium risk": "High Risk", "moderate risk": "High Risk",
+
+    // ── Active / Aman ──
+    "active": "Active", "aktif": "Active", "still": "Active", "stay": "Active",
+    "aman": "Active", "bertahan": "Active", "retained": "Active", "current": "Active",
+    "employed": "Active", "working": "Active", "present": "Active", "onboard": "Active",
+    "stable": "Active", "safe": "Active", "low risk": "Active", "no risk": "Active",
+    "masih aktif": "Active", "masih kerja": "Active", "tidak keluar": "Active",
+    // ── No = Active (format boolean CSV umum) ──
+    "no": "Active", "0": "Active", "false": "Active",
   },
+
   OvertimeStatus: {
-    "yes": "Yes", "y": "Yes", "1": "Yes", "true": "Yes", "ya": "Yes", "yoi": "Yes", "sering": "Yes", "lembur": "Yes", "ot": "Yes",
-    "no": "No", "n": "No", "0": "No", "false": "No", "tidak": "No", "tdk": "No", "ngga": "No", "g": "No", "gk": "No", "engga": "No",
+    // ── Yes / Lembur ──
+    "yes": "Yes", "y": "Yes", "1": "Yes", "true": "Yes",
+    "ya": "Yes", "yoi": "Yes", "iya": "Yes", "yep": "Yes", "yup": "Yes",
+    "sering": "Yes", "lembur": "Yes", "ot": "Yes", "overtime": "Yes",
+    "selalu": "Yes", "often": "Yes", "frequently": "Yes", "regular": "Yes",
+    // ── No / Tidak Lembur ──
+    "no": "No", "n": "No", "0": "No", "false": "No",
+    "tidak": "No", "tdk": "No", "ngga": "No", "nggak": "No", "gak": "No",
+    "g": "No", "gk": "No", "engga": "No", "enggak": "No",
+    "never": "No", "tidak pernah": "No", "jarang": "No", "rarely": "No",
   },
+
   Department: {
-    "hr": "HR", "hrd": "HR", "human resource": "HR", "human resources": "HR", "sdm": "HR", "personalia": "HR",
-    "it": "IT", "information technology": "IT", "tech": "IT", "teknologi informasi": "IT", "engineer": "IT",
-    "sales": "Sales", "penjualan": "Sales", "marketing": "Sales", "pemasaran": "Sales",
-    "finance": "Finance", "keuangan": "Finance", "accounting": "Finance", "akuntansi": "Finance",
-  }
+    // ── HR ──
+    "hr": "HR", "hrd": "HR", "human resource": "HR", "human resources": "HR",
+    "sdm": "HR", "personalia": "HR", "people ops": "HR", "people & culture": "HR",
+    "people and culture": "HR", "talent": "HR", "hc": "HR", "human capital": "HR",
+    "recruitment": "HR", "rekrutmen": "HR",
+
+    // ── IT ──
+    "it": "IT", "information technology": "IT", "tech": "IT",
+    "teknologi informasi": "IT", "engineer": "IT", "engineering": "IT",
+    "software": "IT", "development": "IT", "dev": "IT", "backend": "IT",
+    "frontend": "IT", "fullstack": "IT", "infra": "IT", "infrastructure": "IT",
+    "data": "IT", "devops": "IT", "sysadmin": "IT", "system": "IT",
+
+    // ── Sales ──
+    "sales": "Sales", "penjualan": "Sales", "pemasaran": "Sales",
+    "business development": "Sales", "bizdev": "Sales", "bd": "Sales",
+    "account": "Sales", "commercial": "Sales",
+
+    // ── Marketing ── (dipisah dari Sales — beda fungsi!)
+    "marketing": "Marketing", "mkt": "Marketing", "marcomm": "Marketing",
+    "marketing communication": "Marketing", "marketing communications": "Marketing",
+    "brand": "Marketing", "branding": "Marketing", "growth": "Marketing",
+    "digital marketing": "Digital Marketing", "digitalmarketing": "Digital Marketing",
+    "performance marketing": "Digital Marketing", "social media": "Digital Marketing",
+    "content": "Digital Marketing", "seo": "Digital Marketing", "sem": "Digital Marketing",
+
+    // ── Finance ──
+    "finance": "Finance", "keuangan": "Finance", "accounting": "Finance",
+    "akuntansi": "Finance", "financial": "Finance", "treasury": "Finance",
+    "tax": "Finance", "pajak": "Finance", "audit": "Finance", "controller": "Finance",
+    "fa": "Finance", "finance & accounting": "Finance",
+
+    // ── Operations ──
+    "operations": "Operations", "operation": "Operations", "ops": "Operations",
+    "operasional": "Operations", "supply chain": "Operations", "logistics": "Operations",
+    "logistik": "Operations", "procurement": "Operations", "pengadaan": "Operations",
+    "warehouse": "Operations", "gudang": "Operations", "general affairs": "Operations",
+    "ga": "Operations", "facility": "Operations",
+
+    // ── Customer Service / Support ──
+    "customer service": "Technical Support", "cs": "Technical Support",
+    "customer support": "Technical Support", "support": "Technical Support",
+    "technical support": "Technical Support", "tech support": "Technical Support",
+    "helpdesk": "Technical Support", "help desk": "Technical Support",
+    "layanan pelanggan": "Technical Support", "customer success": "Technical Support",
+    "after sales": "Technical Support",
+
+    // ── Legal ──
+    "legal": "Legal", "hukum": "Legal", "compliance": "Legal", "corporate secretary": "Legal",
+    "sekretaris perusahaan": "Legal",
+
+    // ── Product ──
+    "product": "Product", "product management": "Product", "pm": "Product",
+    "produk": "Product", "product manager": "Product",
+
+    // ── R&D / Research ──
+    "research": "R&D", "r&d": "R&D", "research and development": "R&D",
+    "riset": "R&D", "innovation": "R&D", "inovasi": "R&D",
+  },
 };
 
 function normalizeTextValue(field, value) {
