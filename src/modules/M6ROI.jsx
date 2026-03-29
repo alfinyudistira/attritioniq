@@ -1,19 +1,17 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, useHRData, useCurrency, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, useCurrency } from "../context/AppContext";
+import { SAMPLE_DATA } from "../utils/sampleData";
+import { useModuleData } from "../context/ModuleDataContext";
 
-// ── Constants ──
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-// ── Ghost cost multipliers ──
 const GHOST_COSTS = {
-  opportunityCost: 0.15,   // 15% of annual salary = empty chair revenue loss
-  rampUpDrag: 0.10,        // 10% productivity loss during ramp-up
-  employerBrand: 0.05,     // 5% premium to attract talent after reputation hit
+  opportunityCost: 0.15,  
+  rampUpDrag: 0.10,
+  employerBrand: 0.05,   
 };
 
-// ── Compute ROI ──
 function computeROI({ data, cliff, multiplier, interventions, ghostEnabled }) {
-  const src = data.length > 0 ? data : SAMPLE_DATA;
+  const src = data;
   const atRisk = src.filter(e => e.AttritionStatus !== "Active");
   const resigned = src.filter(e => e.AttritionStatus === "Resigned");
   const active = src.filter(e => e.AttritionStatus === "Active");
@@ -310,14 +308,22 @@ export default function M6ROI() {
 const cliff = company?.salaryCliff || 5000;
 const currSymbol = currCfg?.symbol || "$";
   const multiplier = company?.replacementMultiplier || 1.5;
-  const [interventions, setInterventions] = useState({ salary: 70, overtime: 60, mentorship: 80 });
-  const [ghostEnabled, setGhostEnabled] = useState(false);
-  const [activeTab, setActiveTab] = useState("calculator");
-  const [aiSummary, setAiSummary] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
+  const { state: m6State, update: updateM6 } = useModuleData("m6");
 
-  const setI = useCallback((key, val) => setInterventions(p => ({ ...p, [key]: val })), []);
+const interventions = m6State.interventions || { salary: 70, overtime: 60, mentorship: 80 };
+const ghostEnabled  = m6State.ghostEnabled  ?? false;
+const activeTab     = m6State.activeTab     || "calculator";
 
+const setI = useCallback((key, val) => {
+  updateM6({ interventions: { ...interventions, [key]: val } });
+}, [interventions, updateM6]);
+const setGhostEnabled = useCallback((v) => {
+  updateM6({ ghostEnabled: typeof v === "function" ? v(ghostEnabled) : v });
+}, [ghostEnabled, updateM6]);
+const setActiveTab = useCallback((v) => updateM6({ activeTab: v }), [updateM6]);
+const [aiSummary, setAiSummary] = useState("");
+const [aiLoading, setAiLoading] = useState(false);
+ const setI = useCallback((key, val) => setInterventions(p => ({ ...p, [key]: val })), []);
   const roi = useMemo(() => computeROI({
     data, cliff, multiplier, interventions, ghostEnabled
   }), [data, cliff, multiplier, interventions, ghostEnabled]);
