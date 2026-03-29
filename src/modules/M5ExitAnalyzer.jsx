@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useApp, useHRData, useCurrency } from "../context/AppContext";
+import { useModuleData } from "../context/ModuleDataContext";
 
-// ── Sample exit interviews based on PDF personas ──
 const SAMPLE_INTERVIEWS = [
   { id: 1, name: "Alex Carter", dept: "Technical Support", date: "2024-10", tenure: 2.5, salary: 4200, age: 27, text: "The workload became completely unsustainable after the new process changes. I was handling 1.5x the ticket volume with no additional support. My breaks were eliminated and I barely had time to decompress between difficult customer interactions. I tried raising this with my manager but nothing changed. The overtime was constant and I was burning out fast. I found a role elsewhere with similar pay but reasonable hours." },
   { id: 2, name: "Sarah Miller", dept: "Sales", date: "2024-10", tenure: 3.0, salary: 4900, age: 29, text: "I loved working here and I was one of the top performers. But when I checked the market, new hires at competitors were earning $5,500 to $6,000 for the same role. I tried to negotiate a raise and was told the budget was frozen. I felt undervalued especially given how much extra effort I put in. A competitor offered me $5,800 and I had to accept. I would have stayed for $5,200 honestly." },
@@ -24,10 +24,11 @@ const CATEGORIES = {
 
 // ── AI analysis ──
 async function analyzeWithAI(interviews, company) {
-  const summaries = interviews.map(i => `[${i.dept}] "${i.text.slice(0, 200)}..."`).join("\n\n");
-  const prompt = `You are an HR analyst at ${company?.name || "a company"}. Analyze these ${interviews.length} exit interviews and provide:
-
-${summaries}
+  const summaries = interviews.map(i => {
+  const preview = i.text.length > 200 ? i.text.slice(0, 200) + "..." : i.text;
+  return `[${i.dept}] "${preview}"`;
+}).join("\n\n");
+  const prompt = `You are an HR analyst at ${company?.name || "a company"}. Analyze these ${interviews.length} exit interviews and provide: ${summaries}
 
 Respond in this exact JSON format (no markdown, no backticks):
 {
@@ -263,7 +264,11 @@ function InterviewCard({ iv, analysis, idx }) {
 
 // ── Input form for new interview ──
 function AddInterviewForm({ onAdd, deptOptions = [], currSymbol = "$" }) {
-  const [form, setForm] = useState({ name: "", dept: deptOptions[0] || "Sales", date: new Date().toISOString().slice(0,7), tenure: 1, salary: 0, age: 27, text: "" });
+  const [form, setForm] = useState(() => {
+  const d = new Date();
+  const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return { name: "", dept: deptOptions[0] || "Sales", date: localDate, tenure: 1, salary: 0, age: 27, text: "" };
+});
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const depts = deptOptions.length > 0 ? deptOptions : ["Sales", "Technical Support", "IT", "HR", "Digital Marketing", "Operations", "Finance", "Other"];
 
@@ -316,18 +321,28 @@ export default function M5ExitAnalyzer() {
   const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
-  const [interviews, setInterviews]     = useState(SAMPLE_INTERVIEWS);
-  const [activeTab, setActiveTab]       = useState("dashboard");
-  const [aiInsights, setAiInsights]     = useState(null);
-  const [aiLoading, setAiLoading]       = useState(false);
-  const [filterCat, setFilterCat]       = useState("All");
-  const [filterDept, setFilterDept]     = useState("All");
-  const [search, setSearch]             = useState("");
-  const [compareA, setCompareA]         = useState(null);
-  const [compareB, setCompareB]         = useState(null);
-  const [showCompare, setShowCompare]   = useState(false);
+  const { state: m5State, update: updateM5 } = useModuleData("m5");
 
-  // Auto dept list from HR data
+// Persistent state
+const interviews   = m5State.interviews?.length > 0 ? m5State.interviews : SAMPLE_INTERVIEWS;
+const activeTab    = m5State.activeTab    || "dashboard";
+const filterCat    = m5State.filterCat    || "All";
+const filterDept   = m5State.filterDept   || "All";
+const search       = m5State.search       || "";
+const setInterviews  = useCallback((updaterOrArr) => {
+  const next = typeof updaterOrArr === "function" ? updaterOrArr(interviews) : updaterOrArr;
+  updateM5({ interviews: next });
+}, [interviews, updateM5]);
+const setActiveTab   = useCallback((v) => updateM5({ activeTab: v }),   [updateM5]);
+const setFilterCat   = useCallback((v) => updateM5({ filterCat: v }),   [updateM5]);
+const setFilterDept  = useCallback((v) => updateM5({ filterDept: v }),  [updateM5]);
+const setSearch      = useCallback((v) => updateM5({ search: v }),      [updateM5]);
+const [aiInsights, setAiInsights]   = useState(null);
+const [aiLoading, setAiLoading]     = useState(false);
+const [compareA, setCompareA]       = useState(null);
+const [compareB, setCompareB]       = useState(null);
+const [showCompare, setShowCompare] = useState(false);
+  
   const deptOptions = useMemo(() => {
     const fromData = [...new Set(data.map(d => d.Department).filter(Boolean))];
     return fromData.length > 0 ? fromData : ["Sales","Technical Support","IT","HR","Digital Marketing","Operations","Finance","Other"];
@@ -487,7 +502,6 @@ export default function M5ExitAnalyzer() {
   const severityColor = s => s === "critical" ? "#ef4444" : s === "high" ? "#f59e0b" : "#3b82f6";
   const severityBg = s => s === "critical" ? "#fef2f2" : s === "high" ? "#fffbeb" : "#eff6ff";
   const severityBorder = s => s === "critical" ? "#fecaca" : s === "high" ? "#fde68a" : "#bfdbfe";
-
   return (
     <div>
       {/* Tabs */}
@@ -599,6 +613,13 @@ export default function M5ExitAnalyzer() {
       {activeTab === "interviews" && (
         <div>
           <AddInterviewForm onAdd={iv => setInterviews(p => [...p, iv])} deptOptions={deptOptions} currSymbol={currSymbol} />
+          {interviews !== SAMPLE_INTERVIEWS && (
+  <button
+    onClick={() => updateM5({ interviews: [] })}
+    style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fef2f2", fontSize: 11, color: "#dc2626", cursor: "pointer", fontWeight: 600, marginBottom: 12 }}>
+    🗑️ Clear All Interviews
+  </button>
+)}
 
           {/* Search */}
           <div style={{ marginBottom: 10 }}>
@@ -652,7 +673,7 @@ export default function M5ExitAnalyzer() {
             {patterns.length === 0 ? (
               <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>No significant patterns detected yet</div>
             ) : patterns.map((p, i) => (
-              <div key={`${p.severity}-${i}`} style={{ background: severityBg(p.severity), borderRadius: 10 }}>
+              <div key={`${p.severity}-${i}`} style={{ background: severityBg(p.severity), border: `1px solid ${severityBorder(p.severity)}`, borderRadius: 10, padding: "10px 14px", marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 10 }}>
     <span style={{ fontSize: 18, flexShrink: 0 }}>{p.icon}</span>
                 <div>
                   <span style={{ fontSize: 10, fontWeight: 700, color: severityColor(p.severity), textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 8 }}>
@@ -679,7 +700,7 @@ export default function M5ExitAnalyzer() {
                 </div>
               ))}
             </div>
-            {analyzed.map((iv) => (
+            {analyzed.map((iv, i) => (
               <div key={iv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                 <span style={{ fontSize: 11, color: "#475569", width: 110, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{iv.name || `#${i + 1}`}</span>
                 <div style={{ flex: 1, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
