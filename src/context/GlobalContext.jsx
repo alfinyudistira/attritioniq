@@ -1,27 +1,17 @@
 import { createContext, useState, useContext, useCallback, useMemo, useEffect } from "react";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GlobalContext — app-wide UI preferences (theme, locale, sidebar state, etc.)
-// Intentionally separate from AppContext (which owns HR data & company config).
-// Bridge: GlobalProvider reads company.currency from AppContext on first mount
-// via the syncCurrency prop passed down from App.jsx.
-// ─────────────────────────────────────────────────────────────────────────────
-
 const LS_SETTINGS_KEY = "attritioniq_global_settings";
-
 const DEFAULT_SETTINGS = {
-  currency: "USD",   // kept in sync with AppContext.company.currency
+  currency: "USD",  
   locale: "en-US",
-  theme: "light",    // "light" | "dark"
+  theme: "light", 
   sidebarOpen: true,
   compactMode: false,
 };
 
 const GlobalContext = createContext(null);
-
 export const GlobalProvider = ({ children }) => {
   const [profile, setProfileState] = useState(null);
-
   const [settings, setSettingsState] = useState(() => {
     try {
       const saved = localStorage.getItem(LS_SETTINGS_KEY);
@@ -30,7 +20,6 @@ export const GlobalProvider = ({ children }) => {
     } catch { return DEFAULT_SETTINGS; }
   });
 
-  // ── Apply theme to <html> element whenever it changes ──
   useEffect(() => {
     const root = document.documentElement;
     if (settings.theme === "dark") {
@@ -45,7 +34,6 @@ export const GlobalProvider = ({ children }) => {
   const setProfile = useCallback((data) => {
     setProfileState(data);
   }, []);
-
   const updateSettings = useCallback((patch) => {
     setSettingsState(prev => {
       const next = { ...prev, ...patch };
@@ -61,7 +49,6 @@ const syncCurrency = useCallback((currency, companyName) => {
     const next = {
       ...prev,
       currency,
-      // Simpan nama company terakhir sebagai penanda session
       lastCompany: companyName ?? prev.lastCompany,
     };
     try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(next)); } catch {}
@@ -74,7 +61,6 @@ const syncCurrency = useCallback((currency, companyName) => {
   setSettingsState(DEFAULT_SETTINGS);
   try {
     localStorage.removeItem(LS_SETTINGS_KEY);
-    // Bersihkan semua key GlobalContext — termasuk lastCompany
     const keysToRemove = Object.keys(localStorage)
       .filter(k => k.startsWith("attritioniq_global"));
     keysToRemove.forEach(k => localStorage.removeItem(k));
@@ -84,9 +70,12 @@ const syncCurrency = useCallback((currency, companyName) => {
 }, []);
 
   const toggleTheme = useCallback(() => {
-    updateSettings({ theme: settings.theme === "dark" ? "light" : "dark" });
-  }, [settings.theme, updateSettings]);
-
+  setSettingsState(prev => {
+    const next = { ...prev, theme: prev.theme === "dark" ? "light" : "dark" };
+    try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(next)); } catch {}
+    return next;
+  });
+}, []);
   const contextValue = useMemo(() => ({
     profile,
     setProfile,
@@ -95,11 +84,9 @@ const syncCurrency = useCallback((currency, companyName) => {
     syncCurrency,
     resetAll,
     toggleTheme,
-    // Convenience shorthands
     theme: settings.theme,
     isDark: settings.theme === "dark",
   }), [profile, setProfile, settings, updateSettings, syncCurrency, resetAll, toggleTheme]);
-
   return (
     <GlobalContext.Provider value={contextValue}>
       {children}
@@ -113,20 +100,11 @@ export function useGlobal() {
   return ctx;
 }
 
-// Convenience hook — just for theme, avoids full context subscription
 export function useTheme() {
   const { theme, isDark, toggleTheme, updateSettings } = useGlobal();
   return { theme, isDark, toggleTheme, updateSettings };
 }
 
-
-// ── useWindowSize — reactive window dimensions ──
-// Dipakai App.jsx untuk auto-collapse sidebar di mobile
-// tanpa addEventListener manual yang berulang di setiap komponen
-//
-// Usage:
-//   const { isMobile, isTablet, width } = useWindowSize();
-//
 export function useWindowSize() {
   const [size, setSize] = useState(() => ({
     width:    typeof window !== "undefined" ? window.innerWidth  : 1280,
@@ -138,7 +116,6 @@ export function useWindowSize() {
   useEffect(() => {
     let rafId;
     const handler = () => {
-      // Pakai requestAnimationFrame agar tidak flood resize events
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         const w = window.innerWidth;
