@@ -19,19 +19,117 @@ export const IMPORTANT_FIELDS  = ["MonthlySalary", "JobSatisfaction", "YearsAtCo
 export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName"];
 
 const ALIASES = {
-  EmployeeID:       ["employeeid","employee_id","emp_id","id","empid","employee id","idkaryawan","id pegawai","no_pegawai","nik","empcode","emp code","kode karyawan","nomor induk","nip","nrp"],
-  FirstName:        ["firstname","first_name","first","namadepan","nama","name","nama_awal","nama_karyawan","fname","givenname","given_name","nama depan","nama_pertama"],
-  LastName:         ["lastname","last_name","last","namabelakang","marga","surname","lname","familyname","family_name","nama belakang","nama_akhir"],
-  Department:       ["department","dept","divisi","division","bagian","departemen","unit_kerja","div","team","tim","unit","organization","org","fungsi","dept_name","department_name","bidang"],
-  MonthlySalary:    ["monthlysalary","monthly_salary","salary","gaji","gaji_bulanan","sal","monthly salary","gaji bulanan","pendapatan","upah","gajih","base_salary","gaji_perbulan","salary_permonth","income_monthly","pay","takehome","take_home","salary_idr","gajipokok","gaji pokok","gaji bersih","gaji_kotor","gross_salary"],
-  OvertimeStatus:   ["overtimestatus","overtime_status","overtime","lembur","ot","over time","status_lembur","suka_lembur","lembur_status","is_overtime","overtime_yn","lembur_yn"],
-  JobSatisfaction:  ["jobsatisfaction","job_satisfaction","satisfaction","kepuasan","satisf","job satisfaction","kepuasan_kerja","skor_puas","kepuasan_score","job_rate","feeling","mood","happy_score","rating_kepuasan","puas","tingkat kepuasan","score","satisfaction_level"],
-  AttritionStatus:  ["attritionstatus","attrition_status","attrition","status","statusattrisi","status_keluar","turnover","status_karyawan","keluar","resign","cabut","out","leave","exit_status","status_aktif","status_keaktifan","status_pegawai"],
-  YearsAtCompany:   ["yearsatcompany","years_at_company","tenure","lama_kerja","years","masa kerja","yearsemployed","masa_bakti","pengalaman_di_sini","masakerja","lama_bekerja","tahun_kerja","thn_kerja","tahun_bekerja","total_years"],
-  Age:              ["age","umur","usia","thn","tahun_lahir","umur_karyawan","usia_karyawan","age_year","usia_tahun","thn_umur","years_old","age_years","umur_tahun","tahun_umur","umur_thn","usia_thn"],
-  PerformanceScore: ["performancescore","performance","kinerja","skor_kinerja","rating","nilai_kinerja","kpi","performance_rating","score_kinerja","evaluation","eval_score"],
-  WorkModel:        ["workmodel","work_model","tipe_kerja","remote","onsite","wfa","wfh","wfo","sistem_kerja","work_type","work_location","model_kerja","jenis_pekerjaan"],
-  CommuteDistance:  ["commutedistance","commute","jarak_tempuh","jarak","jarak_rumah","distance","commute_distance","jarak_tempat_tinggal","travel_distance","jarak_kerja"],
+  EmployeeID: [
+    "employeeid","employee_id","emp_id","id","empid","employee id",
+    "idkaryawan","id pegawai","no_pegawai","nik","empcode","emp code",
+    "kode karyawan","nomor induk","nip","nrp","staff_id","staffid",
+    "worker_id","workerid","personid","person_id","userid","user_id",
+    "employee_number","emp_number","employee_no","emp_no","no_karyawan",
+    "nomor_karyawan","id_karyawan","karyawan_id",
+  ],
+  FirstName: [
+    "firstname","first_name","first","namadepan","nama","name",
+    "nama_awal","nama_karyawan","fname","givenname","given_name",
+    "nama depan","nama_pertama","namapertama","preferred_name",
+    "employee_name","nama_lengkap","full_name","fullname",
+  ],
+  LastName: [
+    "lastname","last_name","last","namabelakang","marga","surname",
+    "lname","familyname","family_name","nama belakang","nama_akhir",
+    "namaakhir","namakelaurga","nama_keluarga",
+  ],
+  Department: [
+    "department","dept","divisi","division","bagian","departemen",
+    "unit_kerja","div","team","tim","unit","organization","org",
+    "fungsi","dept_name","department_name","bidang","departement",
+    "departmen","departmant","cost_center","costcenter","section",
+    "group","work_unit","workunit","area","sub_division",
+  ],
+  MonthlySalary: [
+    "monthlysalary","monthly_salary","salary","gaji","gaji_bulanan",
+    "sal","monthly salary","gaji bulanan","pendapatan","upah","gajih",
+    "base_salary","gaji_perbulan","salary_permonth","income_monthly",
+    "pay","takehome","take_home","salary_idr","gajipokok","gaji pokok",
+    "gaji bersih","gaji_kotor","gross_salary","monthly_income",
+    "monthly_pay","monthly_wage","wage","income","compensation",
+    "monthly_compensation","basic_salary","basicsal","basicpay",
+    "total_salary","total_pay","net_salary","netsalary",
+    // format IDR eksplisit
+    "gaji_idr","salary_idr","gaji_rupiah","pendapatan_bulanan",
+    // format compact
+    "sal_monthly","monthly_sal",
+  ],
+  OvertimeStatus: [
+    "overtimestatus","overtime_status","overtime","lembur","ot",
+    "over time","status_lembur","suka_lembur","lembur_status",
+    "is_overtime","overtime_yn","lembur_yn","over_time",
+    "ot_status","kerja_lembur","lembur_reguler","extra_hours",
+    "additional_hours","work_overtime","overwork","overworked",
+  ],
+  JobSatisfaction: [
+    "jobsatisfaction","job_satisfaction","satisfaction","kepuasan",
+    "satisf","job satisfaction","kepuasan_kerja","skor_puas",
+    "kepuasan_score","job_rate","feeling","mood","happy_score",
+    "rating_kepuasan","puas","tingkat kepuasan","score",
+    "satisfaction_level","satisfactionlevel","work_satisfaction",
+    "employee_satisfaction","emp_satisfaction","job_score",
+    "engagement","employee_engagement","engagement_score",
+    "happiness","happiness_score","wellbeing_score","wellbeing",
+    "survey_score","pulse_score","esat","e_sat",
+    // variasi typo umum
+    "satifaction","satisfacion","satisfacton",
+  ],
+  AttritionStatus: [
+    "attritionstatus","attrition_status","attrition","status",
+    "statusattrisi","status_keluar","turnover","status_karyawan",
+    "keluar","resign","cabut","out","leave","exit_status",
+    "status_aktif","status_keaktifan","status_pegawai",
+    "employment_status","emp_status","employee_status",
+    "work_status","termination_status","separation_status",
+    "still_employed","is_active","active_status","churn",
+    "churn_status","flight_risk","retention_status",
+    // format boolean CSV umum (IBM HR dataset, Kaggle, dll)
+    "left","left_company","has_left","employee_left",
+    "voluntarily_left","resigned","is_resigned",
+  ],
+  YearsAtCompany: [
+    "yearsatcompany","years_at_company","tenure","lama_kerja",
+    "years","masa kerja","yearsemployed","masa_bakti",
+    "pengalaman_di_sini","masakerja","lama_bekerja","tahun_kerja",
+    "thn_kerja","tahun_bekerja","total_years","years_of_service",
+    "service_years","length_of_service","seniority","company_tenure",
+    "employment_duration","duration","lama_bergabung","masa_bergabung",
+    "years_employed","month_at_company","months_at_company",
+  ],
+  Age: [
+    "age","umur","usia","thn","tahun_lahir","umur_karyawan",
+    "usia_karyawan","age_year","usia_tahun","thn_umur","years_old",
+    "age_years","umur_tahun","tahun_umur","umur_thn","usia_thn",
+    "employee_age","emp_age","age_band","age_group",
+  ],
+  PerformanceScore: [
+    "performancescore","performance","kinerja","skor_kinerja",
+    "rating","nilai_kinerja","kpi","performance_rating",
+    "score_kinerja","evaluation","eval_score","perf_score",
+    "performance_score","perf_rating","annual_rating",
+    "review_score","appraisal","appraisal_score","appraisal_rating",
+    "last_rating","latest_rating","performance_review",
+    "nilai_kinerja","skor_performa","performa",
+  ],
+  WorkModel: [
+    "workmodel","work_model","tipe_kerja","remote","onsite","wfa",
+    "wfh","wfo","sistem_kerja","work_type","work_location",
+    "model_kerja","jenis_pekerjaan","work_arrangement",
+    "working_model","working_arrangement","hybrid","work_setup",
+    "work_mode","employment_type","location_type","office_status",
+  ],
+  CommuteDistance: [
+    "commutedistance","commute","jarak_tempuh","jarak","jarak_rumah",
+    "distance","commute_distance","jarak_tempat_tinggal",
+    "travel_distance","jarak_kerja","distance_from_home",
+    "distancefromhome","home_distance","commute_km","distance_km",
+    "jarak_km","travel_time","commute_time","jarak_rumah_km",
+  ],
 };
 
 // ── Shared string utilities ───────────────────────────────────────────────────
@@ -187,34 +285,89 @@ export function inferColumnType(sampleValues = []) {
 
 export function normalizeJobSatisfaction(value) {
   if (value === undefined || value === null || value === "") return null;
+
+  // Sudah angka dalam range 1–10
   const num = Number(value);
-  if (!isNaN(num) && num >= 1 && num <= 10) return num;
+  if (!isNaN(num)) {
+    // Angka desimal (misal: 3.5, 7.2) — bulatkan ke terdekat
+    if (num >= 1 && num <= 10) return Math.round(num * 10) / 10;
+    // Skala 1–5 (banyak survey HR pakai ini) → konversi ke 1–10
+    if (num >= 1 && num <= 5) return Math.round(num * 2);
+    // Skala 0–100 (NPS-style) → konversi ke 1–10
+    if (num > 10 && num <= 100) return Math.max(1, Math.min(10, Math.round(num / 10)));
+  }
+
   const str = String(value).toLowerCase().trim();
+
   const textToNumber = {
-    "very low": 1, "verylow": 1, "extremely low": 1, "terendah": 1, "sangat rendah": 1,
-    "lowest": 1, "1": 1, "sangat tidak puas": 1, "very dissatisfied": 1, "parah": 1, "bad": 1,
-    
-    "low": 2, "rendah": 2, "2": 2, "jelek": 2,
-    
-    "somewhat low": 3, "agak rendah": 3, "below average": 3, "3": 3, "tidak puas": 3, "dissatisfied": 3, "poor": 3,
-    
-    "slightly low": 4, "4": 4,
-    
-    "medium": 5, "average": 5, "cukup": 5, "sedang": 5, "5": 5, "b aja": 5, "lumayan": 5, "neutral": 5,
-    
+    // ── Skala teks EN (umum di survey HR global) ──
+    "very low": 1, "verylow": 1, "extremely low": 1, "extremely dissatisfied": 1,
+    "very dissatisfied": 1, "strongly dissatisfied": 1,
+    "terendah": 1, "sangat rendah": 1, "lowest": 1, "1": 1,
+    "sangat tidak puas": 1, "parah": 1, "bad": 1, "terrible": 1, "awful": 1,
+
+    "low": 2, "rendah": 2, "2": 2, "jelek": 2, "dissatisfied": 2,
+    "not satisfied": 2, "unhappy": 2, "tidak puas": 2, "kurang puas": 2,
+
+    "somewhat low": 3, "agak rendah": 3, "below average": 3, "3": 3,
+    "slightly dissatisfied": 3, "poor": 3, "kurang": 3,
+    "somewhat dissatisfied": 3, "mostly dissatisfied": 3,
+
+    "slightly low": 4, "4": 4, "below neutral": 4, "agak kurang": 4,
+    "somewhat poor": 4, "slightly unhappy": 4,
+
+    "medium": 5, "average": 5, "cukup": 5, "sedang": 5, "5": 5,
+    "b aja": 5, "lumayan": 5, "neutral": 5, "moderate": 5, "so-so": 5,
+    "biasa": 5, "biasa saja": 5, "ok": 5, "okay": 5, "fair": 5,
+    "neither": 5, "mixed": 5, "indifferent": 5, "middle": 5,
+
     "somewhat high": 6, "above average": 6, "agak tinggi": 6, "6": 6,
-    
+    "somewhat satisfied": 6, "mostly satisfied": 6, "cukup puas": 6,
+    "slightly satisfied": 6, "above neutral": 6,
+
     "high": 7, "tinggi": 7, "7": 7, "puas": 7, "satisfied": 7, "good": 7,
-    
+    "happy": 7, "senang": 7, "baik": 7, "positif": 7, "positive": 7,
+
     "very high": 8, "veryhigh": 8, "sangat tinggi": 8, "8": 8,
-    
-    "extremely high": 9, "luar biasa": 9, "9": 9, "sangat puas": 9, "very satisfied": 9,
-    
-    "max": 10, "perfect": 10, "sempurna": 10, "10": 10, "excellent": 10,
+    "very satisfied": 8, "sangat puas": 8, "very happy": 8,
+    "mostly very satisfied": 8, "highly satisfied": 8,
+
+    "extremely high": 9, "luar biasa": 9, "9": 9, "very very satisfied": 9,
+    "almost perfect": 9, "outstanding": 9, "excellent": 9,
+
+    "max": 10, "perfect": 10, "sempurna": 10, "10": 10,
+    "extremely satisfied": 10, "best": 10, "top": 10, "100%": 10,
+
+    // ── Skala 1–4 (IBM HR Analytics dataset format) ──
+    // 1=Low, 2=Medium, 3=High, 4=Very High → di-map ke 1–10
+    // Sudah di-handle via num <= 5 konversi di atas
+
+    // ── Format bintang ──
+    "★": 2, "★★": 4, "★★★": 6, "★★★★": 8, "★★★★★": 10,
+    "1 star": 2, "2 stars": 4, "3 stars": 6, "4 stars": 8, "5 stars": 10,
+    "1/5": 2, "2/5": 4, "3/5": 6, "4/5": 8, "5/5": 10,
   };
 
-  if (textToNumber[str]) return textToNumber[str];
-  return null; 
+  if (textToNumber[str] !== undefined) return textToNumber[str];
+
+  // Tangkap format "X/10", "X/5", "X out of 10", dll
+  const outOf10 = str.match(/^(\d+(?:\.\d+)?)\s*\/\s*10$/);
+  if (outOf10) {
+    const v = parseFloat(outOf10[1]);
+    if (v >= 0 && v <= 10) return Math.round(v * 10) / 10;
+  }
+  const outOf5 = str.match(/^(\d+(?:\.\d+)?)\s*\/\s*5$/);
+  if (outOf5) {
+    const v = parseFloat(outOf5[1]);
+    if (v >= 0 && v <= 5) return Math.round(v * 2);
+  }
+  const outOf100 = str.match(/^(\d+(?:\.\d+)?)\s*\/\s*100$|^(\d+(?:\.\d+)?)%$/);
+  if (outOf100) {
+    const v = parseFloat(outOf100[1] || outOf100[2]);
+    if (v >= 0 && v <= 100) return Math.max(1, Math.min(10, Math.round(v / 10)));
+  }
+
+  return null;
 }
 
 export function validateMappedData(rows = []) {
