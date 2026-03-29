@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo, u
 import Papa from "papaparse";
 import { idbGet, idbSet, idbDelete } from "../hooks/useModularStorage";
 import { mapSingleHeader, normalizeHeaderStr, normalizeJobSatisfaction } from "../utils/autoMapping";
-import { SAMPLE_DATA, SAMPLE_DATA_METADATA } from "../utils/sampleData";
+export { SAMPLE_DATA, SAMPLE_DATA_METADATA } from "../utils/sampleData";
 
 export const AppContext = createContext(null);
 
