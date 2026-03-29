@@ -313,7 +313,6 @@ const currSymbol = currCfg?.symbol || "$";
 const interventions = m6State.interventions || { salary: 70, overtime: 60, mentorship: 80 };
 const ghostEnabled  = m6State.ghostEnabled  ?? false;
 const activeTab     = m6State.activeTab     || "calculator";
-
 const setI = useCallback((key, val) => {
   updateM6({ interventions: { ...interventions, [key]: val } });
 }, [interventions, updateM6]);
@@ -323,7 +322,15 @@ const setGhostEnabled = useCallback((v) => {
 const setActiveTab = useCallback((v) => updateM6({ activeTab: v }), [updateM6]);
 const [aiSummary, setAiSummary] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
- const setI = useCallback((key, val) => setInterventions(p => ({ ...p, [key]: val })), []);
+  if (data.length === 0) {
+  return (
+    <div style={{ textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
+      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Retention ROI Calculator</div>
+      <div style={{ fontSize: 14, color: "#94a3b8" }}>Upload your HR CSV to calculate ROI, model interventions, and generate executive summaries.</div>
+    </div>
+  );
+}
   const roi = useMemo(() => computeROI({
     data, cliff, multiplier, interventions, ghostEnabled
   }), [data, cliff, multiplier, interventions, ghostEnabled]);
@@ -377,8 +384,8 @@ const [aiLoading, setAiLoading] = useState(false);
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {ghostEnabled && (
                 <span style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 700 }}>
-                  +${(roi.totalGhost / 1000).toFixed(0)}K hidden costs revealed
-                </span>
+  +{currSymbol}{(roi.totalGhost / 1000).toFixed(0)}K hidden costs revealed
+</span>
               )}
               <button onClick={() => setGhostEnabled(p => !p)}
                 style={{
@@ -395,12 +402,12 @@ const [aiLoading, setAiLoading] = useState(false);
           {/* Current State KPIs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(175px,1fr))", gap: 12, marginBottom: 18 }}>
             {[
-              { label: "Current Turnover Cost", value: `$${(roi.baseTurnoverCost / 1000).toFixed(0)}K`, sub: "Direct replacement costs", color: "#ef4444", bg: "#fef2f2" },
-              ghostEnabled && { label: "Ghost Costs", value: `+$${(roi.totalGhost / 1000).toFixed(0)}K`, sub: "Hidden costs (opp + ramp + brand)", color: "#8b5cf6", bg: "#f5f3ff" },
-              { label: "Total Cost of Inaction", value: `$${(roi.totalTurnoverCost / 1000).toFixed(0)}K`, sub: "If nothing changes", color: "#dc2626", bg: "#fef2f2" },
-              { label: "Projected Savings", value: `$${(roi.totalSavings / 1000).toFixed(0)}K`, sub: "With selected interventions", color: "#22c55e", bg: "#f0fdf4" },
-              { label: "Total Investment", value: `$${(roi.totalInvestment / 1000).toFixed(0)}K`, sub: "Annual cost of interventions", color: "#f59e0b", bg: "#fffbeb" },
-              { label: "Net ROI", value: `${roi.roiPct}%`, sub: `Break-even: Month ${roi.breakEvenMonth || "N/A"}`, color: Number(roi.roiPct) > 0 ? "#22c55e" : "#ef4444", bg: Number(roi.roiPct) > 0 ? "#f0fdf4" : "#fef2f2" },
+              { label: "Current Turnover Cost", value: `${currSymbol}${(roi.baseTurnoverCost / 1000).toFixed(0)}K`, sub: "Direct replacement costs", color: "#ef4444", bg: "#fef2f2" },
+ghostEnabled && { label: "Ghost Costs", value: `+${currSymbol}${(roi.totalGhost / 1000).toFixed(0)}K`, sub: "Hidden costs (opp + ramp + brand)", color: "#8b5cf6", bg: "#f5f3ff" },
+{ label: "Total Cost of Inaction", value: `${currSymbol}${(roi.totalTurnoverCost / 1000).toFixed(0)}K`, sub: "If nothing changes", color: "#dc2626", bg: "#fef2f2" },
+{ label: "Projected Savings", value: `${currSymbol}${(roi.totalSavings / 1000).toFixed(0)}K`, sub: "With selected interventions", color: "#22c55e", bg: "#f0fdf4" },
+{ label: "Total Investment", value: `${currSymbol}${(roi.totalInvestment / 1000).toFixed(0)}K`, sub: "Annual cost of interventions", color: "#f59e0b", bg: "#fffbeb" },
+{ label: "Net ROI", value: `${roi.roiPct}%`, sub: `Break-even: Month ${roi.breakEvenMonth || "N/A"}`, color: Number(roi.roiPct) > 0 ? "#22c55e" : "#ef4444", bg: Number(roi.roiPct) > 0 ? "#f0fdf4" : "#fef2f2" },
             ].filter(Boolean).map((k) => (
               <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
@@ -422,7 +429,7 @@ const [aiLoading, setAiLoading] = useState(false);
                 ].map((g) => (
                   <div key={g.label} style={{ background: "#fff", borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontSize: 10, color: "#7c3aed", fontWeight: 700, marginBottom: 4 }}>{g.label}</div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: "#8b5cf6", fontFamily: "'Playfair Display',Georgia,serif" }}>${(g.value / 1000).toFixed(0)}K</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#8b5cf6", fontFamily: "'Playfair Display',Georgia,serif" }}>{currSymbol}{(g.value / 1000).toFixed(0)}K</div>
                     <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{g.desc}</div>
                   </div>
                 ))}
@@ -491,7 +498,7 @@ const [aiLoading, setAiLoading] = useState(false);
                   { label: "Attrition Rate", value: `${roi.total > 0 ? ((roi.atRisk / roi.total) * 100).toFixed(1) : 0}%` },
                   { label: "Annual Turnover Cost", value: `$${(roi.totalTurnoverCost / 1000).toFixed(0)}K` },
                   { label: "At-Risk Employees", value: roi.atRisk },
-                  { label: "Avg Satisfaction", value: roi.total > 0 ? `${(data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / roi.total).toFixed(1)}/10` : "—" },
+                  { label: "Avg Satisfaction", value: data.length > 0 ? `${(data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / data.length).toFixed(1)}/10` : "—" },
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, color: "#64748b" }}>{r.label}</span>
@@ -506,7 +513,7 @@ const [aiLoading, setAiLoading] = useState(false);
                   { label: "Attrition Rate", value: `${roi.newAttritionRate}%` },
                   { label: "Annual Savings", value: `$${(roi.totalSavings / 1000).toFixed(0)}K` },
                   { label: "Employees Retained", value: `+${roi.totalRetained}` },
-                  { label: "Est. Satisfaction", value: roi.total > 0 ? `${Math.min(10, (data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / roi.total + 1.5)).toFixed(1)}/10` : "—" },
+                  { label: "Est. Satisfaction", value: data.length > 0 ? `${Math.min(10, (data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / data.length + 1.5)).toFixed(1)}/10` : "—" },
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, color: "#64748b" }}>{r.label}</span>
@@ -597,8 +604,8 @@ const [aiLoading, setAiLoading] = useState(false);
           {/* Stats bar */}
           <div style={{ background: "#0f172a", borderRadius: 14, padding: "18px 22px", marginBottom: 18, display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 14 }}>
             {[
-              { label: "Cost of Inaction", value: `$${(roi.totalTurnoverCost / 1000).toFixed(0)}K/yr`, color: "#ef4444" },
-              { label: "Investment", value: `$${(roi.totalInvestment / 1000).toFixed(0)}K/yr`, color: "#f59e0b" },
+              { label: "Cost of Inaction", value: `${currSymbol}${(roi.totalTurnoverCost / 1000).toFixed(0)}K/yr`, color: "#ef4444" },
+{ label: "Investment", value: `${currSymbol}${(roi.totalInvestment / 1000).toFixed(0)}K/yr`, color: "#f59e0b" },
               { label: "ROI", value: `${roi.roiPct}%`, color: "#22c55e" },
               { label: "Break-even", value: `Month ${roi.breakEvenMonth || "N/A"}`, color: "#3b82f6" },
             ].map((k) => (
