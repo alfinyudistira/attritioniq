@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, useHRData, useCurrency, getGeneration, getStatusColor, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
+import { SAMPLE_DATA } from "../utils/sampleData";
+import { useModuleData } from "../context/ModuleDataContext";
 
 // ── Detect salary cliff from data ──
 function detectCliff(data, manualCliff) {
@@ -218,21 +220,30 @@ export default function M3Salary() {
   const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
-  const src = data.length > 0 ? data : SAMPLE_DATA;
+  if (data.length === 0) {
+  return (
+    <div style={{ textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>💰</div>
+      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Salary Benchmarking</div>
+      <div style={{ fontSize: 14, color: "#94a3b8" }}>Upload your HR CSV to analyze salary data and detect compensation gaps.</div>
+    </div>
+  );
+}
+const src = data;
   const manualCliff = company?.salaryCliff || 5000;
   const currency = company?.currency || "USD";
 
   const [useAutoCliff, setUseAutoCliff] = useState(true);
   const [customCliff, setCustomCliff] = useState(manualCliff);
-  useMemo(() => { setCustomCliff(manualCliff); }, [manualCliff]);
+  useEffect(() => { setCustomCliff(manualCliff); }, [manualCliff]);
   const [marketRate, setMarketRate] = useState(() => {
-    const src = data.length > 0 ? data : SAMPLE_DATA;
-    const depts = [...new Set(src.map(e => e.Department).filter(Boolean))];
-    const defaults = { Sales: 5500, "Technical Support": 5200, IT: 5800, HR: 5100, "Digital Marketing": 5300 };
-    const result = {};
-    depts.forEach(d => { result[d] = defaults[d] || manualCliff; });
-    return result;
-  });
+  const initData = data.length > 0 ? data : SAMPLE_DATA;
+  const depts = [...new Set(initData.map(e => e.Department).filter(Boolean))];
+  const defaults = { Sales: 5500, "Technical Support": 5200, IT: 5800, HR: 5100, "Digital Marketing": 5300 };
+  const result = {};
+  depts.forEach(d => { result[d] = defaults[d] || 5000; });
+  return result;
+});
   const [showMarket, setShowMarket] = useState(false);
   const [simTarget, setSimTarget] = useState(manualCliff + 200);
   const [aiText, setAiText] = useState("");
@@ -404,7 +415,7 @@ export default function M3Salary() {
               <SalaryDistribution data={src} cliff={cliff} currSymbol={currSymbol} />
               <div style={{ marginTop: 10, background: "#fef2f2", borderRadius: 8, padding: "8px 12px", border: "1px solid #fecaca" }}>
                 <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 700 }}>
-                  💡 ${fmt(stats.avgGap)}/mo avg gap · Fix costs ${fmt(Math.round(stats.totalBudgetNeeded / 12))}/mo total
+                  💡 {fmt(stats.avgGap)}/mo avg gap · Fix costs {fmt(Math.round(stats.totalBudgetNeeded / 12))}/mo total
                 </span>
               </div>
             </div>
