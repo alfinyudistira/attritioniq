@@ -233,22 +233,24 @@ const src = data;
   const manualCliff = company?.salaryCliff || 5000;
   const currency = company?.currency || "USD";
 
-  const [useAutoCliff, setUseAutoCliff] = useState(true);
-  const [customCliff, setCustomCliff] = useState(manualCliff);
-  useEffect(() => { setCustomCliff(manualCliff); }, [manualCliff]);
-  const [marketRate, setMarketRate] = useState(() => {
-  const initData = data.length > 0 ? data : SAMPLE_DATA;
+  const { state: m3State, update: updateM3 } = useModuleData("m3");
+const activeTab = m3State.activeTab || "overview";
+const useAutoCliff = m3State.useAutoCliff ?? true;
+const customCliff = m3State.customCliff ?? manualCliff;
+const simTarget = m3State.simTarget ?? (manualCliff + 200);
+const showMarket = m3State.showMarket ?? false;
+const marketRate = m3State.marketRate || (() => {
+  const initData = data.length > 0 ? data : (typeof SAMPLE_DATA !== 'undefined' ? SAMPLE_DATA : []);
   const depts = [...new Set(initData.map(e => e.Department).filter(Boolean))];
-  const defaults = { Sales: 5500, "Technical Support": 5200, IT: 5800, HR: 5100, "Digital Marketing": 5300 };
+  const defaults = { Sales: 5500, IT: 5800, HR: 5100 };
   const result = {};
   depts.forEach(d => { result[d] = defaults[d] || 5000; });
   return result;
-});
-  const [showMarket, setShowMarket] = useState(false);
-  const [simTarget, setSimTarget] = useState(manualCliff + 200);
-  const [aiText, setAiText] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+})();
+
+const [aiText, setAiText] = useState("");
+const [aiLoading, setAiLoading] = useState(false);
+
 
   const autoCliff = useMemo(() => detectCliff(src, manualCliff), [src, manualCliff]);
   const cliff = useAutoCliff ? autoCliff : customCliff;
@@ -326,7 +328,7 @@ const src = data;
       {/* Tab switcher */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
+          <button key={t.id} onClick={() => updateM3({ activeTab: t.id })}
             style={{
               padding: "9px 18px", borderRadius: 10, cursor: "pointer",
               background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
@@ -346,7 +348,7 @@ const src = data;
           <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Salary Cliff Mode</div>
           <div style={{ display: "flex", gap: 8 }}>
             {[{ id: true, label: `Auto-detected: ${fmt(autoCliff)}` }, { id: false, label: "Manual" }].map(opt => (
-              <button key={String(opt.id)} onClick={() => setUseAutoCliff(opt.id)}
+              <button key={String(opt.id)} onClick={() => updateM3({ useAutoCliff: opt.id })}
                 style={{
                   padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12,
                   background: useAutoCliff === opt.id ? "#f59e0b" : "#f1f5f9",
@@ -361,7 +363,7 @@ const src = data;
         {!useAutoCliff && (
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Custom Cliff ($)</div>
-            <input type="number" value={customCliff} onChange={e => setCustomCliff(Number(e.target.value))}
+            <input type="number" value={customCliff} onChange={e => updateM3({ customCliff: Number(e.target.value) })}
               style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, color: "#1e293b", background: "#f8fafc", width: 120 }} />
           </div>
         )}
@@ -560,7 +562,7 @@ const src = data;
                 max={Math.round(manualCliff * 2.5)}
                 step={Math.round(manualCliff * 0.02) || 100}
                 value={simTarget}
-                onChange={e => setSimTarget(Number(e.target.value))}
+                onChange={e => updateM3({ simTarget: Number(e.target.value) })}
                 style={{ width: "100%", accentColor: "#f59e0b" }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
                 <span>{fmt(Math.round(manualCliff * 0.3))}</span>
@@ -736,7 +738,8 @@ const src = data;
                     <div style={{ marginBottom: 10 }}>
                       <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 3 }}>Market rate (edit)</div>
                       <input type="number" value={mRate}
-                        onChange={e => setMarketRate(p => ({ ...p, [d.dept]: Number(e.target.value) }))}
+                        onChange={e => updateM3({ marketRate: { ...marketRate, [d.dept]: Number(e.target.value) } 
+})}
                         style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 700, color: "#1e293b", background: "#fff", boxSizing: "border-box" }} />
                     </div>
                     <div style={{ background: gap > 0 ? "#fef2f2" : "#f0fdf4", borderRadius: 8, padding: "8px 10px", border: `1px solid ${gap > 0 ? "#fecaca" : "#bbf7d0"}` }}>
