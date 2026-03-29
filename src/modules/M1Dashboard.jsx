@@ -334,8 +334,7 @@ const drivers = useMemo(() => {
 )}
         </div>
       </div>
-
-            {/* Charts Row 2 - Executive Summary */}
+      {/* Charts Row 2 - Executive Summary */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "20px 24px", border: "1.5px solid #f1f5f9", marginBottom: 18, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
         
         <div style={{ flex: "1 1 300px" }}>
@@ -347,18 +346,21 @@ const drivers = useMemo(() => {
             Based on the analysis of <strong>{total}</strong> employee records, our algorithm detected 3 main patterns driving the highest retention risk in your company:
           </div>
           {flightRisk > 50 && (
-  <div style={{ marginTop: 8, fontSize: 10, color: appConfig.colors.high }}>
-    💡 Tip: You can adjust the risk threshold in the settings menu (⚙️) to see the impact on risk color. 
-  </div>
-)}
-<div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-  {drivers.map((item, index) => (
-    <div key={index} style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: `3px solid ${item.border}` }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>{item.title}</div>
-      <div style={{ fontSize: 10, color: "#64748b" }}><strong>{item.detail}</strong></div>
-    </div>
-  ))}
-</div>
+            <div style={{ marginTop: 8, fontSize: 10, color: appConfig.colors.high }}>
+              💡 Tip: You can adjust the risk threshold in the settings menu (⚙️) to see the impact on risk color. 
+            </div>
+          )}
+        </div>
+
+        <div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+          {drivers.map((item, index) => (
+            <div key={index} style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: `3px solid ${item.border}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>{item.title}</div>
+              <div style={{ fontSize: 10, color: "#64748b" }}><strong>{item.detail}</strong></div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Employee Table */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
@@ -428,13 +430,13 @@ const drivers = useMemo(() => {
                     </td>
                     <td style={{ padding: "7px 10px", color: "#64748b" }}>{d.YearsAtCompany}y</td>
                     <td style={{ padding: "7px 10px" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-    <div style={{ width: 36, height: 5, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
-     <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskColor || (d.RiskLevel === "High" ? "#ef4444" : d.RiskLevel === "Medium" ? "#eab308" : "#22c55e"), borderRadius: 3 }} />
-    </div>
-    <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskColor || (d.RiskLevel === "High" ? "#ef4444" : d.RiskLevel === "Medium" ? "#eab308" : "#22c55e") }}>{d.RiskPct || 0}%</span>
-  </div>
-</td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <div style={{ width: 36, height: 5, borderRadius: 3, background: "#f1f5f9", overflow: "hidden" }}>
+                        <div style={{ width: `${d.RiskPct || 0}%`, height: "100%", background: d.RiskColor || (d.RiskLevel === "High" ? "#ef4444" : d.RiskLevel === "Medium" ? "#eab308" : "#22c55e"), borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: d.RiskColor || (d.RiskLevel === "High" ? "#ef4444" : d.RiskLevel === "Medium" ? "#eab308" : "#22c55e") }}>{d.RiskPct || 0}%</span>
+                      </div>
+                    </td>
                     <td style={{ padding: "7px 10px", textAlign: "center" }}> 
                       <button onClick={() => setEditingEmp(d)}
                         style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 12, color: "#64748b", transition: "all 0.15s" }}
@@ -462,22 +464,22 @@ const drivers = useMemo(() => {
                 ← Prev
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
-  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-  .reduce((acc, p, idx, arr) => {
-    if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
-    acc.push(p);
-    return acc;
-  }, [])
-  .map((p, idx) =>
-    p === "..." ? (
-      <span key={`ellipsis-${idx}`} style={{ padding: "5px 4px", color: "#94a3b8", fontSize: 12 }}>…</span>
-    ) : (
-      <button key={p} onClick={() => setPage(p)}
-        style={{ padding: "5px 10px", borderRadius: 7, border: "none", background: p === page ? "#f59e0b" : "#f1f5f9", color: p === page ? "#fff" : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500 }}>
-        {p}
-      </button>
-    )
-  )}
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${idx}`} style={{ padding: "5px 4px", color: "#94a3b8", fontSize: 12 }}>…</span>
+                  ) : (
+                    <button key={p} onClick={() => setPage(p)}
+                      style={{ padding: "5px 10px", borderRadius: 7, border: "none", background: p === page ? "#f59e0b" : "#f1f5f9", color: p === page ? "#fff" : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500 }}>
+                      {p}
+                    </button>
+                  )
+                )}
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #e2e8f0", background: page === totalPages ? "#f8fafc" : "#fff", color: page === totalPages ? "#cbd5e1" : "#475569", cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>
                 Next →
