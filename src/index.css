@@ -86,3 +86,13 @@ input, select, textarea {
 .pulse-anim {
   animation: pulse-radar 2s infinite;
 }
+
+/* ── Attrition Blink Animation ── */
+@keyframes attritionBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.blink-alert {
+  animation: attritionBlink 1.4s infinite;
+}
