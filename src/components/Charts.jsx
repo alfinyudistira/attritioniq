@@ -29,11 +29,6 @@ const CHART_COLORS = {
   },
 };
 
-export function useChartColors() {
-  const isDark = useDarkMode();
-  return isDark ? CHART_COLORS.dark : CHART_COLORS.light;
-}
-
 export function useChartTooltip() {
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, content: null });
 
