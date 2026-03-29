@@ -112,7 +112,7 @@ useEffect(() => {
 
 export default function M1Dashboard() {
 const { company, pulseOverride, appConfig } = useApp();
-  const { data, setData, computed } = useHRData();
+  const { data, setData, computed, applyIntervention } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
@@ -136,15 +136,12 @@ const { company, pulseOverride, appConfig } = useApp();
   }, [page, updateM1]);
   
   const PAGE_SIZE = 25;
-
-  // Alert dismiss state
-  const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
-  const dismissAlert = useCallback((key) => setDismissedAlerts(p => new Set([...p, key])), []);
-  // Inline edit state
+const dismissedAlerts = new Set(m1State.dismissedAlerts || []);
+const dismissAlert = useCallback((key) => {
+  updateM1({ dismissedAlerts: [...dismissedAlerts, key] });
+}, [dismissedAlerts, updateM1]);
   const [editingEmp, setEditingEmp] = useState(null);
-
   const depts = useMemo(() => ["All", ...new Set(computed.map(d => d.Department))], [computed]);
-
   const filtered = useMemo(() => computed.filter(d => {
     if (deptF !== "All" && d.Department !== deptF) return false;
     if (genF !== "All") {
@@ -202,7 +199,6 @@ const { company, pulseOverride, appConfig } = useApp();
   }), [filtered]);
 
   const genZCrisis = genData.find(g => g.label === "Gen Z" && g.rate >= 0.8);
-
   const kpis = [
   { label: "Flight Risk", value: `${flightRisk}%`, sub: `${resigned + highRisk} of ${total} at risk`, color: appConfig.colors.high, icon: "🚨", bg: `${appConfig.colors.high}22`, title: "Risk threshold can be changed in the menu  ⚙️" },
   { label: "Resigned",          value: resigned,                   sub: `${total > 0 ? ((resigned/total)*100).toFixed(0) : 0}% of workforce`, color: appConfig.colors.high, icon: "🚪", bg: `${appConfig.colors.high}22` },
@@ -212,17 +208,30 @@ const { company, pulseOverride, appConfig } = useApp();
   { label: "Below Salary Cliff",value: belowCliff,                 sub: `Under ${fmt(cliff)}/mo`,                              color: "#f97316", icon: "📉", bg: "#fff7ed" },
 ];
 
-  // Pagination
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-const { applyIntervention } = useHRData();
-
   const handleSaveEdit = useCallback((updated) => {
-    // Use applyIntervention so toast fires + functional updater is safe
     const { EmployeeID, ...updates } = updated;
     applyIntervention(EmployeeID, updates);
   }, [applyIntervention]);
+
+const drivers = useMemo(() => {
+  const list = [];
+  if (belowCliff > 0) {
+    list.push({ title: "1. Compensation Gap", detail: `${belowCliff} karyawan di bawah safety cliff.`, border: "#ef4444" });
+  }
+  if (withOT.length > 0) {
+    list.push({ title: "2. Overtime Burnout", detail: `${withOT.length} karyawan lembur berlebih.`, border: "#f59e0b" });
+  }
+  const genZCount = genData.find(g => g.label === "Gen Z")?.count || 0;
+  if (genZCount > 0) {
+    list.push({ title: "3. Gen Z Flight Risk", detail: `${genZCount} karyawan Gen Z butuh intervensi.`, border: "#3b82f6" });
+  }
+  if (list.length === 0) {
+    list.push({ title: "Kondisi Stabil", detail: "Tidak ada indikator risiko utama terdeteksi.", border: "#22c55e" });
+  }
+  return list.slice(0, 3);
+}, [belowCliff, withOT.length, genData]);
 
   if (data.length === 0) {
     return (
@@ -256,7 +265,7 @@ const { applyIntervention } = useHRData();
           <div key={f.label}>
             <div style={{ fontSize: 9, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>{f.label}</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {f.values.map(v => <FilterBtn key={v} val={v} cur={f.cur} onSet={(val) => { f.set(val); setPage(1); }} />)}
+              {f.values.map(v => <FilterBtn key={v} val={v} cur={f.cur} onSet={f.set} />)}
             </div>
           </div>
         ))}
@@ -278,7 +287,7 @@ const { applyIntervention } = useHRData();
       </div>
 
       {/* Charts Row 1 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 14 }}>
         <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Attrition by Department</div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 12 }}>% at-risk per dept</div>
@@ -342,25 +351,14 @@ const { applyIntervention } = useHRData();
     💡 Tip: You can adjust the risk threshold in the settings menu (⚙️) to see the impact on risk color. 
   </div>
 )}
-        </div>
-
-        <div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: "3px solid #ef4444" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>1. Compensation Gap</div>
-            <div style={{ fontSize: 10, color: "#64748b" }}><strong>{belowCliff}</strong> employees are below the salary safety cliff.</div>
-          </div>
-          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: "3px solid #f59e0b" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>2. Overtime Burnout</div>
-            <div style={{ fontSize: 10, color: "#64748b" }}><strong>{withOT.length}</strong> employees are working excessive overtime.</div>
-          </div>
-          <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: "3px solid #3b82f6" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>3. Gen Z Flight Risk</div>
-            <div style={{ fontSize: 10, color: "#64748b" }}><strong>{genData.find(g => g.label === "Gen Z")?.count || 0}</strong> Gen Z employees require intervention.</div>
-          </div>
-        </div>
-
-      </div>
-
+<div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+  {drivers.map((item, index) => (
+    <div key={index} style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: `3px solid ${item.border}` }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>{item.title}</div>
+      <div style={{ fontSize: 10, color: "#64748b" }}><strong>{item.detail}</strong></div>
+    </div>
+  ))}
+</div>
 
       {/* Employee Table */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
@@ -463,12 +461,23 @@ const { applyIntervention } = useHRData();
                 style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #e2e8f0", background: page === 1 ? "#f8fafc" : "#fff", color: page === 1 ? "#cbd5e1" : "#475569", cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>
                 ← Prev
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)}
-                  style={{ padding: "5px 10px", borderRadius: 7, border: "none", background: p === page ? "#f59e0b" : "#f1f5f9", color: p === page ? "#fff" : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500 }}>
-                  {p}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+  .reduce((acc, p, idx, arr) => {
+    if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+    acc.push(p);
+    return acc;
+  }, [])
+  .map((p, idx) =>
+    p === "..." ? (
+      <span key={`ellipsis-${idx}`} style={{ padding: "5px 4px", color: "#94a3b8", fontSize: 12 }}>…</span>
+    ) : (
+      <button key={p} onClick={() => setPage(p)}
+        style={{ padding: "5px 10px", borderRadius: 7, border: "none", background: p === page ? "#f59e0b" : "#f1f5f9", color: p === page ? "#fff" : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 500 }}>
+        {p}
+      </button>
+    )
+  )}
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #e2e8f0", background: page === totalPages ? "#f8fafc" : "#fff", color: page === totalPages ? "#cbd5e1" : "#475569", cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>
                 Next →
