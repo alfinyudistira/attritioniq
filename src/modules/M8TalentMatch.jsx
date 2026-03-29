@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
-import { useApp, useHRData, getGeneration, SAMPLE_DATA } from "../context/AppContext";
-// ── Skill taxonomy ──
+import { useApp, useHRData, getGeneration } from "../context/AppContext";
+import { useModuleData } from "../context/ModuleDataContext";
+
 const SKILL_CATEGORIES = {
   "Customer & Sales": ["Customer Communication","Negotiation","CRM Tools","Lead Generation","Account Management","Sales Analytics","Objection Handling","Relationship Building"],
   "Technical & IT": ["SQL","Python","Data Analysis","System Administration","Network Security","Troubleshooting","API Integration","Cloud Platforms"],
@@ -11,8 +12,6 @@ const SKILL_CATEGORIES = {
 };
 
 const ALL_SKILLS = Object.values(SKILL_CATEGORIES).flat();
-
-// ── Dept skill requirements ──
 const DEPT_REQUIREMENTS = {
   "Sales": { required: ["Customer Communication","Negotiation","CRM Tools","Lead Generation","Sales Analytics"], preferred: ["Relationship Building","Account Management","Objection Handling","Project Management"] },
   "Technical Support": { required: ["Troubleshooting","Customer Communication","System Administration","API Integration"], preferred: ["SQL","Network Security","CRM Tools","Process Improvement"] },
@@ -232,9 +231,10 @@ function SkillMatrixBuilder({ selectedSkills, onChange }) {
 
 // ── At-Risk Employee Picker ──
 function AtRiskPicker({ data, onSelect }) {
-  const src = data.length > 0 ? data : SAMPLE_DATA;
-  const atRisk = src.filter(e => e.AttritionStatus !== "Active").slice(0, 15);
-
+  const atRisk = data.filter(e => e.AttritionStatus !== "Active").slice(0, 15);
+  if (atRisk.length === 0) return (
+    <div style={{ fontSize: 11, color: "#94a3b8" }}>No at-risk employees in current data</div>
+  );
   return (
     <div>
       <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>Click an at-risk employee to auto-load their profile</div>
@@ -256,28 +256,26 @@ function AtRiskPicker({ data, onSelect }) {
   );
 }
 
-// ── Org Mobility Map ──
 function OrgMobilityMap({ data }) {
-  const src = data.length > 0 ? data : SAMPLE_DATA;
-  const depts = [...new Set(src.map(e => e.Department))];
+  const depts = useMemo(() => [...new Set(data.map(e => e.Department))], [data]);
 
-  // Build transfer opportunity matrix
-  const matrix = {};
-  depts.forEach(from => {
-    matrix[from] = {};
-    depts.forEach(to => {
-      if (from === to) { matrix[from][to] = null; return; }
-      const fromEmps = src.filter(e => e.Department === from && e.AttritionStatus !== "Active");
-      const toReqs = DEPT_REQUIREMENTS[to];
-      if (!toReqs || fromEmps.length === 0) { matrix[from][to] = 0; return; }
-      // Infer skills from dept
-      const fromSkills = DEPT_REQUIREMENTS[from]?.required || [];
-      const avgMatch = Math.round(
-        fromSkills.filter(s => toReqs.required.includes(s)).length / Math.max(toReqs.required.length, 1) * 100
-      );
-      matrix[from][to] = avgMatch;
+const matrix = useMemo(() => {
+    const m = {};
+    depts.forEach(from => {
+      m[from] = {};
+      depts.forEach(to => {
+        if (from === to) { m[from][to] = null; return; }
+        const fromEmps = data.filter(e => e.Department === from && e.AttritionStatus !== "Active");
+        const toReqs = DEPT_REQUIREMENTS[to];
+        if (!toReqs || fromEmps.length === 0) { m[from][to] = 0; return; }
+        const fromSkills = DEPT_REQUIREMENTS[from]?.required || [];
+        m[from][to] = Math.round(
+          fromSkills.filter(s => toReqs.required.includes(s)).length / Math.max(toReqs.required.length, 1) * 100
+        );
+      });
     });
-  });
+    return m;
+  }, [data, depts]);
 
   const cellColor = v => {
     if (v === null) return "#f1f5f9";
@@ -343,21 +341,33 @@ function OrgMobilityMap({ data }) {
 export default function M8TalentMatch() {
   const { company } = useApp();
   const { data } = useHRData();
-  const src = data.length > 0 ? data : SAMPLE_DATA;
-
-  const [activeTab, setActiveTab] = useState("matcher");
-  const [candidate, setCandidate] = useState({
+  const { state: m8State, update: updateM8 } = useModuleData("m8");
+  const activeTab    = m8State.activeTab    || "matcher";
+  const candidate    = m8State.candidate    || {
     name: "", currentDept: "Sales", skills: [],
     tenure: 2.0, age: 28, salary: 4500,
     atRiskReason: "Compensation below cliff + overtime",
-  });
-  const [selectedDept, setSelectedDept] = useState(null);
-  const [aiText, setAiText] = useState("");
+  };
+  const selectedDept = m8State.selectedDept ?? null;
+  const setActiveTab   = useCallback((v) => updateM8({ activeTab: v }), [updateM8]);
+  const setSelectedDept= useCallback((v) => updateM8({ selectedDept: v }), [updateM8]);
+  const setC           = useCallback((k, v) => {
+    updateM8({ candidate: { ...candidate, [k]: v } });
+  }, [candidate, updateM8]);
+
+  const [aiText, setAiText]       = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
-  const setC = useCallback((k, v) => setCandidate(p => ({ ...p, [k]: v })), []);
-
-  // Compute matches for all depts
+  if (data.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "60px 20px" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
+        <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Internal Talent Matchmaker</div>
+        <div style={{ fontSize: 14, color: "#94a3b8" }}>Upload your HR CSV to identify internal transfer opportunities and build skill matrices.</div>
+      </div>
+    );
+  }
+  const src = data;
   const matches = useMemo(() => {
     return Object.keys(DEPT_REQUIREMENTS)
       .filter(d => d !== candidate.currentDept)
@@ -369,26 +379,29 @@ export default function M8TalentMatch() {
     matches.find(m => m.dept === selectedDept) || matches[0],
   [matches, selectedDept]);
 
-  // Auto-fill from at-risk employee
-  const handleAtRiskSelect = (emp) => {
-    const inferredSkills = (DEPT_REQUIREMENTS[emp.Department]?.required || []).slice(0, 4);
-    const prefSkills = (DEPT_REQUIREMENTS[emp.Department]?.preferred || []).slice(0, 2);
-    setCandidate({
-      name: `${emp.FirstName} ${emp.LastName}`,
-      currentDept: emp.Department,
-      skills: [...inferredSkills, ...prefSkills],
-      tenure: emp.YearsAtCompany || 1,
-      age: emp.Age || 27,
-      salary: emp.MonthlySalary || 4000,
-      atRiskReason: emp.AttritionStatus === "Resigned"
-        ? "Already resigned — retention critical"
-        : emp.OvertimeStatus === "Yes"
-        ? "Overtime burnout risk"
-        : "High flight risk",
+const handleAtRiskSelect = useCallback((emp) => {
+    const inferredSkills = [
+      ...(DEPT_REQUIREMENTS[emp.Department]?.required || []),
+      ...(DEPT_REQUIREMENTS[emp.Department]?.preferred || []).slice(0, 2),
+    ];
+    updateM8({
+      candidate: {
+        name: `${emp.FirstName} ${emp.LastName}`,
+        currentDept: emp.Department,
+        skills: inferredSkills,
+        tenure: emp.YearsAtCompany || 1,
+        age: emp.Age || 27,
+        salary: emp.MonthlySalary || 4000,
+        atRiskReason: emp.AttritionStatus === "Resigned"
+          ? "Already resigned — retention critical"
+          : emp.OvertimeStatus === "Yes"
+          ? "Overtime burnout risk"
+          : "High flight risk",
+      },
+      selectedDept: null,
     });
-    setSelectedDept(null);
     setAiText("");
-  };
+  }, [updateM8]);
 
   const handleAI = useCallback(async () => {
     setAiLoading(true);
@@ -403,12 +416,14 @@ export default function M8TalentMatch() {
     }
   }, [candidate, matches, company]);
 
-  // Org-wide at-risk with best match
   const orgMatches = useMemo(() => {
     return src
       .filter(e => e.AttritionStatus !== "Active")
       .map(e => {
-        const skills = (DEPT_REQUIREMENTS[e.Department]?.required || []).slice(0, 4);
+const skills = [
+          ...(DEPT_REQUIREMENTS[e.Department]?.required || []),
+          ...(DEPT_REQUIREMENTS[e.Department]?.preferred || []).slice(0, 2),
+        ];
         const allMatches = Object.keys(DEPT_REQUIREMENTS)
           .filter(d => d !== e.Department)
           .map(dept => ({ dept, ...computeMatchScore(skills, dept) }))
@@ -428,7 +443,6 @@ export default function M8TalentMatch() {
   ];
 
   const inputStyle = { width: "100%", padding: "8px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 13, color: "#1e293b", background: "#f8fafc", outline: "none", boxSizing: "border-box" };
-
   return (
     <div>
       {/* Tabs */}
