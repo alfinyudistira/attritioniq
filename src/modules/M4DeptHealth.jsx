@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApp, useHRData, useCurrency, getGeneration } from "../context/AppContext";
 import { SAMPLE_DATA } from "../utils/sampleData";
+import { useModuleData } from "../context/ModuleDataContext";
 
 function computeDeptHealth(employees, cliff) {
   const deptMap = {};
@@ -117,28 +118,20 @@ function TrafficLight({ light }) {
 }
 
 function CriticalAlert({ dept, attritionRate, survivorLoad }) {
-  const [visible, setVisible] = useState(true);
-  useEffect(() => {
-    let mounted = true;
-    const interval = setInterval(() => {
-      if (mounted) setVisible(v => !v);
-    }, 700);
-    return () => { mounted = false; clearInterval(interval); };
-  }, []);
-
   return (
-    <div style={{
-      background: visible ? "#fef2f2" : "#fff5f5",
-      border: `2px solid ${visible ? "#ef4444" : "#fca5a5"}`,
-      borderRadius: 10, padding: "10px 14px", marginTop: 10,
-      transition: "all 0.3s",
+    <div className="blink-alert" style={{
+      background: "#fef2f2", 
+      border: "2px solid #ef4444",
+      borderRadius: 10, 
+      padding: "10px 14px", 
+      marginTop: 10,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{
           width: 10, height: 10, borderRadius: "50%",
-          background: visible ? "#ef4444" : "#fca5a5",
-          boxShadow: visible ? "0 0 10px #ef4444" : "none",
-          transition: "all 0.3s", flexShrink: 0,
+          background: "#ef4444",
+          boxShadow: "0 0 10px #ef4444",
+          flexShrink: 0,
         }} />
         <div>
           <div style={{ fontSize: 11, fontWeight: 800, color: "#dc2626" }}>
@@ -472,39 +465,28 @@ export default function M4DeptHealth() {
 }
 const src = data;
   const cliff = company?.salaryCliff || 5000;
-  const [selected, setSelected]     = useState(null);
-  const [activeTab, setActiveTab]   = useState("overview");
-  const [aiLoading, setAiLoading]   = useState(false);
-  const [aiPlan, setAiPlan]         = useState(null);
-  const [showAlerts, setShowAlerts] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem("m4_alerts");
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch { return true; }
-  });
-
-  useEffect(() => {
-    try { sessionStorage.setItem("m4_alerts", JSON.stringify(showAlerts)); } catch {}
-  }, [showAlerts]);
-
+const { state: m4State, update: updateM4 } = useModuleData("m4");
+const selected   = m4State.selected   || null;
+const activeTab  = m4State.activeTab  || "overview";
+const showAlerts = m4State.showAlerts ?? true;
+const [aiLoading, setAiLoading] = useState(false);
+const [aiPlan, setAiPlan]       = useState(null);
+const setSelected   = (v) => updateM4({ selected: v });
+const setActiveTab  = (v) => updateM4({ activeTab: v });
+const setShowAlerts = (v) => updateM4({ showAlerts: v });  
 const depts = useMemo(() => computeDeptHealth(src, cliff), [src, cliff]);
-
   const criticalDepts = useMemo(() => depts.filter(d => d.survivorRisk), [depts]);
-
   const avgHealth = useMemo(() =>
     depts.length > 0 ? Math.round(depts.reduce((s, d) => s + d.healthScore, 0) / depts.length) : 0,
   [depts]);
-
   const selectedDept = useMemo(() =>
     depts.find(d => d.dept === selected) || depts[0],
   [depts, selected]);
 
-// ── AI Intervention Plan ──
   const fetchAIPlan = useCallback(async (dept) => {
     setAiLoading(true);
     setAiPlan(null);
     const prompt = `You are an HR intervention specialist at ${company?.name || "a company"} (${company?.industry || "services"} industry).
-
 Department: ${dept.dept}
 Health Score: ${dept.healthScore}/100
 Urgency: ${dept.urgency}
@@ -617,7 +599,7 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown, no c
       {/* Tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
+          <button key={t.id} onClick={() => updateM4({ activeTab: t.id })}
             style={{
               padding: "9px 18px", borderRadius: 10, cursor: "pointer",
               background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
@@ -654,7 +636,15 @@ Generate a 90-day intervention plan in this EXACT JSON format (no markdown, no c
           {/* Dept Cards Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
             {depts.map(d => (
-              <DeptCard key={d.dept} dept={d} onSelect={dept => { setSelected(dept); setActiveTab("detail"); }} selected={selected === d.dept} currSymbol={currSymbol} />
+            <DeptCard 
+  key={d.dept} 
+  dept={d} 
+  onSelect={(dept) => {
+    updateM4({ selected: dept, activeTab: "detail" });
+  }} 
+  selected={selected === d.dept} 
+  currSymbol={currSymbol} 
+/>
             ))}
           </div>
 
