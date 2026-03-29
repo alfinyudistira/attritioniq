@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useApp, useHRData, SAMPLE_DATA } from "../context/AppContext";
+import { useApp, useHRData } from "../context/AppContext";
+import { SAMPLE_DATA } from "../utils/sampleData";
+import { useModuleData } from "../context/ModuleDataContext";
 
-// ── Question bank ──
 const QUESTION_BANK = [
   { id: "q1", text: "How manageable was your workload this week?", type: "scale", category: "Workload", icon: "⚡" },
   { id: "q2", text: "Do you feel recognized for your contributions?", type: "scale", category: "Recognition", icon: "🏆" },
@@ -17,8 +18,6 @@ const QUESTION_BANK = [
   { id: "q12", text: "How fair do you feel your compensation is?", type: "scale", category: "Compensation", icon: "💰" },
 ];
 
-// ── Simulated pulse data — 8 weeks ──
-// ── Seeded PRNG untuk deterministik — posisi/nilai stabil walau di-render ulang ──
 function seededRand(seed) {
   let s = seed | 0;
   return () => {
@@ -164,30 +163,10 @@ function Sparkline({ values, color = "#f59e0b", width = 80, height = 28 }) {
   );
 }
 
-// Word Cloud
-// Helper deterministik di luar component
-function getWordColor(w) {
-  const positioned = buildWordPositions(words, maxF);
-  const negative = ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"];
-  const positive = ["great","good","supported","excellent","motivated","growth","clear","happy","collaborative","appreciated"];
-  if (negative.includes(w)) return "#ef4444";
-  if (positive.includes(w)) return "#22c55e";
-  const palette = ["#3b82f6","#8b5cf6","#f59e0b","#10b981","#06b6d4"];
-  return palette[w.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % palette.length];
-}
-
-function buildWordPositions(words, maxF) {
-  const rand = seededRand(words.reduce((acc, [w]) => acc + w.charCodeAt(0), 0));
-  const placed = [];
-  return words.map(([word, count]) => {
-    const fs = Math.max(9, Math.min(26, (count / maxF) * 26));
-    let x, y, att = 0;
-    do { x = 15 + rand() * 370; y = 15 + rand() * 140; att++; }
-    while (att < 40 && placed.some(p => Math.abs(p.x - x) < word.length * fs * 0.45 && Math.abs(p.y - y) < fs * 1.4));
-    placed.push({ x, y });
-    return { word, count, fs, color: getWordColor(word), x, y };
-  });
-}
+const WORD_SENTIMENT = {
+  negative: ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"],
+  positive: ["great","good","supported","excellent","motivated","growth","clear","happy","collaborative","appreciated"],
+};
 
 function WordCloud({ responses }) {
   const freq = {};
@@ -201,20 +180,13 @@ function WordCloud({ responses }) {
   if (words.length === 0) return <div style={{ color: "#94a3b8", fontSize: 12, textAlign: "center", padding: 20 }}>No text responses yet</div>;
 
   const maxF = words[0]?.[1] || 1;
-  const sentimentWords = {
-    negative: ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"],
-    positive: ["great","good","supported","excellent","motivated","growth","clear","happy","collaborative","appreciated"],
-  };
   const getColor = useCallback((w) => {
-    if (sentimentWords.negative.includes(w)) return "#ef4444";
-    if (sentimentWords.positive.includes(w)) return "#22c55e";
-    // Warna deterministik dari string kata — tidak random tiap render
+    if (WORD_SENTIMENT.negative.includes(w)) return "#ef4444";
+    if (WORD_SENTIMENT.positive.includes(w)) return "#22c55e";
     const palette = ["#3b82f6","#8b5cf6","#f59e0b","#10b981","#06b6d4"];
-    const idx = w.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % palette.length;
-    return palette[idx];
+    return palette[w.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % palette.length];
   }, []);
 
-  // Posisi dihitung SEKALI — seed dari kata agar stabil
   const positioned = useMemo(() => {
     const rand = seededRand(words.reduce((acc, [w]) => acc + w.charCodeAt(0), 0));
     const placed = [];
@@ -226,7 +198,6 @@ function WordCloud({ responses }) {
       placed.push({ x, y });
       return { word, count, fs, color: getColor(word), x, y };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [words]);
 
   return (
@@ -407,38 +378,43 @@ function BenchmarkChart({ history, metric }) {
 export default function M9PulseSurvey() {
   const { company, setPulseOverride, pushNotification } = useApp();
   const { data } = useHRData();
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [anonymous, setAnonymous] = useState(true);
-  const [selectedQuestions, setSelectedQuestions] = useState(QUESTION_BANK.slice(0, 4).map(q => q.id));
-  const [selectedDept, setSelectedDept] = useState("All");
-  const [benchmarkMetric, setBenchmarkMetric] = useState("pulseScore");
-  const [alertDept, setAlertDept] = useState(null);
-  const [aiIntervention, setAiIntervention] = useState({});
-  const [aiLoading, setAiLoading] = useState({});
-  const [liveStream, setLiveStream] = useState([]);
-  const [streamActive, setStreamActive] = useState(false);
-  const [showWarnings, setShowWarnings] = useState(false);
-  const streamRef = useRef(null);
+  const { state: m9State, update: updateM9 } = useModuleData("m9");
 
+  const activeTab         = m9State.activeTab         || "dashboard";
+  const anonymous         = m9State.anonymous         ?? true;
+  const selectedQuestions = m9State.selectedQuestions || QUESTION_BANK.slice(0, 4).map(q => q.id);
+  const selectedDept      = m9State.selectedDept      || "All";
+  const benchmarkMetric   = m9State.benchmarkMetric   || "pulseScore";
+  const showWarnings      = m9State.showWarnings      ?? false;
+  const setActiveTab          = useCallback((v) => updateM9({ activeTab: v }), [updateM9]);
+  const setAnonymous          = useCallback((v) => updateM9({ anonymous: typeof v === "function" ? v(anonymous) : v }), [anonymous, updateM9]);
+  const setSelectedQuestions  = useCallback((v) => updateM9({ selectedQuestions: typeof v === "function" ? v(selectedQuestions) : v }), [selectedQuestions, updateM9]);
+  const setSelectedDept       = useCallback((v) => updateM9({ selectedDept: v }), [updateM9]);
+  const setBenchmarkMetric    = useCallback((v) => updateM9({ benchmarkMetric: v }), [updateM9]);
+  const setShowWarnings       = useCallback((v) => updateM9({ showWarnings: typeof v === "function" ? v(showWarnings) : v }), [showWarnings, updateM9]);
+  const [alertDept, setAlertDept]         = useState(null);
+  const [aiIntervention, setAiIntervention] = useState({});
+  const [aiLoading, setAiLoading]         = useState({});
+  const [liveStream, setLiveStream]       = useState([]);
+  const [streamActive, setStreamActive]   = useState(false);
+  const streamRef = useRef(null);
   const history = useMemo(() => generatePulseHistory(data), [data]);
   const current = history[history.length - 1];
   const prev = history[history.length - 2];
-
-    // ── Auto-push latest pulse score to context (M1 can read this) ──
+const latestOrgPulse = history[history.length - 1]?.orgPulse;
   useEffect(() => {
     if (!history || history.length === 0) return;
     const latest = history[history.length - 1];
     if (!latest) return;
-    
     setPulseOverride({
       orgPulse: latest.orgPulse,
       deptScores: latest.deptData,
       week: latest.week,
       updatedAt: Date.now(),
     });
-  }, [history, setPulseOverride]);
-
-  const src = data.length > 0 ? data : SAMPLE_DATA;
+  }, [latestOrgPulse]);
+const isSimulatedData = data.length === 0;
+  const src = isSimulatedData ? SAMPLE_DATA : data;
   const depts = useMemo(() => [...new Set(src.map(e => e.Department))], [src]);
 
   // All text responses from history
@@ -464,8 +440,8 @@ export default function M9PulseSurvey() {
     }).filter(w => w.declining && w.drop3w > 5);
   }, [history, depts]);
 
-  // Live stream simulator
-  const startStream = useCallback(() => {
+const startStream = useCallback(() => {
+    if (streamRef.current) clearInterval(streamRef.current);
     setStreamActive(true);
     setLiveStream([]);
     let count = 0;
@@ -485,6 +461,7 @@ export default function M9PulseSurvey() {
         count++;
       } else {
         clearInterval(streamRef.current);
+        streamRef.current = null;
         setStreamActive(false);
       }
     }, 900);
