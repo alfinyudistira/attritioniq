@@ -97,8 +97,8 @@ export default function M2RiskScorer() {
   const activeTab = m2State.activeTab || "target";
   const selectedId = m2State.selectedId || "";
   
-  const setActiveTab = (v) => updateM2({ activeTab: v });
-  const setSelectedId = (v) => updateM2({ selectedId: v });
+  const setActiveTab = useCallback((v) => updateM2({ activeTab: v }), [updateM2]);
+const setSelectedId = useCallback((v) => updateM2({ selectedId: v }), [updateM2]);
 
   // Validasi ID agar tidak crash jika CSV diganti
   useEffect(() => {
@@ -116,9 +116,9 @@ export default function M2RiskScorer() {
   const simOt = m2State.simOt || "No";
   const simSat = m2State.simSat ?? 5;
 
-  const setSimSalary = (v) => updateM2({ simSalary: v });
-  const setSimOt = (v) => updateM2({ simOt: v });
-  const setSimSat = (v) => updateM2({ simSat: v });
+  const setSimSalary = useCallback((v) => updateM2({ simSalary: v }), [updateM2]);
+  const setSimOt = useCallback((v) => updateM2({ simOt: v }), [updateM2]);
+  const setSimSat = useCallback((v) => updateM2({ simSat: v }), [updateM2]);
 
   // Auto-sync slider saat karyawan diganti
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function M2RiskScorer() {
   }, [activeEmp, m2State.lastSyncedEmp, updateM2]);
 
   // ── ENGINE CALCULATIONS ──
-  const { score: simScore } = useMemo(() => computeRisk({ salary: simSalary, overtime: simOt, satisfaction: simSat, tenure: activeEmp?.YearsAtCompany }, cliff), [simSalary, simOt, simSat, activeEmp, cliff]);
+  const { score: simScore, factors: simFactors } = useMemo(() => computeRisk({ salary: simSalary, overtime: simOt, satisfaction: simSat, tenure: activeEmp?.YearsAtCompany }, cliff), [simSalary, simOt, simSat, activeEmp, cliff]);
   const baseLevel = getRiskLevel(activeEmp?.RiskPct || 0);
   const simLevel = getRiskLevel(simScore);
   const delta = simScore - (activeEmp?.RiskPct || 0);
@@ -154,8 +154,8 @@ export default function M2RiskScorer() {
   const peerPositions = useMemo(() => {
     return peers.map((p, i) => {
       const angle = (i / Math.max(peers.length, 1)) * (2 * Math.PI) - (Math.PI / 2);
-      const seed = p.EmployeeID.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-      const radiusVariance = ((seed % 50)); // 0–49, deterministik
+      const seed = String(p.EmployeeID).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const radiusVariance = ((seed % 50));
       const radius = 110 + radiusVariance;
       return {
         ...p,
@@ -170,9 +170,11 @@ export default function M2RiskScorer() {
     activeEmp && (Number(activeEmp.YearsAtCompany) >= 3 || Number(activeEmp.MonthlySalary) >= cliff * 1.5),
   [activeEmp, cliff]);
 
-  const chainProb = useMemo(() =>
-    activeEmp ? Math.min(98, Math.round((activeEmp.RiskPct * peers.length) / 12) + 15) : 0,
-  [activeEmp, peers.length]);
+  const chainProb = useMemo(() => {
+  if (!activeEmp || peers.length === 0) return 0;
+  const avgPeerRisk = peers.reduce((s, p) => s + p.RiskPct, 0) / peers.length;
+  return Math.min(95, Math.round((activeEmp.RiskPct * 0.4) + (avgPeerRisk * 0.4) + (peers.length * 1.5)));
+}, [activeEmp, peers]);
 
   // ── BATCH EXPORT PIP (TAB 4) ──
   const handleExportPIP = useCallback(() => {
@@ -284,13 +286,13 @@ export default function M2RiskScorer() {
                   <span style={{ color: simSat >= 7 ? "#22c55e" : "#ef4444" }}>{simSat}/10</span>
                 </div>
                 <input type="range"
-                  min={Math.round(cliff * 0.3)}
-                  max={Math.round(cliff * 3)}
-                  step={Math.round(cliff * 0.01) || 100}
-                  value={simSalary}
-                  onChange={e => setSimSalary(Number(e.target.value))}
-                  style={{ width: "100%", accentColor: "#0f172a" }}
-                />
+  min={1}
+  max={10}
+  step={1}
+  value={simSat}
+  onChange={e => setSimSat(Number(e.target.value))}
+  style={{ width: "100%", accentColor: "#0f172a" }}
+/>
               </div>
 
               <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
@@ -304,7 +306,16 @@ export default function M2RiskScorer() {
               <div style={{ background: consequence.bg, borderLeft: `4px solid ${consequence.color}`, padding: "12px 16px", borderRadius: "0 8px 8px 0" }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: consequence.color, textTransform: "uppercase", marginBottom: 4 }}>{consequence.title}</div>
                 <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.5 }}>{consequence.text}</div>
-              </div>
+                
+  {simFactors.filter(f => f.direction === "bad").length > 0 && (
+    <div style={{ marginTop: 12, paddingTop: 8, borderTop: "1px solid rgba(0,0,0,0.05)", fontSize: 11, color: "#64748b" }}>
+      <strong>Risk drivers:</strong> {simFactors
+        .filter(f => f.direction === "bad")
+        .map(f => f.label)
+        .join(", ")}
+    </div>
+  )}
+</div>
             </Card>
           </div>
 
@@ -426,8 +437,7 @@ export default function M2RiskScorer() {
               </g>
             ))}
           </svg>
-          <style>{`@keyframes pulse { 0% { r: 30; opacity: 0.4; } 100% { r: 80; opacity: 0; } } .pulse-anim { animation: pulse 2s infinite; }`}</style>
-                    </Card>
+        </Card>
       )}
 
       {/* ── TAB 4: BULK RANKING & HEATMAP ── */}
