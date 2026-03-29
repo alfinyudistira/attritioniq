@@ -54,19 +54,16 @@ function AppShell() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-    // ── Auto-Collapse Sidebar di Layar HP/Mobile
-  const { isMobile, isTablet } = useWindowSize();
 
+  const { isMobile, isTablet } = useWindowSize();
 useEffect(() => {
   if (isMobile) setSidebarOpen(false);
 }, [isMobile]);
 
-  // ── Keep GlobalContext currency in sync with company currency ──
   useEffect(() => {
   if (company?.currency) syncCurrency(company.currency, company.name);
 }, [company?.currency, company?.name, syncCurrency]);
 
-  // ── Persist sidebar state to GlobalContext settings ──
   useEffect(() => {
     updateSettings({ sidebarOpen });
   }, [sidebarOpen, updateSettings]);
@@ -85,8 +82,6 @@ useEffect(() => {
     return { total, highRisk, riskRate, status, color };
   }, [computed, appConfig]);
 
-  // ── Switch to M1 only when data first appears from empty state ──
-  // Does NOT interrupt user if they're already navigating other modules
   const prevDataLengthRef = useRef(0);
 useEffect(() => {
   if (data.length > 0 && prevDataLengthRef.current === 0) {
@@ -95,7 +90,6 @@ useEffect(() => {
   prevDataLengthRef.current = data.length;
 }, [data.length]);
 
-  // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "Escape") {
@@ -115,13 +109,16 @@ useEffect(() => {
 
   if (!company) return <CompanySetup onSave={setCompany} />;
 
-  // Derived — safe to compute after early return
   const mod = MODULES.find(m => m.id === active);
   const det = MODULE_DETAILS[active];
   const companyInitial = company.name?.charAt(0)?.toUpperCase() || "?";
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
-
+<div style={{ 
+  display: "flex", minHeight: "100vh", 
+  background: isDark ? "#0f172a" : "#f8fafc", 
+  fontFamily: "'DM Sans','Segoe UI',sans-serif" 
+}}>
+      
 {/* ── Notification Toasts ── */}
       <div style={{
         position: "fixed", bottom: 24, right: 24,
