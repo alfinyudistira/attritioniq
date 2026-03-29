@@ -153,6 +153,7 @@ function FatigueFactorBar({ factor }) {
 }
 
 // ── Schedule Optimizer ──
+function ScheduleOptimizer({ baseShift, company }) {
 const [simShift, setSimShift] = useState(() => ({ ...baseShift }));
   useEffect(() => {
     setSimShift({ ...baseShift });
@@ -439,7 +440,7 @@ const setS = useCallback((k, v) => {
 }, [singleShift, updateM7]);
 const [aiText, setAiText]       = useState("");
 const [aiLoading, setAiLoading] = useState(false);
-
+const src = data;
   const teamFatigue = useMemo(() => buildTeamFatigue(src, stdHours), [src, stdHours]);
   const teamStats = useMemo(() => {
     const scores = teamFatigue.map(e => e.fatigueScore);
@@ -468,8 +469,6 @@ const [aiLoading, setAiLoading] = useState(false);
   }, [teamFatigue]);
 
   const singleResult = useMemo(() => computeFatigueScore(singleShift), [singleShift]);
-  const setS = useCallback((k, v) => setSingleShift(p => ({ ...p, [k]: v })), []);
-
   const handleAI = useCallback(async () => {
     setAiLoading(true);
     setAiText("");
@@ -492,7 +491,7 @@ const [aiLoading, setAiLoading] = useState(false);
     </div>
   );
 }
-const src = data;
+
   const TABS = [
     { id: "team", label: "👥 Team Overview" },
     { id: "heatmap", label: "🌡️ Fatigue Heatmap" },
