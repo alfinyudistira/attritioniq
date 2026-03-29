@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-// ── Constants outside component — not recreated on every render ──
 const DEFAULT_CLIFF_BY_CURRENCY = {
   USD: 3000,
   IDR: 5000000,
@@ -10,9 +9,7 @@ const DEFAULT_CLIFF_BY_CURRENCY = {
 };
 
 const CURRENCY_SYMBOLS = { USD: "$", IDR: "Rp", EUR: "€", GBP: "£", SGD: "S$" };
-
 const NUMBER_FIELDS = ["salaryCliff", "replacementMultiplier", "avgWorkHoursPerWeek", "targetTurnover"];
-
 const LS_DRAFT_KEY = "attritioniq_setup_draft";
 
 function saveDraft(form) {
@@ -76,8 +73,6 @@ const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(
   }
   setForm(p => {
     const next = { ...p, [key]: finalVal };
-    // Auto-save setiap perubahan — debounce tidak perlu
-    // karena localStorage.setItem sangat cepat (sync, <1ms)
     saveDraft(next);
     return next;
   });
@@ -90,7 +85,6 @@ const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(
   };
   const hasNumError = Object.values(numErrors).some(Boolean);
   const valid = form.name.trim().length > 0 && !hasNumError;
-
   const currSymbol = CURRENCY_SYMBOLS[form.currency] || "$";
   const fields = [
     { label: "Company Name",   key: "name",   type: "text",   placeholder: "e.g. Pulse Digital" },
@@ -247,8 +241,7 @@ const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(
     </div>
   </div>
 </div>
-        
-        <button
+<button
   onClick={() => {
     if (!valid) return;
     clearDraft();
