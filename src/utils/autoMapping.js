@@ -11,6 +11,7 @@ export const CANONICAL_FIELDS = [
   "Age",
   "PerformanceScore",
   "WorkModel",
+  "MaritalStatus",
   "CommuteDistance",
 ];
 
@@ -88,7 +89,6 @@ const ALIASES = {
     "work_status","termination_status","separation_status",
     "still_employed","is_active","active_status","churn",
     "churn_status","flight_risk","retention_status",
-    // format boolean CSV umum (IBM HR dataset, Kaggle, dll)
     "left","left_company","has_left","employee_left",
     "voluntarily_left","resigned","is_resigned",
   ],
@@ -129,6 +129,11 @@ const ALIASES = {
     "travel_distance","jarak_kerja","distance_from_home",
     "distancefromhome","home_distance","commute_km","distance_km",
     "jarak_km","travel_time","commute_time","jarak_rumah_km",
+  ],
+  MaritalStatus: [
+    "maritalstatus", "marital_status", "status_pernikahan", 
+    "pernikahan", "menikah", "hubungan", "widowed", "widow", "widower",
+    "relationship", "hubungan", "relationship_status", "family_status",
   ],
 };
 
