@@ -467,49 +467,17 @@ export function ScatterPlot({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GaugeChart
-// Props:
-//   value  — 0–100
-//   size   — diameter of the full circle, default 160
-//   label  — text below the score
-//   color  — override automatic color
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color: colorOverride }) {
-  const pct     = clamp(Number(value) || 0, 0, 100);
+  const pct       = clamp(Number(value) || 0, 0, 100);
   const autoColor = pct >= 75 ? "#ef4444" : pct >= 50 ? "#f59e0b" : pct >= 25 ? "#3b82f6" : "#22c55e";
-  const color   = colorOverride || autoColor;
-  const cx      = size / 2;
-  const cy      = size * 0.58;
-  const r       = size * 0.40;
-  const strokeW = Math.max(10, size * 0.09);
-
-  // Full semicircle track: left to right, top half
-  const trackD  = `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`;
-
-  // Value arc — handle edge cases: 0% shows empty track, 100% fills fully
-  let valueD = null;
-  if (pct > 0 && pct < 100) {
-    const angleDeg = (pct / 100) * 180;
-    const angleRad = (angleDeg * Math.PI) / 180;
-    const valX     = cx + r * Math.cos(Math.PI - angleRad);
-    const valY     = cy - r * Math.sin(angleRad);
-    // lg=1 only strictly when angleDeg > 180 (not possible for gauge but safe)
-    const lg       = angleDeg > 180 ? 1 : 0;
-    valueD         = `M${cx - r},${cy} A${r},${r} 0 ${lg} 1 ${valX},${valY}`;
-  } else if (pct >= 100) {
-    // Full arc — draw as two semicircles to avoid SVG degenerate arc at 180°
-    valueD = `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx},${cy - r} A${r},${r} 0 0 1 ${cx + r},${cy}`;
-  }
-
-  // Tip dot position
-  const tipAngleDeg = clamp(pct, 1, 99) / 100 * 180;
-  const tipRad      = (tipAngleDeg * Math.PI) / 180;
-  const tipX        = cx + r * Math.cos(Math.PI - tipRad);
-  const tipY        = cy - r * Math.sin(tipRad);
-
-  // Scale label positions — inset slightly to stay within viewBox
+  const color     = colorOverride || autoColor;
+  const cx        = size / 2;
+  const cy        = size * 0.58;
+  const r         = size * 0.40;
+  const strokeW   = Math.max(10, size * 0.09);
+  const trackD    = `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`;
+  const circumference = Math.PI * r;
+  const dashOffset    = circumference - (pct / 100) * circumference;
   const scaleY = cy + 14;
 
   return (
@@ -519,28 +487,29 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
       viewBox={`0 0 ${size} ${size * 0.68}`}
       role="img"
       aria-label={`${label}: ${pct.toFixed(0)}%`}
+      style={{ overflow: "visible" }}
     >
-
-      {/* Track */}
-      <path d={trackD} fill="none" stroke="#f1f5f9" strokeWidth={strokeW} strokeLinecap="butt" />
-      {/* End caps on track endpoints (left & right) */}
-      <circle cx={cx - r} cy={cy} r={strokeW / 2} fill="#f1f5f9" />
-      <circle cx={cx + r} cy={cy} r={strokeW / 2} fill="#f1f5f9" />
-      {/* Value arc — butt cap so it never overflows the track */}
-      {valueD && (
+      <path 
+        d={trackD} 
+        fill="none" 
+        stroke="#f1f5f9" 
+        strokeWidth={strokeW} 
+        strokeLinecap="round" 
+      />
+      
+      {pct > 0 && (
         <path
-          d={valueD} fill="none" stroke={color}
-          strokeWidth={strokeW} strokeLinecap="butt"
-          style={{ transition: "d 0.35s ease, stroke 0.4s ease" }}
+          d={trackD} 
+          fill="none" 
+          stroke={color}
+          strokeWidth={strokeW} 
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          style={{ transition: "stroke-dashoffset 0.8s ease, stroke 0.4s ease" }}
         />
       )}
-      {/* Start cap dot at left end (always orange when pct > 0) */}
-      {pct > 0 && <circle cx={cx - r} cy={cy} r={strokeW / 2} fill={color} />}
-      {/* Tip dot at arc endpoint */}
-      {pct > 0 && pct < 100 && (
-        <circle cx={tipX} cy={tipY} r={strokeW * 0.52} fill={color} />
-      )}
-      {/* Score */}
+      
       <text
         x={cx} y={cy - r * 0.05}
         textAnchor="middle" fontSize={size * 0.2}
@@ -548,7 +517,7 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
       >
         {pct.toFixed(0)}%
       </text>
-      {/* Label */}
+      
       <text
         x={cx} y={cy + r * 0.3}
         textAnchor="middle" fontSize={size * 0.09}
@@ -556,9 +525,9 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
       >
         {label}
       </text>
-      {/* Scale labels — anchored inside viewBox */}
-      <text x={cx - r + 4} y={scaleY} textAnchor="start" fontSize={size * 0.07} fill="#94a3b8">0</text>
-      <text x={cx + r - 4} y={scaleY} textAnchor="end"   fontSize={size * 0.07} fill="#94a3b8">100</text>
+      
+      <text x={cx - r} y={scaleY} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">0</text>
+      <text x={cx + r} y={scaleY} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">100</text>
     </svg>
   );
 }
