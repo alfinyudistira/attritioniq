@@ -240,8 +240,9 @@ const customCliff = m3State.customCliff ?? manualCliff;
 const simTarget = m3State.simTarget ?? (manualCliff + 200);
 const showMarket = m3State.showMarket ?? false;
 const marketRate = m3State.marketRate || (() => {
-  const initData = data.length > 0 ? data : (typeof SAMPLE_DATA !== 'undefined' ? SAMPLE_DATA : []);
-  const depts = [...new Set(initData.map(e => e.Department).filter(Boolean))];
+const initData       = data.length > 0 ? data : (typeof SAMPLE_DATA !== 'undefined' ? SAMPLE_DATA : []);
+const isUsingSample  = data.length === 0;
+const depts = [...new Set(initData.map(e => e.Department).filter(Boolean))];
   const defaults = { Sales: 5500, IT: 5800, HR: 5100 };
   const result = {};
   depts.forEach(d => { result[d] = defaults[d] || 5000; });
