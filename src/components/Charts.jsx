@@ -129,13 +129,13 @@ export function BarChart({
     <>
     <ChartTooltip tooltip={tooltip} />
     <svg
-      width="100%"
-      viewBox={`0 0 ${totalW} ${height}`}
-      role="img"
-      aria-label="Bar chart"
-      style={{ overflow: "visible" }}
-    >
-      {/* Gridlines — 4 horizontal lines */}
+  width="100%"
+  height="auto"
+  viewBox={`0 0 ${totalW} ${height}`}
+  role="img"
+  aria-label="Bar chart"
+  style={{ overflow: "visible", display: "block" }}
+>
       {[0.25, 0.5, 0.75, 1].map(ratio => {
         const gy = padT + chartH - ratio * chartH;
         return (
@@ -320,11 +320,18 @@ return { path, color: d.color, label: d.label, value: d.value };
     <>
     <ChartTooltip tooltip={tooltip} />
     <svg
-      width={size} height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      role="img" aria-label="Donut chart"
-      style={{ overflow: "visible" }}
-    >
+  width="100%"
+  height="100%"
+  viewBox={`0 0 ${size} ${size}`}
+  role="img" aria-label="Donut chart"
+  style={{ 
+    display: "block", 
+    margin: "0 auto", 
+    maxWidth: size * 1.3,
+    maxHeight: size * 1.3,
+    overflow: "visible" 
+  }}
+>
       {slices.map((s, i) => (
         <path 
           key={i} d={s.path} fill={s.color} opacity={0.9}
@@ -397,13 +404,14 @@ export function ScatterPlot({
   const cliffX = toX(cliffValue);
 
   return (
-    <svg
-      width="100%"
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label="Scatter plot: salary vs satisfaction"
-    >
-      {/* Axes */}
+<svg
+  width="100%"
+  height="auto"
+  viewBox={`0 0 ${width} ${height}`}
+  role="img"
+  aria-label="Scatter plot: salary vs satisfaction"
+  style={{ overflow: "visible", display: "block" }}
+>
       <line x1={pad.l} y1={pad.t}     x2={pad.l}         y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
       <line x1={pad.l} y1={pad.t + H} x2={pad.l + W + 4} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
 
@@ -429,8 +437,8 @@ export function ScatterPlot({
       {validData.map((d, i) => {
         // Deterministic jitter based on EmployeeID hash
         const seed  = (String(d.EmployeeID || i).split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 100) / 100;
-        const jitterX = (seed - 0.5) * 12; 
-const jitterY = ((seed * 7 % 1) - 0.5) * 8;
+        const jitterX = (seed - 0.5) * 15;
+const jitterY = ((seed * 7 % 1) - 0.5) * 10;
         const cx   = clamp(toX(d.MonthlySalary) + jitterX, pad.l, pad.l + W);
         const cy   = clamp(toY(d.JobSatisfaction) + jitterY, pad.t, pad.t + H);
         const fill = statusColor(d.AttritionStatus);
@@ -482,13 +490,18 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
 
   return (
     <svg
-      width={size}
-      height={size * 0.68}
-      viewBox={`0 0 ${size} ${size * 0.68}`}
-      role="img"
-      aria-label={`${label}: ${pct.toFixed(0)}%`}
-      style={{ overflow: "visible" }}
-    >
+  width="100%"
+  height="auto"
+  viewBox={`0 0 ${size} ${size * 0.68}`}
+  role="img"
+  aria-label={`${label}: ${pct.toFixed(0)}%`}
+  style={{ 
+    display: "block", 
+    margin: "0 auto", 
+    maxWidth: "240px", 
+    overflow: "visible" 
+  }}
+>
       <path 
         d={trackD} 
         fill="none" 
