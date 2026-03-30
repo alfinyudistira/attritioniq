@@ -13,11 +13,12 @@ export const CANONICAL_FIELDS = [
   "WorkModel",
   "MaritalStatus",
   "CommuteDistance",
+  "EducationLevel",
 ];
 
 export const REQUIRED_FIELDS   = ["EmployeeID", "Department", "AttritionStatus"];
 export const IMPORTANT_FIELDS  = ["MonthlySalary", "JobSatisfaction", "YearsAtCompany", "Age", "OvertimeStatus"];
-export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName"];
+export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName" "MaritalStatus", "EducationLevel"];
 
 const ALIASES = {
   EmployeeID: [
@@ -134,6 +135,14 @@ const ALIASES = {
     "maritalstatus", "marital_status", "status_pernikahan", 
     "pernikahan", "menikah", "hubungan", "widowed", "widow", "widower",
     "relationship", "hubungan", "relationship_status", "family_status",
+  ],
+  EducationLevel: [
+  "educationlevel", "education_level", "education", "edu_level", "edulevel",
+  "pendidikan", "tingkat_pendidikan", "tingkat pendidikan", "level_pendidikan",
+  "jenjang_pendidikan", "lulusan", "gelar", "degree", "academic_degree",
+  "qualification","kualifikasi", "last_education", "lasteducation", "pendidikan_terakhir",
+  "pendidikan terakhir", "highest_education", "highesteducation", "formal_education",
+  "riwayat_pendidikan", "education_background"
   ],
 };
 
