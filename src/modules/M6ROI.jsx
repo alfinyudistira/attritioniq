@@ -10,6 +10,15 @@ const GHOST_COSTS = {
   employerBrand: 0.05,   
 };
 
+function fmtROI(value, symbol = "$") {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1_000_000_000) return `${sign}${symbol}${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000)     return `${sign}${symbol}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000)         return `${sign}${symbol}${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}${symbol}${Math.round(abs)}`;
+}
+
 function computeROI({ data, cliff, multiplier, interventions, ghostEnabled }) {
   const src = data;
   const atRisk = src.filter(e => e.AttritionStatus !== "Active");
@@ -279,10 +288,10 @@ function InterventionSlider({ icon, title, desc, value, onChange, cost, savings,
         style={{ width: "100%", accentColor: color, marginBottom: 12 }} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        {[
-          { label: "Annual Cost", value: `${currSymbol}${(cost / 1000).toFixed(0)}K`, color: "#ef4444" },
-          { label: "Annual Savings", value: `${currSymbol}${(savings / 1000).toFixed(0)}K`, color: "#22c55e" },
-          { label: "Net", value: net >= 0 ? `+${currSymbol}${(net / 1000).toFixed(0)}K` : `-${currSymbol}${(Math.abs(net) / 1000).toFixed(0)}K`, color: net >= 0 ? "#22c55e" : "#ef4444" },
+                {[
+          { label: "Annual Cost", value: fmtROI(cost, currSymbol), color: "#ef4444" },
+          { label: "Annual Savings", value: fmtROI(savings, currSymbol), color: "#22c55e" },
+          { label: "Net", value: (net >= 0 ? "+" : "") + fmtROI(net, currSymbol), color: net >= 0 ? "#22c55e" : "#ef4444" },
         ].map((m) => (
           <div key={m.label} style={{ background: "#fff", borderRadius: 8, padding: "7px 10px", textAlign: "center" }}>
             <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 2 }}>{m.label}</div>
@@ -401,13 +410,13 @@ const [aiLoading, setAiLoading] = useState(false);
 
           {/* Current State KPIs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(175px,1fr))", gap: 12, marginBottom: 18 }}>
-            {[
-              { label: "Current Turnover Cost", value: `${currSymbol}${(roi.baseTurnoverCost / 1000).toFixed(0)}K`, sub: "Direct replacement costs", color: "#ef4444", bg: "#fef2f2" },
-ghostEnabled && { label: "Ghost Costs", value: `+${currSymbol}${(roi.totalGhost / 1000).toFixed(0)}K`, sub: "Hidden costs (opp + ramp + brand)", color: "#8b5cf6", bg: "#f5f3ff" },
-{ label: "Total Cost of Inaction", value: `${currSymbol}${(roi.totalTurnoverCost / 1000).toFixed(0)}K`, sub: "If nothing changes", color: "#dc2626", bg: "#fef2f2" },
-{ label: "Projected Savings", value: `${currSymbol}${(roi.totalSavings / 1000).toFixed(0)}K`, sub: "With selected interventions", color: "#22c55e", bg: "#f0fdf4" },
-{ label: "Total Investment", value: `${currSymbol}${(roi.totalInvestment / 1000).toFixed(0)}K`, sub: "Annual cost of interventions", color: "#f59e0b", bg: "#fffbeb" },
-{ label: "Net ROI", value: `${roi.roiPct}%`, sub: `Break-even: Month ${roi.breakEvenMonth || "N/A"}`, color: Number(roi.roiPct) > 0 ? "#22c55e" : "#ef4444", bg: Number(roi.roiPct) > 0 ? "#f0fdf4" : "#fef2f2" },
+                        {[
+              { label: "Current Turnover Cost", value: fmtROI(roi.baseTurnoverCost, currSymbol), sub: "Direct replacement costs", color: "#ef4444", bg: "#fef2f2" },
+              ghostEnabled && { label: "Ghost Costs", value: `+${fmtROI(roi.totalGhost, currSymbol)}`, sub: "Hidden costs (opp + ramp + brand)", color: "#8b5cf6", bg: "#f5f3ff" },
+              { label: "Total Cost of Inaction", value: fmtROI(roi.totalTurnoverCost, currSymbol), sub: "If nothing changes", color: "#dc2626", bg: "#fef2f2" },
+              { label: "Projected Savings", value: fmtROI(roi.totalSavings, currSymbol), sub: "With selected interventions", color: "#22c55e", bg: "#f0fdf4" },
+              { label: "Total Investment", value: fmtROI(roi.totalInvestment, currSymbol), sub: "Annual cost of interventions", color: "#f59e0b", bg: "#fffbeb" },
+              { label: "Net ROI", value: `${roi.roiPct}%`, sub: `Break-even: Month ${roi.breakEvenMonth || "N/A"}`, color: Number(roi.roiPct) > 0 ? "#22c55e" : "#ef4444", bg: Number(roi.roiPct) > 0 ? "#f0fdf4" : "#fef2f2" },
             ].filter(Boolean).map((k) => (
               <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
@@ -494,9 +503,9 @@ ghostEnabled && { label: "Ghost Costs", value: `+${currSymbol}${(roi.totalGhost 
             <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 14, alignItems: "center" }}>
               <div style={{ background: "#fef2f2", borderRadius: 12, padding: "16px" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", marginBottom: 10, textTransform: "uppercase" }}>❌ Current State</div>
-                {[
+                               {[
                   { label: "Attrition Rate", value: `${roi.total > 0 ? ((roi.atRisk / roi.total) * 100).toFixed(1) : 0}%` },
-                  { label: "Annual Turnover Cost", value: `$${(roi.totalTurnoverCost / 1000).toFixed(0)}K` },
+                  { label: "Annual Turnover Cost", value: fmtROI(roi.totalTurnoverCost, currSymbol) },
                   { label: "At-Risk Employees", value: roi.atRisk },
                   { label: "Avg Satisfaction", value: data.length > 0 ? `${(data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / data.length).toFixed(1)}/10` : "—" },
                 ].map((r, i) => (
@@ -509,9 +518,9 @@ ghostEnabled && { label: "Ghost Costs", value: `+${currSymbol}${(roi.totalGhost 
               <div style={{ textAlign: "center", fontSize: 24 }}>→</div>
               <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", marginBottom: 10, textTransform: "uppercase" }}>✅ After Intervention</div>
-                {[
+                                {[
                   { label: "Attrition Rate", value: `${roi.newAttritionRate}%` },
-                  { label: "Annual Savings", value: `$${(roi.totalSavings / 1000).toFixed(0)}K` },
+                  { label: "Annual Savings", value: fmtROI(roi.totalSavings, currSymbol) },
                   { label: "Employees Retained", value: `+${roi.totalRetained}` },
                   { label: "Est. Satisfaction", value: data.length > 0 ? `${Math.min(10, (data.reduce((s,e) => s + (e.JobSatisfaction||0), 0) / data.length + 1.5)).toFixed(1)}/10` : "—" },
                 ].map((r, i) => (
@@ -603,9 +612,9 @@ ghostEnabled && { label: "Ghost Costs", value: `+${currSymbol}${(roi.totalGhost 
         <div>
           {/* Stats bar */}
           <div style={{ background: "#0f172a", borderRadius: 14, padding: "18px 22px", marginBottom: 18, display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 14 }}>
-            {[
-              { label: "Cost of Inaction", value: `${currSymbol}${(roi.totalTurnoverCost / 1000).toFixed(0)}K/yr`, color: "#ef4444" },
-{ label: "Investment", value: `${currSymbol}${(roi.totalInvestment / 1000).toFixed(0)}K/yr`, color: "#f59e0b" },
+                        {[
+              { label: "Cost of Inaction", value: `${fmtROI(roi.totalTurnoverCost, currSymbol)}/yr`, color: "#ef4444" },
+              { label: "Investment", value: `${fmtROI(roi.totalInvestment, currSymbol)}/yr`, color: "#f59e0b" },
               { label: "ROI", value: `${roi.roiPct}%`, color: "#22c55e" },
               { label: "Break-even", value: `Month ${roi.breakEvenMonth || "N/A"}`, color: "#3b82f6" },
             ].map((k) => (
