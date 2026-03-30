@@ -232,8 +232,8 @@ export function autoMapFields(headers = [], template = CANONICAL_FIELDS) {
 }
 
 export function getMappingReport(rawHeaders = []) {
-  const mapped   = [];   // { rawHeader, canonical, confidence, method }
-  const unmapped = [];   // rawHeaders that didn't map to anything
+  const mapped   = [];
+  const unmapped = []; 
   const usedCanonicals = new Set();
 
   for (const raw of rawHeaders) {
@@ -347,11 +347,6 @@ export function normalizeJobSatisfaction(value) {
     "max": 10, "perfect": 10, "sempurna": 10, "10": 10,
     "extremely satisfied": 10, "best": 10, "top": 10, "100%": 10,
 
-    // ── Skala 1–4 (IBM HR Analytics dataset format) ──
-    // 1=Low, 2=Medium, 3=High, 4=Very High → di-map ke 1–10
-    // Sudah di-handle via num <= 5 konversi di atas
-
-    // ── Format bintang ──
     "★": 2, "★★": 4, "★★★": 6, "★★★★": 8, "★★★★★": 10,
     "1 star": 2, "2 stars": 4, "3 stars": 6, "4 stars": 8, "5 stars": 10,
     "1/5": 2, "2/5": 4, "3/5": 6, "4/5": 8, "5/5": 10,
@@ -359,7 +354,6 @@ export function normalizeJobSatisfaction(value) {
 
   if (textToNumber[str] !== undefined) return textToNumber[str];
 
-  // Tangkap format "X/10", "X/5", "X out of 10", dll
   const outOf10 = str.match(/^(\d+(?:\.\d+)?)\s*\/\s*10$/);
   if (outOf10) {
     const v = parseFloat(outOf10[1]);
