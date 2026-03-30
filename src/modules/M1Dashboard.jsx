@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
 import { useModuleData } from "../context/ModuleDataContext"; 
-import { BarChart, DonutChart, ScatterPlot } from "../components/Charts";
+import { BarChart, DonutChart } from "../components/Charts";
 
 function FilterBtn({ val, cur, onSet }) {
   return (
