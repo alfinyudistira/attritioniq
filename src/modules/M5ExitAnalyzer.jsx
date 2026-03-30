@@ -524,6 +524,23 @@ const [showCompare, setShowCompare] = useState(false);
       {/* ── TAB: DASHBOARD ── */}
       {activeTab === "dashboard" && (
         <div>
+          {isUsingSample && (
+            <div style={{
+              background: "#fffbeb", border: "1.5px solid #fde68a",
+              borderRadius: 10, padding: "10px 16px", marginBottom: 16,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 18 }}>📋</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>
+                  Showing 8 sample exit interviews
+                </div>
+                <div style={{ fontSize: 11, color: "#b45309" }}>
+                  These are demo interviews to show how the analyzer works. Add your own real interviews using the form above — your data will replace these samples.
+                </div>
+              </div>
+            </div>
+          )}
           {/* KPIs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
             {[
@@ -612,6 +629,23 @@ const [showCompare, setShowCompare] = useState(false);
       {/* ── TAB: ALL INTERVIEWS ── */}
       {activeTab === "interviews" && (
         <div>
+          {isUsingSample && (
+            <div style={{
+              background: "#fffbeb", border: "1.5px solid #fde68a",
+              borderRadius: 10, padding: "10px 16px", marginBottom: 16,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 18 }}>📋</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>
+                  Showing 8 sample exit interviews
+                </div>
+                <div style={{ fontSize: 11, color: "#b45309" }}>
+                  These are demo interviews to show how the analyzer works. Add your own real interviews using the form above — your data will replace these samples.
+                </div>
+              </div>
+            </div>
+          )}
           <AddInterviewForm onAdd={iv => setInterviews(p => [...p, iv])} deptOptions={deptOptions} currSymbol={currSymbol} />
           {interviews !== SAMPLE_INTERVIEWS && (
   <button
