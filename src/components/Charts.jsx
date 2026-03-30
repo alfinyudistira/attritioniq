@@ -520,17 +520,23 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
       role="img"
       aria-label={`${label}: ${pct.toFixed(0)}%`}
     >
+
       {/* Track */}
-      <path d={trackD} fill="none" stroke="#f1f5f9" strokeWidth={strokeW} strokeLinecap="round" />
-      {/* Value arc */}
+      <path d={trackD} fill="none" stroke="#f1f5f9" strokeWidth={strokeW} strokeLinecap="butt" />
+      {/* End caps on track endpoints (left & right) */}
+      <circle cx={cx - r} cy={cy} r={strokeW / 2} fill="#f1f5f9" />
+      <circle cx={cx + r} cy={cy} r={strokeW / 2} fill="#f1f5f9" />
+      {/* Value arc — butt cap so it never overflows the track */}
       {valueD && (
         <path
           d={valueD} fill="none" stroke={color}
-          strokeWidth={strokeW} strokeLinecap="round"
-          style={{ transition: "stroke 0.4s ease" }}
+          strokeWidth={strokeW} strokeLinecap="butt"
+          style={{ transition: "d 0.35s ease, stroke 0.4s ease" }}
         />
       )}
-      {/* Tip dot */}
+      {/* Start cap dot at left end (always orange when pct > 0) */}
+      {pct > 0 && <circle cx={cx - r} cy={cy} r={strokeW / 2} fill={color} />}
+      {/* Tip dot at arc endpoint */}
       {pct > 0 && pct < 100 && (
         <circle cx={tipX} cy={tipY} r={strokeW * 0.52} fill={color} />
       )}
@@ -556,19 +562,6 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
     </svg>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LineChart
-// Multi-series line/area chart for trends (ROI timeline, pulse sentiment, etc.)
-// Props:
-//   series  — array of { label, color, data: [{ x, y }] }
-//   xLabel  — label for x-axis
-//   yLabel  — label for y-axis
-//   formatX — (x) => string
-//   formatY — (y) => string
-//   width / height
-//   showArea — fill area under lines, default true
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function LineChart({
   series = [],
@@ -696,17 +689,6 @@ export function LineChart({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RadarChart
-// Spider/radar for multi-metric comparison (fatigue factors, talent skills, etc.)
-// Props:
-//   metrics — array of { label, value (0–1), color? }
-//   series  — optional multi-series: [{ label, color, values: [0–1 per metric] }]
-//             If series is provided, metrics is used only for labels.
-//   size    — diameter, default 200
-//   maxVal  — max value on scale, default 1
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function RadarChart({ metrics = [], series, size = 200, maxVal = 1 }) {
   if (!metrics || metrics.length < 3) {
     return <NoData width={size} height={size} message="Need ≥3 metrics" />;
@@ -825,16 +807,6 @@ export function RadarChart({ metrics = [], series, size = 200, maxVal = 1 }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SparklineChart
-// Compact inline trend line — no axes, no labels, just the shape
-// Props:
-//   data    — array of numbers
-//   color   — line color
-//   width / height
-//   showDot — show dot at last value, default true
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function SparklineChart({
   data = [],
   color = "#f59e0b",
@@ -884,18 +856,6 @@ export function SparklineChart({
     </svg>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HeatmapChart
-// Grid heatmap for shift patterns, dept health, attendance
-// Props:
-//   data      — array of { row, col, value, label? }
-//   rows      — ordered array of row labels
-//   cols      — ordered array of col labels
-//   colorFn   — (value, min, max) => colorString
-//   formatVal — (value) => string for tooltip
-//   cellSize  — default 24
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function HeatmapChart({
   data = [],
@@ -991,16 +951,6 @@ export function HeatmapChart({
     </svg>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GanttChart
-// Horizontal Gantt for 90-day action plans (M6 ROI)
-// Props:
-//   tasks      — array of { label, start (day 0–90), duration (days), color?, category? }
-//   totalDays  — default 90
-//   height     — auto if omitted
-//   milestones — array of { day, label } for vertical marker lines
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function GanttChart({
   tasks = [],
