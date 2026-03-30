@@ -142,10 +142,13 @@ const ALIASES = {
   "pendidikan terakhir", "highest_education", "highesteducation", "formal_education",
   "riwayat_pendidikan", "education_background"
   ],
-    ShiftDuration: [
-    "shiftduration", "shift_duration", "jam_kerja", "durasi_shift", 
-    "shift", "work_hours", "durasi_kerja", "jam_shift"
-  ],
+  ShiftDuration: [
+  "shiftduration", "shift_duration", "shift", "shift_time", "shift_hours", "shiftlength",
+  "shift_length", "work_hours", "working_hours", "workhours", "jam_kerja", "jam kerja",
+  "durasi_shift", "durasi shift", "durasi_kerja", "durasi kerja", "jam_shift",
+  "jam shift", "lama_shift", "lama shift", "working_time", "work_time", "hours_per_shift",
+  "hours_shift", "shift_duration_hours", "daily_hours", "jam_harian", "jam per hari", "jam_per_hari"
+],
 };
 
 export function normalizeHeaderStr(h) {
