@@ -14,11 +14,12 @@ export const CANONICAL_FIELDS = [
   "MaritalStatus",
   "CommuteDistance",
   "EducationLevel",
+  "ShiftDuration",
 ];
 
 export const REQUIRED_FIELDS   = ["EmployeeID", "Department", "AttritionStatus"];
 export const IMPORTANT_FIELDS  = ["MonthlySalary", "JobSatisfaction", "YearsAtCompany", "Age", "OvertimeStatus"];
-export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName", "MaritalStatus", "EducationLevel"];
+export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName", "MaritalStatus", "EducationLevel", "ShiftDuration"];
 
 const ALIASES = {
   EmployeeID: [
@@ -56,9 +57,7 @@ const ALIASES = {
     "monthly_pay","monthly_wage","wage","income","compensation",
     "monthly_compensation","basic_salary","basicsal","basicpay",
     "total_salary","total_pay","net_salary","netsalary",
-    // format IDR eksplisit
     "gaji_idr","salary_idr","gaji_rupiah","pendapatan_bulanan",
-    // format compact
     "sal_monthly","monthly_sal",
   ],
   OvertimeStatus: [
@@ -78,7 +77,6 @@ const ALIASES = {
     "engagement","employee_engagement","engagement_score",
     "happiness","happiness_score","wellbeing_score","wellbeing",
     "survey_score","pulse_score","esat","e_sat",
-    // variasi typo umum
     "satifaction","satisfacion","satisfacton",
   ],
   AttritionStatus: [
@@ -144,9 +142,11 @@ const ALIASES = {
   "pendidikan terakhir", "highest_education", "highesteducation", "formal_education",
   "riwayat_pendidikan", "education_background"
   ],
+    ShiftDuration: [
+    "shiftduration", "shift_duration", "jam_kerja", "durasi_shift", 
+    "shift", "work_hours", "durasi_kerja", "jam_shift"
+  ],
 };
-
-// ── Shared string utilities ───────────────────────────────────────────────────
 
 export function normalizeHeaderStr(h) {
   return String(h).toLowerCase().replace(/[\s_\-\.]+/g, "").trim();
