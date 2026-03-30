@@ -220,16 +220,8 @@ export default function M3Salary() {
   const { data } = useHRData();
   const { fmt, config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
-  if (data.length === 0) {
-  return (
-    <div style={{ textAlign: "center", padding: "60px 20px" }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>💰</div>
-      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Salary Benchmarking</div>
-      <div style={{ fontSize: 14, color: "#94a3b8" }}>Upload your HR CSV to analyze salary data and detect compensation gaps.</div>
-    </div>
-  );
-}
-const src = data;
+  const isUsingSample = data.length === 0;
+  const src = isUsingSample ? (typeof SAMPLE_DATA !== 'undefined' ? SAMPLE_DATA : []) : data;
   const manualCliff = company?.salaryCliff || 5000;
   const currency = company?.currency || "USD";
 
@@ -345,8 +337,11 @@ const [aiLoading, setAiLoading] = useState(false);
 
       {/* Cliff Selector — always visible */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "16px 20px", border: "1.5px solid #f1f5f9", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Salary Cliff Mode</div>
+                <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+            Salary Cliff Mode
+            {isUsingSample && ( <span style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "2px 10px", fontSize: 10, color: "#92400e", fontWeight: 700, marginLeft: 8, textTransform: "none" }}> 📋 SAMPLE DATA </span> )}
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             {[{ id: true, label: `Auto-detected: ${fmt(autoCliff)}` }, { id: false, label: "Manual" }].map(opt => (
               <button key={String(opt.id)} onClick={() => updateM3({ useAutoCliff: opt.id })}
