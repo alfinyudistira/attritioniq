@@ -323,8 +323,8 @@ export default function M5ExitAnalyzer() {
   const currSymbol = cfg?.symbol || "$";
   const { state: m5State, update: updateM5 } = useModuleData("m5");
 
-// Persistent state
-const interviews   = m5State.interviews?.length > 0 ? m5State.interviews : SAMPLE_INTERVIEWS;
+const interviews     = m5State.interviews?.length > 0 ? m5State.interviews : SAMPLE_INTERVIEWS;
+const isUsingSample  = !(m5State.interviews?.length > 0);
 const activeTab    = m5State.activeTab    || "dashboard";
 const filterCat    = m5State.filterCat    || "All";
 const filterDept   = m5State.filterDept   || "All";
