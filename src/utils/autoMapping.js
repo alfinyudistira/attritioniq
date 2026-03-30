@@ -18,7 +18,7 @@ export const CANONICAL_FIELDS = [
 
 export const REQUIRED_FIELDS   = ["EmployeeID", "Department", "AttritionStatus"];
 export const IMPORTANT_FIELDS  = ["MonthlySalary", "JobSatisfaction", "YearsAtCompany", "Age", "OvertimeStatus"];
-export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName" "MaritalStatus", "EducationLevel"];
+export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName", "MaritalStatus", "EducationLevel"];
 
 const ALIASES = {
   EmployeeID: [
