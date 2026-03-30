@@ -38,7 +38,6 @@ export function useHRData() {
   return { data, setData, computed, appConfig, updateConfig, applyIntervention };
 }
 
-// Hook for modules to detect when a new CSV session starts (to flush stale local state)
 export function useDataSession() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useDataSession must be used inside <AppProvider>");
@@ -281,13 +280,7 @@ if (enriched.OvertimeStatus) {
   if (enriched.Age) {
     enriched.Generation = getGeneration(enriched.Age);
   }
-
-  if (enriched.MonthlySalary) {
-    if (enriched.MonthlySalary > 5000) enriched.SalaryLevel = "High";
-    else if (enriched.MonthlySalary > 3000) enriched.SalaryLevel = "Medium";
-    else enriched.SalaryLevel = "Low";
-  }
-
+  
   if (enriched.JobSatisfaction !== undefined) {
     enriched.SatisfactionLabel =
       enriched.JobSatisfaction <= 3  ? "Low" :
@@ -479,31 +472,49 @@ export function AppProvider({ children }) {
     if (!data || data.length === 0) return [];
     const thresholds = appConfig?.thresholds || { high: 30, medium: 15 };
     const colors = appConfig?.colors || { high: "#ef4444", medium: "#eab308", low: "#22c55e" };
+    const currentCurrency = company?.currency || "USD";
     return data.map(d => {
+
+      let salaryLevel = "Low";
+      const salary = d.MonthlySalary || 0;
+
+      if (currentCurrency === "IDR") {
+        if (salary >= 5000000) salaryLevel = "High";
+        else if (salary >= 3000000) salaryLevel = "Medium";
+      } else if (currentCurrency === "EUR") {
+        if (salary > 3500) salaryLevel = "High";
+        else if (salary >= 2200) salaryLevel = "Medium";
+      } else if (currentCurrency === "GBP") {
+        if (salary > 3600) salaryLevel = "High";
+        else if (salary >= 2300) salaryLevel = "Medium";
+      } else if (currentCurrency === "SGD") {
+        if (salary > 4000) salaryLevel = "High";
+        else if (salary >= 2500) salaryLevel = "Medium";
+      } else {
+        if (salary > 5000) salaryLevel = "High";
+        else if (salary >= 3000) salaryLevel = "Medium";
+      }
+      d.SalaryLevel = salaryLevel; 
+      
       let riskScore = 0;
-
-      // Factor 1: Overtime
       if (d.OvertimeStatus === "Yes") riskScore += 2;
-
-      // Factor 2: Job satisfaction (scale 1–10)
+      if (d.CommuteDistance && d.CommuteDistance > 30) riskScore += 1; 
+      if (d.ShiftDuration && d.ShiftDuration >= 10) riskScore += 1; 
+      
       if (d.JobSatisfaction <= 2) riskScore += 3;
       else if (d.JobSatisfaction <= 4) riskScore += 2;
       else if (d.JobSatisfaction <= 6) riskScore += 1;
 
-      // Factor 3: Tenure
       if (d.YearsAtCompany < 1) riskScore += 3;
       else if (d.YearsAtCompany < 2) riskScore += 2;
       else if (d.YearsAtCompany < 3) riskScore += 1;
 
-      // Factor 4: Age / Gen Z signal
       if (d.Age && d.Age < 27) riskScore += 1;
 
-      // Factor 5: Already flagged as attrition
       const statusLower = (d.AttritionStatus || "").toLowerCase();
       if (statusLower.includes("resigned")) riskScore += 4;
       else if (statusLower.includes("high risk")) riskScore += 3;
 
-      // Normalize to 0–100
       const maxPossible = 13;
       const riskPct = Math.min(100, Math.round((riskScore / maxPossible) * 100));
 
