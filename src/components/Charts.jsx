@@ -429,13 +429,13 @@ export function ScatterPlot({
       {validData.map((d, i) => {
         // Deterministic jitter based on EmployeeID hash
         const seed  = (String(d.EmployeeID || i).split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 100) / 100;
-        const jitterX = (seed - 0.5) * 5;
-        const jitterY = ((seed * 7 % 1) - 0.5) * 4;
+        const jitterX = (seed - 0.5) * 12; 
+const jitterY = ((seed * 7 % 1) - 0.5) * 8;
         const cx   = clamp(toX(d.MonthlySalary) + jitterX, pad.l, pad.l + W);
         const cy   = clamp(toY(d.JobSatisfaction) + jitterY, pad.t, pad.t + H);
         const fill = statusColor(d.AttritionStatus);
         return (
-          <circle key={d.EmployeeID || i} cx={cx} cy={cy} r={3.5} fill={fill} opacity={0.72}>
+          <circle key={d.EmployeeID || i} cx={cx} cy={cy} r={3.5} fill={fill} opacity={0.62}>
             <title>
               {[d.FirstName, d.LastName].filter(Boolean).join(" ") || d.EmployeeID}
               {" · "}{currencySymbol}{Number(d.MonthlySalary).toLocaleString(currencyLocale)}
