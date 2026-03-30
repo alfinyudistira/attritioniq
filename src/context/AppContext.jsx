@@ -311,7 +311,7 @@ export function parseCSV(text) {
   return results.data
   .map(row => {
     const cleanRow = {};
-        const numberFields = ["MonthlySalary", "Age", "YearsAtCompany",  "JobSatisfaction", "PerformanceScore", "CommuteDistance"];
+        const numberFields = ["MonthlySalary", "Age", "YearsAtCompany", "PerformanceScore", "CommuteDistance"];
     for (const key in row) {
       if (numberFields.includes(key)) {
         cleanRow[key] = smartParseNumber(row[key]);
