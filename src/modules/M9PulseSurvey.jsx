@@ -681,6 +681,17 @@ const startStream = useCallback(() => {
       {/* ── TAB: LIVE STREAM ── */}
       {activeTab === "stream" && (
         <div>
+          {isSimulatedData && (
+            <div style={{
+              background: "#eff6ff", border: "1.5px solid #bfdbfe",
+              borderRadius: 8, padding: "8px 14px", marginBottom: 12,
+              fontSize: 11, color: "#1d4ed8", fontWeight: 600,
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <span>🔵</span>
+              Pulse data is simulated based on your CSV. Real surveys require M9 survey links sent to employees.
+            </div>
+          )}
           <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div>
@@ -868,8 +879,19 @@ const startStream = useCallback(() => {
                   </button>
                 ))}
               </div>
-            </div>
+                        </div>
             <div style={{ background: "#f8fafc", borderRadius: 12, padding: "20px", border: "1.5px solid #f1f5f9" }}>
+              {isSimulatedData && (
+                <div style={{
+                  background: "#eff6ff", border: "1.5px solid #bfdbfe",
+                  borderRadius: 8, padding: "8px 14px", marginBottom: 12,
+                  fontSize: 11, color: "#1d4ed8", fontWeight: 600,
+                  display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <span>🔵</span>
+                  Simulated word cloud — upload employee CSV to generate from your real data
+                </div>
+              )}
               <WordCloud responses={selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)} />
             </div>
           </div>
