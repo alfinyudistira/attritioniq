@@ -285,15 +285,10 @@ export function inferColumnType(sampleValues = []) {
 
 export function normalizeJobSatisfaction(value) {
   if (value === undefined || value === null || value === "") return null;
-
-  // Sudah angka dalam range 1–10
   const num = Number(value);
   if (!isNaN(num)) {
-    // Angka desimal (misal: 3.5, 7.2) — bulatkan ke terdekat
     if (num >= 1 && num <= 10) return Math.round(num * 10) / 10;
-    // Skala 1–5 (banyak survey HR pakai ini) → konversi ke 1–10
     if (num >= 1 && num <= 5) return Math.round(num * 2);
-    // Skala 0–100 (NPS-style) → konversi ke 1–10
     if (num > 10 && num <= 100) return Math.max(1, Math.min(10, Math.round(num / 10)));
   }
 
@@ -404,7 +399,8 @@ export function validateMappedData(rows = []) {
     }
 
     if (row.JobSatisfaction !== undefined && row.JobSatisfaction !== "") {
-      const sat = Number(row.JobSatisfaction);
+      const normalized = normalizeJobSatisfaction(row.JobSatisfaction);
+      const sat = normalized !== null ? normalized : Number(row.JobSatisfaction);
       if (isNaN(sat) || sat < 1 || sat > 10) { badSatCount++; issues.push("JobSatisfaction out of range 1–10"); }
     }
 
