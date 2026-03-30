@@ -217,18 +217,46 @@ const dismissAlert = useCallback((key) => {
 
 const drivers = useMemo(() => {
   const list = [];
+
   if (belowCliff > 0) {
-    list.push({ title: "1. Compensation Gap", detail: `${belowCliff} karyawan di bawah safety cliff.`, border: "#ef4444" });
+    list.push({ 
+      title: "1. Compensation Gap", 
+      detail: `${belowCliff} employees are below the safety cliff.`, 
+      icon: "💸",
+      border: "#ef4444",
+      bg: "#fef2f2"
+    });
   }
+  
   if (withOT.length > 0) {
-    list.push({ title: "2. Overtime Burnout", detail: `${withOT.length} karyawan lembur berlebih.`, border: "#f59e0b" });
+    list.push({ 
+      title: "2. Overtime Burnout", 
+      detail: `${withOT.length} employees with excessive overtime.`, 
+      icon: "⌛",
+      border: "#f59e0b",
+      bg: "#fffbeb"
+    });
   }
+  
   const genZCount = genData.find(g => g.label === "Gen Z")?.count || 0;
   if (genZCount > 0) {
-    list.push({ title: "3. Gen Z Flight Risk", detail: `${genZCount} karyawan Gen Z butuh intervensi.`, border: "#3b82f6" });
+    list.push({ 
+      title: "3. Gen Z Flight Risk", 
+      detail: `${genZCount} Gen Z employees need intervention.`, 
+      icon: "🚀",
+      border: "#3b82f6",
+      bg: "#eff6ff"
+    });
   }
+  
   if (list.length === 0) {
-    list.push({ title: "Kondisi Stabil", detail: "Tidak ada indikator risiko utama terdeteksi.", border: "#22c55e" });
+    list.push({ 
+      title: "Stable Condition", 
+      detail: "No major risk indicators detected at this time.", 
+      icon: "🛡️",
+      border: "#22c55e",
+      bg: "#f0fdf4"
+    });
   }
   return list.slice(0, 3);
 }, [belowCliff, withOT.length, genData]);
@@ -352,14 +380,36 @@ const drivers = useMemo(() => {
           )}
         </div>
 
-        <div style={{ flex: "2 1 400px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          {drivers.map((item, index) => (
-            <div key={index} style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 10, borderLeft: `3px solid ${item.border}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>{item.title}</div>
-              <div style={{ fontSize: 10, color: "#64748b" }}><strong>{item.detail}</strong></div>
-            </div>
-          ))}
+        <div style={{ 
+  flex: "2 1 400px", 
+  display: "grid", 
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+  gap: 16 
+}}>
+  {drivers.map((item, index) => (
+    <div key={index} style={{ 
+      background: item.bg, 
+      padding: "16px", 
+      borderRadius: 16, 
+      border: `1px solid ${item.border}33`,
+      borderLeft: `5px solid ${item.border}`,
+      boxShadow: "0 4px 12px rgba(15,23,42,0.03)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 4
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b", letterSpacing: "-0.01em" }}>
+          {item.title}
         </div>
+        <span style={{ fontSize: 16 }}>{item.icon}</span>
+      </div>
+      <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4, fontWeight: 500 }}>
+        {item.detail}
+      </div>
+    </div>
+  ))}
+</div>
       </div>
 
       {/* Employee Table */}
