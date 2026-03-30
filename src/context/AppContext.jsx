@@ -351,12 +351,26 @@ export function AppProvider({ children }) {
   useEffect(() => {
     idbGet(LS_DATA_KEY).then((saved) => {
       if (saved && Array.isArray(saved)) {
-        setDataState(saved);
+        const needsMigration = saved.some(r =>
+          r.AttritionStatus === "Yes" || r.AttritionStatus === "No"
+        );
+        if (needsMigration) {
+          const migrated = saved.map(r => ({
+            ...r,
+            AttritionStatus:
+              r.AttritionStatus === "Yes" ? "Resigned" :
+              r.AttritionStatus === "No"  ? "Active"   :
+              r.AttritionStatus,
+          }));
+          idbSet(LS_DATA_KEY, migrated).catch(() => {});
+          setDataState(migrated);
+        } else {
+          setDataState(saved);
+        }
       }
     });
   }, []);
-
-  // Modules subscribe to this to know when to flush their local state
+  
   const [dataSessionId, setDataSessionId] = useState(() => {
     try {
       return localStorage.getItem(LS_SESSION_KEY) || generateSessionId();
