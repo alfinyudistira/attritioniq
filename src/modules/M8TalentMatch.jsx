@@ -344,9 +344,9 @@ export default function M8TalentMatch() {
   const { state: m8State, update: updateM8 } = useModuleData("m8");
   const activeTab    = m8State.activeTab    || "matcher";
   const candidate    = m8State.candidate    || {
-    name: "", currentDept: "Sales", skills: [],
-    tenure: 2.0, age: 28, salary: 4500,
-    atRiskReason: "Compensation below cliff + overtime",
+    name: "", currentDept: data[0]?.Department || "Sales", skills: [],
+    tenure: 0, age: 0, salary: 0,
+    atRiskReason: "",
   };
   const selectedDept = m8State.selectedDept ?? null;
   const setActiveTab   = useCallback((v) => updateM8({ activeTab: v }), [updateM8]);
