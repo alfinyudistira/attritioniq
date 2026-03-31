@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useApp, useHRData } from "../context/AppContext";
 import { SAMPLE_DATA } from "../utils/sampleData";
 import { useModuleData } from "../context/ModuleDataContext";
+import { GaugeChart, SparklineChart } from "../components/Charts";
 
 const QUESTION_BANK = [
   { id: "q1", text: "How manageable was your workload this week?", type: "scale", category: "Workload", icon: "⚡" },
@@ -116,53 +117,6 @@ Under 180 words. Urgent, specific, no jargon. No bullet points.`;
   return data.content?.[0]?.text || data.text || data.response || "AI intervention unavailable.";
 }
 
-// ── Components ──
-
-// Pulse Score Gauge
-function PulseGauge({ score, size = 100, label = "Pulse" }) {
-  const color = score >= 70 ? "#22c55e" : score >= 50 ? "#f59e0b" : score >= 30 ? "#f97316" : "#ef4444";
-  const cx = size / 2, cy = size * 0.65, r = size * 0.36;
-  const strokeW = Math.max(7, size * 0.09);
-  const vAngle = Math.PI - (score / 100) * Math.PI;
-  const vx = cx + r * Math.cos(vAngle), vy = cy - r * Math.sin(vAngle);
-  const lg = score > 50 ? 1 : 0;
-  return (
-    <svg width={size} height={size * 0.72} viewBox={`0 0 ${size} ${size * 0.72}`}>
-      <path d={`M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`} fill="none" stroke="#f1f5f9" strokeWidth={strokeW} strokeLinecap="round" />
-      {score > 0 && <path d={`M${cx - r},${cy} A${r},${r} 0 ${lg} 1 ${vx},${vy}`} fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="round" />}
-      <circle cx={vx} cy={vy} r={strokeW * 0.5} fill={color} />
-      <text x={cx} y={cy - r * 0.08} textAnchor="middle" fontSize={size * 0.2} fontWeight="800" fill={color}>{score}</text>
-      <text x={cx} y={cy + r * 0.22} textAnchor="middle" fontSize={size * 0.09} fill="#64748b">{label}</text>
-    </svg>
-  );
-}
-
-// Trend Sparkline
-function Sparkline({ values, color = "#f59e0b", width = 80, height = 28 }) {
-  if (!values || values.length < 2) return null;
-  const min = Math.min(...values), max = Math.max(...values);
-  const range = max - min || 1;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * width;
-    const y = height - ((v - min) / range) * height;
-    return `${x},${y}`;
-  }).join(" ");
-  const lastVal = values[values.length - 1];
-  const prevVal = values[values.length - 2];
-  const trend = lastVal > prevVal ? "↑" : lastVal < prevVal ? "↓" : "→";
-  const tColor = lastVal > prevVal ? "#22c55e" : lastVal < prevVal ? "#ef4444" : "#94a3b8";
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-        <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={(values.length - 1) / (values.length - 1) * width} cy={height - ((lastVal - min) / range) * height} r={2.5} fill={color} />
-      </svg>
-      <span style={{ fontSize: 11, fontWeight: 800, color: tColor }}>{trend}</span>
-    </div>
-  );
-}
-
 const WORD_SENTIMENT = {
   negative: ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"],
   positive: ["great","good","supported","excellent","motivated","growth","clear","happy","collaborative","appreciated"],
@@ -211,12 +165,10 @@ function WordCloud({ responses }) {
   );
 }
 
-// Heatmap — response time simulation
 function ResponseHeatmap({ responses }) {
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  // Seed dari jumlah & sentimen responses — stabil selama responses tidak berubah
   const hasHighStress = responses.filter(r => r.sentiment === "negative").length > responses.length * 0.5;
   const heatSeed = responses.length * 13 + (hasHighStress ? 7 : 3);
 
@@ -244,7 +196,6 @@ function ResponseHeatmap({ responses }) {
     return "#bbf7d0";
   };
 
-  // After-hours activity score
   const afterHoursCount = heatData.flat().reduce((s, v, i) => {
     const h = i % 24;
     return (h < 7 || h > 19) ? s + v : s;
@@ -608,7 +559,7 @@ const startStream = useCallback(() => {
                       <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>{d.dept}</div>
                       <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>{d.responses}/{d.totalEmps} responded ({d.responseRate}%)</div>
                     </div>
-                    <PulseGauge score={d.pulseScore || 0} size={60} label="pulse" />
+                    <GaugeChart value={d.pulseScore || 0} size={60} label="pulse" color={color} />
                   </div>
 
                   {/* Metric mini bars */}
@@ -635,7 +586,7 @@ const startStream = useCallback(() => {
                   {/* Sparkline trend */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                     <div style={{ fontSize: 9, color: "#94a3b8" }}>8-week trend</div>
-                    <Sparkline values={weekScores} color={color} width={70} height={22} />
+                    <SparklineChart data={weekScores} color={color} width={70} height={22} />
                   </div>
 
                   {/* Drop alert */}
@@ -818,7 +769,7 @@ const startStream = useCallback(() => {
                           );
                         })}
                         <td style={{ padding: "7px 8px" }}>
-                          <Sparkline values={scores} color={scores[scores.length - 1] >= 60 ? "#22c55e" : "#ef4444"} width={60} height={20} />
+                          <SparklineChart data={scores} color={scores[scores.length - 1] >= 60 ? "#22c55e" : "#ef4444"} width={60} height={20} />
                         </td>
                       </tr>
                     );
