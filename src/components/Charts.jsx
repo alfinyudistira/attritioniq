@@ -484,45 +484,42 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
   const r         = size * 0.40;
   const strokeW   = Math.max(10, size * 0.09);
   const trackD    = `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`;
-  const circumference = Math.PI * r;
-  const dashOffset    = circumference - (pct / 100) * circumference;
-  const scaleY = cy + 14;
+  const scaleY    = cy + 14;
 
   return (
     <svg
-  width="100%"
-  height="auto"
-  viewBox={`0 0 ${size} ${size * 0.68}`}
-  role="img"
-  aria-label={`${label}: ${pct.toFixed(0)}%`}
-  style={{ 
-    display: "block", 
-    margin: "0 auto", 
-    maxWidth: "240px", 
-    overflow: "visible" 
-  }}
->
-      <path 
-        d={trackD} 
-        fill="none" 
-        stroke="#f1f5f9" 
-        strokeWidth={strokeW} 
-        strokeLinecap="round" 
+      width="100%"
+      height="auto"
+      viewBox={`0 0 ${size} ${size * 0.68}`}
+      role="img"
+      aria-label={`${label}: ${pct.toFixed(0)}%`}
+      style={{
+        display: "block",
+        margin: "0 auto",
+        maxWidth: "240px",
+        overflow: "visible"
+      }}
+    >
+      <path
+        d={trackD}
+        fill="none"
+        stroke="#f1f5f9"
+        strokeWidth={strokeW}
+        strokeLinecap="round"
       />
-      
       {pct > 0 && (
         <path
-          d={trackD} 
-          fill="none" 
+          d={trackD}
+          fill="none"
           stroke={color}
-          strokeWidth={strokeW} 
+          strokeWidth={strokeW}
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          pathLength="100"
+          strokeDasharray="100"
+          strokeDashoffset={100 - pct}
           style={{ transition: "stroke-dashoffset 0.8s ease, stroke 0.4s ease" }}
         />
       )}
-      
       <text
         x={cx} y={cy - r * 0.05}
         textAnchor="middle" fontSize={size * 0.2}
@@ -530,7 +527,6 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
       >
         {pct.toFixed(0)}%
       </text>
-      
       <text
         x={cx} y={cy + r * 0.3}
         textAnchor="middle" fontSize={size * 0.09}
@@ -538,7 +534,6 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
       >
         {label}
       </text>
-      
       <text x={cx - r} y={scaleY} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">0</text>
       <text x={cx + r} y={scaleY} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">100</text>
     </svg>
