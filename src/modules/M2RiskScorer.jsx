@@ -5,7 +5,7 @@ import { ChartTooltip, useChartTooltip } from "../components/Charts";
 
 // ── CUSTOM HOOK: AI Copilot via Vercel ──
 function useCopilot() {
-  const { state, update } = useModuleData("m2"); // Integrasi ke Global Session
+  const { state, update } = useModuleData("m2");
   const [loading, setLoading] = useState(false);
   const response = state.aiResponse || "";
 
@@ -277,7 +277,7 @@ const setSelectedId = useCallback((v) => updateM2({ selectedId: v }), [updateM2]
                   <span>Monthly Salary</span>
                   <span style={{ color: simSalary >= cliff ? "#22c55e" : "#ef4444" }}>{cfg?.symbol || "$"}{simSalary.toLocaleString()}</span>
                 </div>
-                <input type="range" min={1000} max={15000} step={100} value={simSalary} onChange={e => setSimSalary(Number(e.target.value))} style={{ width: "100%", accentColor: "#0f172a" }} />
+                <input type="range" min={Math.round(cliff * 0.2)} max={Math.round(cliff * 3)} step={Math.round(cliff * 0.01) || 100} value={simSalary} onChange={e => setSimSalary(Number(e.target.value))} style={{ width: "100%", accentColor: "#0f172a" }} />
               </div>
 
               <div style={{ marginBottom: 16 }}>
