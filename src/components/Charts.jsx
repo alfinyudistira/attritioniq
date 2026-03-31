@@ -476,21 +476,52 @@ const jitterY = ((seed * 7 % 1) - 0.5) * 10;
 }
 
 export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color: colorOverride }) {
-  const pct       = clamp(Number(value) || 0, 0, 100);
-  const autoColor = pct >= 75 ? "#ef4444" : pct >= 50 ? "#f59e0b" : pct >= 25 ? "#3b82f6" : "#22c55e";
-  const color     = colorOverride || autoColor;
-  const cx        = size / 2;
-  const cy        = size * 0.58;
-  const r         = size * 0.40;
-  const strokeW   = Math.max(10, size * 0.09);
-  const trackD    = `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`;
-  const scaleY    = cy + 14;
+  const pct         = clamp(Number(value) || 0, 0, 100);
+  const autoColor   = pct >= 75 ? "#ef4444" : pct >= 50 ? "#f59e0b" : pct >= 25 ? "#3b82f6" : "#22c55e";
+  const activeColor = colorOverride || autoColor;
+  
+  const cx = size / 2;
+  const cy = size * 0.52;
+  const r  = size * 0.38;
+  
+  // Membuat garis-garis skala (Dial Ticks) layaknya spidometer asli
+  const ticks = [];
+  for (let i = 0; i <= 100; i += 2.5) {
+    const isMajor  = i % 25 === 0;
+    const isMedium = i % 10 === 0;
+    const length   = isMajor ? size * 0.07 : isMedium ? size * 0.05 : size * 0.025;
+    const thick    = isMajor ? 2.5 : isMedium ? 1.5 : 1;
+    
+    // Perhitungan matematika untuk posisi putaran dari kiri ke kanan
+    const angleRad = Math.PI - (i / 100) * Math.PI;
+    const x1 = cx + (r - length) * Math.cos(angleRad);
+    const y1 = cy - (r - length) * Math.sin(angleRad);
+    const x2 = cx + r * Math.cos(angleRad);
+    const y2 = cy - r * Math.sin(angleRad);
+    
+    // Warnai garis jika dilewati oleh jarum, jika tidak beri warna abu-abu pudar
+    const tickColor = i <= pct ? activeColor : "rgba(148, 163, 184, 0.25)";
+    
+    ticks.push(
+      <line 
+        key={i} 
+        x1={x1} y1={y1} x2={x2} y2={y2} 
+        stroke={tickColor} 
+        strokeWidth={thick} 
+        strokeLinecap="round"
+        style={{ transition: "stroke 0.8s ease" }}
+      />
+    );
+  }
+
+  // Sudut rotasi jarum
+  const needleAngle = -90 + (pct / 100) * 180;
 
   return (
     <svg
       width="100%"
       height="auto"
-      viewBox={`0 0 ${size} ${size * 0.68}`}
+      viewBox={`0 0 ${size} ${size * 0.9}`}
       role="img"
       aria-label={`${label}: ${pct.toFixed(0)}%`}
       style={{
@@ -500,45 +531,83 @@ export function GaugeChart({ value = 0, size = 160, label = "Flight Risk", color
         overflow: "visible"
       }}
     >
-      <path
-        d={trackD}
-        fill="none"
-        stroke="#f1f5f9"
-        strokeWidth={strokeW}
-        strokeLinecap="round"
+      <defs>
+        {/* Efek Bayangan untuk Jarum */}
+        <filter id="needle-shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="4" stdDeviation="3" floodOpacity="0.2" />
+        </filter>
+        {/* Efek Glow untuk Angka */}
+        <filter id="text-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor={activeColor} floodOpacity="0.3" />
+        </filter>
+      </defs>
+      
+      {/* Garis Skala Spidometer */}
+      {ticks}
+      
+      {/* Lintasan Halus di Luar Skala */}
+      <path 
+        d={`M${cx - r - size*0.02},${cy} A${r + size*0.02},${r + size*0.02} 0 0 1 ${cx + r + size*0.02},${cy}`} 
+        fill="none" 
+        stroke="rgba(148, 163, 184, 0.15)" 
+        strokeWidth="1.5" 
+        strokeDasharray="4, 4"
       />
-      {pct > 0 && (
-        <path
-          d={trackD}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeW}
-          strokeLinecap="round"
-          pathLength="100"
-          strokeDasharray="100"
-          strokeDashoffset={100 - pct}
-          style={{ transition: "stroke-dashoffset 0.8s ease, stroke 0.4s ease" }}
+
+      {/* Group Jarum (Needle) dengan Animasi Bouncy */}
+      <g 
+        style={{ 
+          transition: "transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)", 
+          transformOrigin: `${cx}px ${cy}px` 
+        }} 
+        transform={`rotate(${needleAngle}, ${cx}, ${cy})`}
+      >
+        {/* Bentuk Jarum Utama */}
+        <polygon
+          points={`${cx - size*0.03},${cy} ${cx + size*0.03},${cy} ${cx},${cy - r + size*0.06}`}
+          fill={activeColor}
+          filter="url(#needle-shadow)"
         />
-      )}
+        {/* Highlight 3D pada Jarum (Warna lebih terang di satu sisi) */}
+        <polygon
+          points={`${cx - size*0.015},${cy} ${cx},${cy} ${cx},${cy - r + size*0.06}`}
+          fill="rgba(255, 255, 255, 0.25)" 
+        />
+      </g>
+
+      {/* Titik Poros Tengah yang Elegan */}
+      <circle cx={cx} cy={cy} r={size * 0.07} fill="#1e293b" filter="url(#needle-shadow)" />
+      <circle cx={cx} cy={cy} r={size * 0.025} fill="#f1f5f9" />
+      <circle cx={cx} cy={cy} r={size * 0.01} fill={activeColor} />
+      
+      {/* Angka Batas 0 dan 100 */}
+      <text x={cx - r} y={cy + size * 0.10} textAnchor="middle" fontSize={size * 0.06} fill="#94a3b8" fontWeight="600">0</text>
+      <text x={cx + r} y={cy + size * 0.10} textAnchor="middle" fontSize={size * 0.06} fill="#94a3b8" fontWeight="600">100</text>
+
+      {/* Persentase Utama (Besar & Menyala) */}
       <text
-        x={cx} y={cy - r * 0.05}
-        textAnchor="middle" fontSize={size * 0.2}
-        fontWeight="800" fill={color}
+        x={cx} y={cy + size * 0.24}
+        textAnchor="middle" fontSize={size * 0.18}
+        fontWeight="800" fill={activeColor}
+        filter="url(#text-glow)"
       >
         {pct.toFixed(0)}%
       </text>
+
+      {/* Nama Metrik (Label) - Desain Huruf Kapital Elegan */}
       <text
-        x={cx} y={cy + r * 0.3}
-        textAnchor="middle" fontSize={size * 0.09}
+        x={cx} y={cy + size * 0.35}
+        textAnchor="middle" fontSize={size * 0.07}
         fill="#64748b"
+        fontWeight="700"
+        letterSpacing="0.5"
       >
-        {label}
+        {String(label).toUpperCase()}
       </text>
-      <text x={cx - r} y={scaleY} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">0</text>
-      <text x={cx + r} y={scaleY} textAnchor="middle" fontSize={size * 0.07} fill="#94a3b8">100</text>
     </svg>
   );
 }
+
 
 export function LineChart({
   series = [],
