@@ -6,36 +6,30 @@ function computeFatigueScore(shift) {
   let score = 0;
   const factors = [];
 
-  // Shift duration
   const dur = Number(shift.duration) || 8;
   if (dur >= 12) { score += 30; factors.push({ label: "12h+ Shift", impact: 30, direction: "bad", note: "Exceeds safe cognitive limit" }); }
   else if (dur >= 10) { score += 18; factors.push({ label: "10–11h Shift", impact: 18, direction: "warn", note: "Above recommended threshold" }); }
   else if (dur <= 7) { score += 0; factors.push({ label: "Shift Duration", impact: 0, direction: "good", note: `${dur}h — within safe range` }); }
   else { score += 6; factors.push({ label: "Shift Duration", impact: 6, direction: "warn", note: `${dur}h — borderline` }); }
 
-  // Rest between shifts
   const rest = Number(shift.restHours) || 12;
   if (rest < 8) { score += 28; factors.push({ label: "Rest Gap", impact: 28, direction: "bad", note: `Only ${rest}h rest — dangerous` }); }
   else if (rest < 11) { score += 14; factors.push({ label: "Rest Gap", impact: 14, direction: "warn", note: `${rest}h rest — below recommended 11h` }); }
   else { factors.push({ label: "Rest Gap", impact: 0, direction: "good", note: `${rest}h rest — adequate recovery` }); }
 
-  // Night shift
   if (shift.shiftType === "Night") { score += 18; factors.push({ label: "Night Shift", impact: 18, direction: "bad", note: "Circadian disruption adds 18pts" }); }
   else if (shift.shiftType === "Evening") { score += 8; factors.push({ label: "Evening Shift", impact: 8, direction: "warn", note: "Moderate circadian impact" }); }
   else { factors.push({ label: "Day Shift", impact: 0, direction: "good", note: "Optimal circadian alignment" }); }
 
-  // Back-to-back days
   const consecutive = Number(shift.consecutiveDays) || 5;
   if (consecutive >= 7) { score += 20; factors.push({ label: "Consecutive Days", impact: 20, direction: "bad", note: `${consecutive} days without rest — extreme fatigue` }); }
   else if (consecutive >= 5) { score += 10; factors.push({ label: "Consecutive Days", impact: 10, direction: "warn", note: `${consecutive} consecutive days` }); }
   else { factors.push({ label: "Consecutive Days", impact: 0, direction: "good", note: `${consecutive} days — safe rotation` }); }
 
-  // Weekend work
   if (shift.weekendWork === "Both") { score += 10; factors.push({ label: "Weekend Work", impact: 10, direction: "bad", note: "Both days — no social recovery" }); }
   else if (shift.weekendWork === "One") { score += 4; factors.push({ label: "Weekend Work", impact: 4, direction: "warn", note: "One day — limited recovery" }); }
   else { factors.push({ label: "Weekend Work", impact: 0, direction: "good", note: "Weekend off — full recovery" }); }
 
-  // Weekly overtime hours
   const weeklyOT = Number(shift.weeklyOTHours) || 0;
   if (weeklyOT >= 15) { score += 16; factors.push({ label: "Weekly Overtime", impact: 16, direction: "bad", note: `${weeklyOT}h OT — severe fatigue accumulation` }); }
   else if (weeklyOT >= 8) { score += 8; factors.push({ label: "Weekly Overtime", impact: 8, direction: "warn", note: `${weeklyOT}h OT — moderate impact` }); }
@@ -430,9 +424,9 @@ export default function M7FatigueRadar() {
 
 const activeTab   = m7State.activeTab   || "team";
 const singleShift = m7State.singleShift || {
-  name: "", dept: "Technical Support", shiftType: "Evening",
-  duration: 10, restHours: 9, consecutiveDays: 6,
-  weekendWork: "One", weeklyOTHours: 12,
+  name: "", dept: "Sales", shiftType: "Day",
+  duration: 8, restHours: 12, consecutiveDays: 5,
+  weekendWork: "None", weeklyOTHours: 0,
 };
 const setActiveTab = useCallback((v) => updateM7({ activeTab: v }), [updateM7]);
 const setS = useCallback((k, v) => {
@@ -518,9 +512,16 @@ const src = data;
         ))}
       </div>
 
-      {/* ── TAB: TEAM OVERVIEW ── */}
+{/* ── TAB: TEAM OVERVIEW ── */}
       {activeTab === "team" && (
         <div>
+          <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>⚠️</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>Fatigue score ini adalah estimasi — bukan data shift asli</div>
+              <div style={{ fontSize: 11, color: "#b45309" }}>Dihitung dari kolom OvertimeStatus & JobSatisfaction di CSV kamu. Untuk analisis akurat, input data shift karyawan satu per satu di tab "Single Employee".</div>
+            </div>
+          </div>
           {/* KPIs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12, marginBottom: 18 }}>
             {[
