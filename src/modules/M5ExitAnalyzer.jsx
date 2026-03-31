@@ -66,8 +66,6 @@ function categorizeInterview(text) {
   const secondary = sorted[1]?.[1] > 0 ? sorted[1][0] : null;
   const sentiment = computeSentiment(lower);
 
-  // Retention probability — could they have been saved?
-  // High if: mainly salary/workload (fixable), positive mentions, no "already accepted"
   let retentionProbability = 50;
   if (primary === "Compensation" || primary === "Workload") retentionProbability += 20;
   if (primary === "Career" || primary === "Management") retentionProbability += 10;
@@ -132,7 +130,6 @@ function WordCloud({ words }) {
       result.push({ word, count, fontSize, color, x, y });
     });
     return result;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [words]);
 
   return (
@@ -634,9 +631,9 @@ const [showCompare, setShowCompare] = useState(false);
             Name, Department, Date (YYYY-MM), Tenure (years), Monthly Salary, Age, Exit Interview Text
           </div>
           <div style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.6 }}>
-            💡 <strong>Teks interview bisa sepanjang apapun</strong> — bungkus dengan tanda kutip <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: 3 }}>"..."</code> di CSV.<br />
-            💡 Kalau di dalam teks ada tanda kutip, tulis dua kali: <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: 3 }}>""seperti ini""</code><br />
-            💡 Klik <strong>⬇ Template CSV</strong> untuk download contoh yang siap diisi di Excel/Google Sheets.
+            💡 <strong>Interview text can be any length </strong> — wrap with quotation marks <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: 3 }}>"..."</code> in  CSV.<br />
+            💡 If there are quotation marks in the text, write them twice.: <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: 3 }}>""like this ""</code><br />
+            💡 Klik <strong>⬇ Template CSV</strong> to download a ready-to-fill example in Excel/Google Sheets. 
           </div>
         </div>
       </div>
@@ -667,16 +664,16 @@ const [showCompare, setShowCompare] = useState(false);
               <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
               <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Belum ada Exit Interview</div>
               <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 20, maxWidth: 400, margin: "0 auto 20px" }}>
-                Tambah interview satu per satu lewat tab <strong>All Interviews</strong>, atau import sekaligus lewat CSV. Klik tombol di bawah untuk lihat contoh format datanya dulu.
+                Add interviews one by one via tab <strong>All Interviews</strong>, or import them all at once via CSV. Click the button below to see an example of the data format first. 
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                 <button onClick={() => updateM5({ showSample: true })}
                   style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 13, color: "#475569", cursor: "pointer", fontWeight: 600 }}>
-                  👁 Lihat Contoh Interview
+                  👁 View Interview Sample 
                 </button>
                 <button onClick={() => { updateM5({ activeTab: "interviews" }); }}
                   style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", fontSize: 13, color: "#fff", cursor: "pointer", fontWeight: 700 }}>
-                  ➕ Tambah Interview Sekarang
+                  ➕ Add Interview Now 
                 </button>
               </div>
             </div>
@@ -687,8 +684,8 @@ const [showCompare, setShowCompare] = useState(false);
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 18 }}>📋</span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>Ini adalah 8 contoh interview — bukan data kamu</div>
-                  <div style={{ fontSize: 11, color: "#b45309" }}>Analisis di bawah berdasarkan data demo. Tambah interview kamu sendiri untuk hasil yang nyata.</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>These are 8 examples of interviews — not your data </div>
+                  <div style={{ fontSize: 11, color: "#b45309" }}>The analysis below is based on demo data. Add your own interviews for real-world results.</div>
                 </div>
               </div>
               <button onClick={() => updateM5({ showSample: false })}
