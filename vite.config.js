@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/attritioniq/',
+  base: (process.env.VERCEL || process.env.CF_PAGES) ? '/' : '/attritioniq/',
 })
