@@ -530,13 +530,13 @@ const [showCompare, setShowCompare] = useState(false);
           return { id: Date.now() + i, name, dept, date, tenure, salary, age, text };
         }).filter(Boolean);
         if (imported.length === 0) {
-          alert("Tidak ada interview yang valid. Pastikan kolom 'Exit Interview Text' (kolom ke-7) sudah terisi.");
+          alert("No valid interviews found. Please ensure the 'Exit Interview Text' (7th column) is filled out.");
           return;
         }
         setInterviews(prev => [...prev, ...imported]);
         updateM5({ showSample: false });
       } catch (err) {
-        alert("Gagal membaca CSV: " + (err?.message || "Unknown error"));
+        alert("Failed to read CSV: " + (err?.message || "Unknown error"));
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -588,10 +588,10 @@ const [showCompare, setShowCompare] = useState(false);
             </div>
             <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
               {hasUserData
-                ? `${userInterviews.length} interview${userInterviews.length > 1 ? "s" : ""} loaded · dianalisis otomatis`
+                ? `${userInterviews.length} interview${userInterviews.length > 1 ? "s" : ""} loaded · analyzed automatically`
                 : isUsingSample
-                  ? "Menampilkan 8 contoh interview — bukan data kamu"
-                  : "Belum ada interview — tambah manual di bawah atau import CSV"}
+                  ? "Displaying 8 sample interviews — demo data"
+                  : "No interviews available — add manually below or import via CSV"}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -611,7 +611,7 @@ const [showCompare, setShowCompare] = useState(false);
               <button
                 onClick={() => updateM5({ showSample: !showSample })}
                 style={{ padding: "7px 13px", borderRadius: 8, border: `1.5px solid ${showSample ? "#fecaca" : "#e2e8f0"}`, background: showSample ? "#fef2f2" : "#f8fafc", fontSize: 12, color: showSample ? "#dc2626" : "#475569", cursor: "pointer", fontWeight: 600 }}>
-                {showSample ? "🙈 Sembunyikan Contoh" : "👁 Lihat Contoh Interview"}
+                {showSample ? "🙈 Hide Samples" : "👁 View Sample Interviews"}
               </button>
             )}
             {/* Clear user data */}
@@ -626,7 +626,7 @@ const [showCompare, setShowCompare] = useState(false);
 
         {/* CSV Format Guide — collapsible, shown saat klik Import */}
         <div style={{ marginTop: 12, background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: "1px solid #e2e8f0" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>📋 Format CSV yang benar:</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>📋 Correct CSV Format:</div>
           <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.7, fontFamily: "monospace", background: "#f1f5f9", borderRadius: 8, padding: "8px 10px", marginBottom: 6, overflowX: "auto", whiteSpace: "nowrap" }}>
             Name, Department, Date (YYYY-MM), Tenure (years), Monthly Salary, Age, Exit Interview Text
           </div>
@@ -662,7 +662,7 @@ const [showCompare, setShowCompare] = useState(false);
           {isEmpty && (
             <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9" }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
-              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Belum ada Exit Interview</div>
+              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>No Exit Interviews Yet</div>
               <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 20, maxWidth: 400, margin: "0 auto 20px" }}>
                 Add interviews one by one via tab <strong>All Interviews</strong>, or import them all at once via CSV. Click the button below to see an example of the data format first. 
               </div>
@@ -690,7 +690,7 @@ const [showCompare, setShowCompare] = useState(false);
               </div>
               <button onClick={() => updateM5({ showSample: false })}
                 style={{ background: "none", border: "1px solid #fde68a", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "#92400e", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                Sembunyikan ✕
+                Hide ✕
               </button>
             </div>
           )}
@@ -788,13 +788,13 @@ const [showCompare, setShowCompare] = useState(false);
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 18 }}>📋</span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>Ini 8 contoh interview — bukan data kamu</div>
-                  <div style={{ fontSize: 11, color: "#b45309" }}>Tambah interview kamu di form bawah — otomatis menggantikan contoh ini.</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>These are 8 sample interviews — demo data</div>
+                  <div style={{ fontSize: 11, color: "#b45309" }}>Add your interviews using the form below to automatically replace these samples.</div>
                 </div>
               </div>
               <button onClick={() => updateM5({ showSample: false })}
                 style={{ background: "none", border: "1px solid #fde68a", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "#92400e", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                Sembunyikan ✕
+                Hide ✕
               </button>
             </div>
           )}
@@ -809,8 +809,8 @@ const [showCompare, setShowCompare] = useState(false);
           {isEmpty && (
             <div style={{ textAlign: "center", padding: "40px 20px", background: "#f8fafc", borderRadius: 13, border: "1.5px dashed #e2e8f0", marginBottom: 12 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#475569", marginBottom: 4 }}>Belum ada interview</div>
-              <div style={{ fontSize: 12, color: "#94a3b8" }}>Isi form di atas atau import CSV untuk memulai analisis.</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#475569", marginBottom: 4 }}>No interviews found</div>
+              <div style={{ fontSize: 12, color: "#94a3b8" }}>Fill out the form above or import a CSV to begin analysis.</div>
             </div>
           )}
 
@@ -930,17 +930,17 @@ const [showCompare, setShowCompare] = useState(false);
           {isEmpty && (
             <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>☁️</div>
-              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Keyword Cloud Kosong</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Keyword dihasilkan dari teks interview. Tambah interview dulu untuk melihat hasilnya.</div>
+              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Empty Keyword Cloud</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Keywords are generated from interview text. Please add an interview first to view results.</div>
               <button onClick={() => updateM5({ showSample: true })}
                 style={{ padding: "9px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 13, color: "#475569", cursor: "pointer", fontWeight: 600 }}>
-                👁 Lihat Contoh
+                👁 View Sample
               </button>
             </div>
           )}
           {isUsingSample && (
             <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: "8px 14px", marginBottom: 12, fontSize: 11, color: "#92400e", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span>📋 Keyword ini dari 8 contoh interview — bukan data kamu</span>
+              <span>📋 These keywords are from 8 sample interviews — demo data</span>
               <button onClick={() => updateM5({ showSample: false })} style={{ background: "none", border: "none", color: "#92400e", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>✕</button>
             </div>
           )}
