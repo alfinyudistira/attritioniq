@@ -29,30 +29,25 @@ function computeROI({ data, cliff, multiplier, interventions, ghostEnabled }) {
   const avgSalary = src.length > 0 ? Math.round(src.reduce((s, e) => s + (e.MonthlySalary || 0), 0) / src.length) : 4500;
   const avgResigned = resigned.length > 0 ? Math.round(resigned.reduce((s, e) => s + (e.MonthlySalary || 0), 0) / resigned.length) : 4200;
 
-  // Base turnover cost
   const baseTurnoverCost = resigned.length * avgResigned * 12 * multiplier;
 
-  // Ghost costs
   const ghostOpportunity = ghostEnabled ? resigned.length * avgResigned * 12 * GHOST_COSTS.opportunityCost : 0;
   const ghostRampUp = ghostEnabled ? resigned.length * avgResigned * 12 * GHOST_COSTS.rampUpDrag : 0;
   const ghostBrand = ghostEnabled ? resigned.length * avgResigned * 12 * GHOST_COSTS.employerBrand : 0;
   const totalGhost = ghostOpportunity + ghostRampUp + ghostBrand;
   const totalTurnoverCost = baseTurnoverCost + totalGhost;
 
-  // Intervention 1: Salary Adjustment
   const belowCliff = src.filter(e => (e.MonthlySalary || 0) < cliff);
   const salaryFixCost = belowCliff.reduce((s, e) => s + Math.max(0, cliff - (e.MonthlySalary || 0)) * 12, 0) * (interventions.salary / 100);
   const salaryRetained = Math.round(resigned.length * (interventions.salary / 100) * 0.45);
   const salarySavings = salaryRetained * avgResigned * 12 * multiplier;
 
-  // Intervention 2: Overtime Cap (hiring buffer staff)
   const withOT = src.filter(e => e.OvertimeStatus === "Yes").length;
   const newHireCount = Math.ceil(withOT * (interventions.overtime / 100) * 0.2);
   const overtimeCost = newHireCount * cliff * 12;
   const overtimeRetained = Math.round(resigned.length * (interventions.overtime / 100) * 0.35);
   const overtimeSavings = overtimeRetained * avgResigned * 12 * multiplier;
 
-  // Intervention 3: Mentorship Program
   const genZCount = src.filter(e => Number(e.Age) < 26).length;
   const mentorshipCost = Math.round(genZCount * 500 * (interventions.mentorship / 100));
   const mentorshipRetained = Math.round(genZCount * (interventions.mentorship / 100) * 0.6);
@@ -314,12 +309,12 @@ export default function M6ROI() {
   const { company } = useApp();
   const { data } = useHRData();
   const { config: currCfg } = useCurrency();
-const cliff = company?.salaryCliff || 5000;
-const currSymbol = currCfg?.symbol || "$";
+  const cliff = company?.salaryCliff || 5000;
+  const currSymbol = currCfg?.symbol || "$";
   const multiplier = company?.replacementMultiplier || 1.5;
   const { state: m6State, update: updateM6 } = useModuleData("m6");
 
-const interventions = m6State.interventions || { salary: 70, overtime: 60, mentorship: 80 };
+const interventions = m6State.interventions || { salary: 50, overtime: 50, mentorship: 50 };
 const ghostEnabled  = m6State.ghostEnabled  ?? false;
 const activeTab     = m6State.activeTab     || "calculator";
 const setI = useCallback((key, val) => {
@@ -381,9 +376,16 @@ const [aiLoading, setAiLoading] = useState(false);
         ))}
       </div>
 
-      {/* ── TAB: CALCULATOR ── */}
+{/* ── TAB: CALCULATOR ── */}
       {activeTab === "calculator" && (
         <div>
+          <div style={{ background: "#eff6ff", border: "1.5px solid #bfdbfe", borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🧪</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8" }}>Ini adalah simulasi ROI — bukan angka pasti</div>
+              <div style={{ fontSize: 11, color: "#3b82f6" }}>Geser slider di bawah untuk atur % implementasi setiap intervensi. Semakin tinggi %, semakin besar investasi dan potensi penghematan.</div>
+            </div>
+          </div>
           {/* Ghost Cost Toggle */}
           <div style={{ background: "#fff", borderRadius: 13, padding: "14px 18px", border: "1.5px solid #f1f5f9", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
             <div>
