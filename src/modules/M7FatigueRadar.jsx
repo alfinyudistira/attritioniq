@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useApp, useHRData } from "../context/AppContext";
 import { useModuleData } from "../context/ModuleDataContext";
+import { GaugeChart } from "../components/Charts";
 
 function computeFatigueScore(shift) {
   let score = 0;
@@ -99,32 +100,6 @@ Under 160 words. Direct, actionable. No bullet points.`;
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
   return data.content?.[0]?.text || data.text || data.response || "AI insight unavailable.";
-}
-
-// ── Fatigue Gauge ──
-function FatigueGauge({ score, size = 100 }) {
-  const color = score >= 75 ? "#ef4444" : score >= 50 ? "#f97316" : score >= 25 ? "#f59e0b" : "#22c55e";
-  const cx = size / 2, cy = size * 0.65, r = size * 0.38;
-  const strokeW = Math.max(8, size * 0.09);
-  const trackX1 = cx - r, trackY1 = cy, trackX2 = cx + r, trackY2 = cy;
-  const valueAngle = Math.PI - (score / 100) * Math.PI;
-  const valX = cx + r * Math.cos(valueAngle);
-  const valY = cy - r * Math.sin(valueAngle);
-  const largeArc = score > 50 ? 1 : 0;
-
-  return (
-    <svg width={size} height={size * 0.72} viewBox={`0 0 ${size} ${size * 0.72}`}>
-      <path d={`M${trackX1},${trackY1} A${r},${r} 0 0 1 ${trackX2},${trackY2}`}
-        fill="none" stroke="#f1f5f9" strokeWidth={strokeW} strokeLinecap="round" />
-      {score > 0 && (
-        <path d={`M${trackX1},${trackY1} A${r},${r} 0 ${largeArc} 1 ${valX},${valY}`}
-          fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="round" />
-      )}
-      <circle cx={valX} cy={valY} r={strokeW * 0.55} fill={color} />
-      <text x={cx} y={cy - r * 0.1} textAnchor="middle" fontSize={size * 0.2} fontWeight="800" fill={color}>{score}</text>
-      <text x={cx} y={cy + r * 0.22} textAnchor="middle" fontSize={size * 0.09} fill="#64748b">fatigue</text>
-    </svg>
-  );
 }
 
 // ── Factor Bar ──
@@ -243,12 +218,12 @@ const [simShift, setSimShift] = useState(() => ({ ...baseShift }));
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <div style={{ background: "#f8fafc", borderRadius: 11, padding: "14px", textAlign: "center" }}>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Current Score</div>
-          <FatigueGauge score={base.score} size={80} />
+          <GaugeChart value={base.score} size={80} label="fatigue" />
           <div style={{ fontSize: 11, fontWeight: 700, color: base.level.color, marginTop: 4 }}>{base.level.label}</div>
         </div>
         <div style={{ background: sim.level.bg, borderRadius: 11, padding: "14px", textAlign: "center", border: `1.5px solid ${sim.level.border}` }}>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Simulated Score</div>
-          <FatigueGauge score={sim.score} size={80} />
+          <GaugeChart value={sim.score} size={80} label="fatigue" />
           <div style={{ fontSize: 11, fontWeight: 700, color: sim.level.color, marginTop: 4 }}>{sim.level.label}</div>
         </div>
         <div style={{ background: delta < 0 ? "#f0fdf4" : delta > 0 ? "#fef2f2" : "#f8fafc", borderRadius: 11, padding: "14px", textAlign: "center", border: `1.5px solid ${delta < 0 ? "#bbf7d0" : delta > 0 ? "#fecaca" : "#f1f5f9"}` }}>
@@ -737,7 +712,7 @@ const src = data;
                 <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 8 }}>
                   {singleShift.name ? `${singleShift.name}'s` : "Employee"} Fatigue Index
                 </div>
-                <FatigueGauge score={singleResult.score} size={160} />
+                <GaugeChart value={singleResult.score} size={160} label="fatigue" />
                 <div style={{ marginTop: 8 }}>
                   <span style={{ background: singleResult.level.color, color: "#fff", padding: "5px 16px", borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
                     {singleResult.level.label}
