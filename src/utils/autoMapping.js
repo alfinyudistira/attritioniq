@@ -15,11 +15,14 @@ export const CANONICAL_FIELDS = [
   "CommuteDistance",
   "EducationLevel",
   "ShiftDuration",
+  "Gender",
+  "JoinDate",
 ];
 
 export const REQUIRED_FIELDS   = ["EmployeeID", "Department", "AttritionStatus"];
 export const IMPORTANT_FIELDS  = ["MonthlySalary", "JobSatisfaction", "YearsAtCompany", "Age", "OvertimeStatus"];
-export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName", "MaritalStatus", "EducationLevel", "ShiftDuration"];
+export const OPTIONAL_FIELDS   = ["PerformanceScore", "WorkModel", "CommuteDistance", "FirstName", "LastName", 
+                                  "MaritalStatus", "EducationLevel", "ShiftDuration", "Gender","JoinDate"];
 
 const ALIASES = {
   EmployeeID: [
@@ -148,7 +151,19 @@ const ALIASES = {
   "durasi_shift", "durasi shift", "durasi_kerja", "durasi kerja", "jam_shift",
   "jam shift", "lama_shift", "lama shift", "working_time", "work_time", "hours_per_shift",
   "hours_shift", "shift_duration_hours", "daily_hours", "jam_harian", "jam per hari", "jam_per_hari"
-],
+  ],
+    Gender: [
+    "gender", "sex", "jenis_kelamin", "jeniskelamin", "jk",
+    "kelamin", "j_kelamin", "employee_gender", "gender_identity",
+    "jenis_kel"
+  ],
+  JoinDate: [
+    "joindate", "join_date", "hiredate", "hire_date", "startdate", 
+    "start_date", "date_of_hire", "date_joined", "joined_date", 
+    "tanggal_masuk", "tgl_masuk", "tanggal_bergabung", "tgl_bergabung", 
+    "mulai_bekerja", "tanggal_join", "tgl_join", "tanggal_diterima", 
+    "employment_date", "commencement_date"
+  ],
 };
 
 export function normalizeHeaderStr(h) {
