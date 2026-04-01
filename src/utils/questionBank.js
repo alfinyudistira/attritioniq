@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 
-// ==========================
-// 🧠 QUESTION BANK (1-55 MERGED)
-// ==========================
 export const QUESTION_BANK = [
   { id: "q1",  text: "How manageable was your workload this week?",                  type: "scale", category: "Workload",      icon: "⚡" },
   { id: "q2",  text: "Do you feel recognized for your contributions?",               type: "scale", category: "Recognition",   icon: "🏆" },
@@ -61,9 +58,6 @@ export const QUESTION_BANK = [
   { id: "q55", text: "Anything else on your mind that we haven't covered?", type: "text", category: "General", icon: "🧩" }
 ];
 
-// ==========================
-// ⚙️ CONFIG (MERGED)
-// ==========================
 export const CATEGORY_WEIGHT = {
   Burnout: 2.0,
   Workload: 1.5,
@@ -82,16 +76,10 @@ export const SURVEY_CONFIG = {
   ENABLE_BALANCED: true
 };
 
-// ==========================
-// 🆔 UTIL: Generate ID
-// ==========================
 export function generateId(prefix = "svy") {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// ==========================
-// 👤 USER CONTEXT
-// ==========================
 export function createUserContext({ userId = null, team = "unknown", anonymous = true } = {}) {
   return {
     surveyId: generateId(),
@@ -102,9 +90,6 @@ export function createUserContext({ userId = null, team = "unknown", anonymous =
   };
 }
 
-// ==========================
-// 🔀 QUESTION SELECTOR (Cached)
-// ==========================
 let cachedQuestions = null;
 
 export function getQuestions(bank) {
@@ -144,9 +129,6 @@ export function getQuestions(bank) {
   return result;
 }
 
-// ==========================
-// 📊 SCORING
-// ==========================
 export function calculateScore(answers) {
   let total = 0;
   let weightSum = 0;
@@ -161,9 +143,6 @@ export function calculateScore(answers) {
   return weightSum === 0 ? 0 : total / weightSum;
 }
 
-// ==========================
-// 🔥 RISK ANALYSIS
-// ==========================
 export function analyzeRisk(answers) {
   const result = {
     burnoutScore: null,
@@ -189,9 +168,6 @@ export function analyzeRisk(answers) {
   return result;
 }
 
-// ==========================
-// 🧠 MAIN PROCESSOR
-// ==========================
 export function processSurvey({ answers, userContext }) {
   const score = calculateScore(answers);
   const risk = analyzeRisk(answers);
@@ -204,9 +180,6 @@ export function processSurvey({ answers, userContext }) {
   };
 }
 
-// ==========================
-// ✨ STATISTICS & RECOMMENDATIONS
-// ==========================
 export function calculateStatistics(answers) {
   const scaleAnswers = answers.filter((a) => a.type === "scale" && typeof a.value === "number");
   if (scaleAnswers.length === 0) return null;
@@ -847,4 +820,52 @@ export function SurveyDashboard({ result }) {
       </ul>
     </div>
   );
+}
+
+export function calculateTrueENPS(answers) {
+  const enpsAnswers = answers.filter(a => a.category === "eNPS" && a.type === "scale");
+  if (enpsAnswers.length === 0) return null;
+
+  let promoters = 0;
+  let detractors = 0;
+
+  enpsAnswers.forEach(a => {
+    if (a.value >= 9) promoters++;
+    else if (a.value <= 6) detractors++;
+  });
+
+  const total = enpsAnswers.length;
+  const enpsScore = Math.round(((promoters / total) - (detractors / total)) * 100);
+
+  return {
+    score: enpsScore, // Range: -100 to 100
+    promoters,
+    passives: total - promoters - detractors,
+    detractors,
+    status: enpsScore > 30 ? "Excellent" : enpsScore > 0 ? "Good" : "Needs Improvement"
+  };
+}
+
+export function detectCriticalRisks(answers) {
+  const criticalKeywords = ["resign", "quit", "toxic", "harassment", "bullying", "illegal", "discriminate", "unsafe", "leave"];
+  const threats = [];
+
+  answers.forEach(a => {
+    if (a.type === "text" && a.value) {
+      const text = a.value.toLowerCase();
+      const found = criticalKeywords.filter(kw => text.includes(kw));
+      if (found.length > 0) {
+        threats.push({
+          questionId: a.questionId,
+          flags: found,
+          snippet: text.length > 60 ? text.substring(0, 60) + "..." : text
+        });
+      }
+    }
+  });
+
+  return {
+    hasCriticalRisk: threats.length > 0,
+    threats
+  };
 }
