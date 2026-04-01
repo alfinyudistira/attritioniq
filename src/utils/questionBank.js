@@ -692,3 +692,350 @@ export class SurveyEngine {
 }
 
 export const surveyEngine = new SurveyEngine({ TOTAL_QUESTIONS: 8 });
+
+// ======================================================
+// 🚀 FULL HR ANALYTICS ENGINE (TS + REACT READY)
+// ======================================================
+
+// ==========================
+// 🧾 TYPES
+// ==========================
+export type Answer = {
+  questionId: string;
+  type: "scale" | "text";
+  category: string;
+  value?: number;
+  text?: string;
+};
+
+export type SurveyResult = {
+  score: number;
+  categoryScores: Record<string, number>;
+  risk: {
+    burnoutScore: number | null;
+    riskLevel: "low" | "medium" | "high";
+  };
+};
+
+export type Trend = {
+  direction: "up" | "down" | "stable";
+  change: number;
+};
+
+export type CategoryTrend = Record<string, Trend>;
+
+export type ChurnResult = {
+  score: number;
+  risk: "low" | "medium" | "high";
+  reasons: string[];
+};
+
+// ==========================
+// 📈 CATEGORY TREND
+// ==========================
+export function calculateCategoryTrend(
+  current: Record<string, number>,
+  previous: Record<string, number>
+): CategoryTrend {
+  const trend: CategoryTrend = {};
+
+  Object.keys(current).forEach((cat) => {
+    const prev = previous[cat] ?? current[cat];
+    const diff = current[cat] - prev;
+
+    trend[cat] = {
+      direction: diff > 0 ? "up" : diff < 0 ? "down" : "stable",
+      change: parseFloat(diff.toFixed(2)),
+    };
+  });
+
+  return trend;
+}
+
+// ==========================
+// 🔮 SMART INSIGHT
+// ==========================
+export function generateInsights(
+  scores: Record<string, number>,
+  risk: any
+): string[] {
+  const insights: string[] = [];
+
+  if (scores.Burnout < 3 && scores.Workload < 3) {
+    insights.push("⚠️ Employees likely experiencing overload and fatigue.");
+  }
+
+  if (scores.Recognition < 3 && scores.Culture < 3) {
+    insights.push("💡 Low recognition may be affecting morale.");
+  }
+
+  if (scores.Management < 3) {
+    insights.push("👤 Leadership support may need improvement.");
+  }
+
+  if (risk.riskLevel === "high") {
+    insights.push("🔥 High burnout risk detected.");
+  }
+
+  if (scores.Growth > 4 && scores.Satisfaction > 4) {
+    insights.push("🚀 Strong growth and satisfaction correlation.");
+  }
+
+  return insights;
+}
+
+// ==========================
+// 📊 BENCHMARK
+// ==========================
+export function calculateBenchmark(
+  teamScores: Record<string, number>,
+  globalScores: Record<string, number>
+) {
+  const result: Record<string, number> = {};
+
+  Object.keys(teamScores).forEach((cat) => {
+    const global = globalScores[cat] ?? teamScores[cat];
+    result[cat] = parseFloat((teamScores[cat] - global).toFixed(2));
+  });
+
+  return result;
+}
+
+// ==========================
+// 🚨 ALERT
+// ==========================
+export function generateAlerts(result: SurveyResult) {
+  const alerts: string[] = [];
+
+  if (result.risk.riskLevel === "high") {
+    alerts.push("🔥 Burnout risk critical");
+  }
+
+  if (result.categoryScores.Workload < 2.5) {
+    alerts.push("⚖️ Workload imbalance");
+  }
+
+  if (result.categoryScores.Wellbeing < 3) {
+    alerts.push("🧠 Wellbeing declining");
+  }
+
+  return alerts;
+}
+
+// ==========================
+// 🚨 CHURN PREDICTION
+// ==========================
+export function predictChurn(categoryScores: Record<string, number>): ChurnResult {
+  let riskScore = 0;
+  const reasons: string[] = [];
+
+  if ((categoryScores.Burnout ?? 5) < 3) {
+    riskScore += 2;
+    reasons.push("High burnout");
+  }
+
+  if ((categoryScores.Satisfaction ?? 5) < 3) {
+    riskScore += 2;
+    reasons.push("Low satisfaction");
+  }
+
+  if ((categoryScores.eNPS ?? 5) < 3) {
+    riskScore += 1.5;
+    reasons.push("Low eNPS");
+  }
+
+  if ((categoryScores.Retention ?? 5) < 3) {
+    riskScore += 2;
+    reasons.push("Low retention intent");
+  }
+
+  if ((categoryScores.Growth ?? 5) < 3) {
+    riskScore += 1;
+    reasons.push("Lack of growth");
+  }
+
+  let risk: "low" | "medium" | "high" = "low";
+
+  if (riskScore >= 5) risk = "high";
+  else if (riskScore >= 3) risk = "medium";
+
+  return {
+    score: parseFloat(riskScore.toFixed(2)),
+    risk,
+    reasons,
+  };
+}
+
+// ==========================
+// 🏢 SAAS TYPES
+// ==========================
+export type Company = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
+export type Team = {
+  id: string;
+  companyId: string;
+  name: string;
+};
+
+export type Employee = {
+  id: string;
+  companyId: string;
+  teamId: string;
+  name?: string;
+};
+
+// ==========================
+// 🗄️ SAAS STORAGE
+// ==========================
+export class SaaSStorage {
+  constructor(private storage: any) {}
+
+  saveSurvey(companyId: string, data: any) {
+    const key = `company_${companyId}_surveys`;
+    const existing = this.storage.get(key) || [];
+    existing.push(data);
+    this.storage.set(key, existing);
+  }
+
+  getCompanySurveys(companyId: string) {
+    return this.storage.get(`company_${companyId}_surveys`) || [];
+  }
+
+  getTeamSurveys(companyId: string, teamId: string) {
+    const all = this.getCompanySurveys(companyId);
+    return all.filter((s: any) => s.meta.team === teamId);
+  }
+}
+
+// ==========================
+// 📊 AGGREGATION
+// ==========================
+export function aggregateScores(surveys: any[]) {
+  if (!surveys.length) return {};
+
+  const totals: Record<string, number> = {};
+  const counts: Record<string, number> = {};
+
+  surveys.forEach((s) => {
+    Object.entries(s.categoryScores || {}).forEach(([cat, val]) => {
+      totals[cat] = (totals[cat] || 0) + (val as number);
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+  });
+
+  const result: Record<string, number> = {};
+  Object.keys(totals).forEach((cat) => {
+    result[cat] = parseFloat((totals[cat] / counts[cat]).toFixed(2));
+  });
+
+  return result;
+}
+
+// ==========================
+// 📈 COMPANY vs TEAM
+// ==========================
+export function getCompanyInsights(storage: SaaSStorage, companyId: string) {
+  const surveys = storage.getCompanySurveys(companyId);
+
+  const companyScore = aggregateScores(surveys);
+
+  const teams: Record<string, any[]> = {};
+
+  surveys.forEach((s) => {
+    const team = s.meta.team || "unknown";
+    if (!teams[team]) teams[team] = [];
+    teams[team].push(s);
+  });
+
+  const teamInsights: Record<string, any> = {};
+
+  Object.entries(teams).forEach(([team, data]) => {
+    teamInsights[team] = aggregateScores(data);
+  });
+
+  return {
+    companyScore,
+    teamInsights,
+  };
+}
+
+// ==========================
+// ⚛️ REACT HOOK
+// ==========================
+import { useState } from "react";
+
+export function useSurveyEngine(engine: any) {
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function start(userContext: any) {
+    setLoading(true);
+    const res = await engine.startSurvey(userContext);
+    setQuestions(res.questions);
+    setLoading(false);
+  }
+
+  async function submit(answers: any, userContext: any) {
+    setLoading(true);
+    const res = await engine.submit(answers, userContext);
+    setResult(res);
+    setLoading(false);
+  }
+
+  return { questions, result, loading, start, submit };
+}
+
+// ==========================
+// 📊 DASHBOARD
+// ==========================
+import React from "react";
+
+export function SurveyDashboard({ result }: any) {
+  if (!result) return <div>No data</div>;
+
+  return (
+    <div>
+      <h2>Score: {result.score}</h2>
+      <h3>Risk: {result.risk.riskLevel}</h3>
+
+      {Object.entries(result.categoryScores).map(([cat, val]) => (
+        <div key={cat}>
+          {cat}: {val}
+        </div>
+      ))}
+
+      <h3>Recommendations</h3>
+      <ul>
+        {result.recommendations?.map((r: string, i: number) => (
+          <li key={i}>{r}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ==========================
+// 🎯 BONUS COMBINE
+// ==========================
+export function enrichResult(result: any, globalScores?: any) {
+  const churn = predictChurn(result.categoryScores);
+  const insights = generateInsights(result.categoryScores, result.risk);
+  const alerts = generateAlerts(result);
+
+  const benchmark = globalScores
+    ? calculateBenchmark(result.categoryScores, globalScores)
+    : null;
+
+  return {
+    ...result,
+    churn,
+    insights,
+    alerts,
+    benchmark,
+  };
+}
