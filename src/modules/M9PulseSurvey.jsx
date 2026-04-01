@@ -221,55 +221,103 @@ function ResponseHeatmap({ responses }) {
 }
 
 function SurveyPreview({ questions, anonymous }) {
-  const [answers,   setAnswers]   = useState({});
+  const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
+  const answeredCount = Object.keys(answers).length;
+  const progressPct = questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0;
+  const isComplete = questions.length > 0 && answeredCount === questions.length;
+
   if (submitted) return (
-    <div style={{ textAlign: "center", padding: "40px 20px" }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>Thank you!</div>
-      <div style={{ fontSize: 13, color: "#94a3b8" }}>Your response has been recorded {anonymous ? "anonymously" : ""}. It helps leadership make better decisions.</div>
+    <div style={{ textAlign: "center", padding: "60px 20px", animation: "slideIn 0.5s ease" }}>
+      <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+      <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 24, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Preview Complete!</div>
+      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>
+        This is how employees will see the success screen after submitting.
+      </div>
+      <button onClick={() => { setSubmitted(false); setAnswers({}); }} style={{ padding: "12px 24px", borderRadius: 12, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#0f172a", fontWeight: 700, cursor: "pointer" }}>
+        ↺ Restart Preview
+      </button>
+    </div>
+  );
+
+  if (questions.length === 0) return (
+    <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
+      <div style={{ fontSize: 32, marginBottom: 10 }}>🛠️</div>
+      <div style={{ fontSize: 13 }}>Please select questions in the Survey Builder first.</div>
     </div>
   );
 
   return (
-    <div>
+    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", textAlign: "left" }}>
+      
+      {/* Progress Bar Mini */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Progress: {progressPct}%</div>
+        <div style={{ flex: 1, height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ width: `${progressPct}%`, height: "100%", background: progressPct === 100 ? "#22c55e" : "#f59e0b", transition: "width 0.4s ease" }} />
+        </div>
+      </div>
+
       {anonymous && (
-        <div style={{ background: "#f0fdf4", borderRadius: 9, padding: "8px 14px", border: "1px solid #bbf7d0", marginBottom: 16, fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
-          🔒 Anonymous Mode — your identity is protected
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", color: "#16a34a", padding: "6px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, marginBottom: 20, border: "1px solid #bbf7d0" }}>
+          🔒 100% Anonymous Mode
         </div>
       )}
-      {questions.map((q) => (
-        <div key={q.id} style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #f1f5f9", marginBottom: 10 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
-            <span style={{ fontSize: 16 }}>{q.icon}</span>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{q.category}</div>
-              <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{q.text}</div>
-            </div>
-          </div>
-          {q.type === "scale" ? (
-            <div>
-              <input type="range" min={1} max={10} step={1} value={answers[q.id] || 5}
-                onChange={e => setAnswers(p => ({ ...p, [q.id]: Number(e.target.value) }))}
-                style={{ width: "100%", accentColor: "#f59e0b" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#94a3b8", marginTop: 2 }}>
-                <span>1 — Not at all</span>
-                <span style={{ fontWeight: 700, color: "#f59e0b" }}>{answers[q.id] || 5}/10</span>
-                <span>10 — Absolutely</span>
+
+      {!anonymous && (
+        <div style={{ background: "#fff", borderRadius: 12, padding: "16px", marginBottom: 20, border: "1px solid #f1f5f9", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Employee Name</label>
+          <input disabled placeholder="John Doe (Preview Mode)" style={{ width: "100%", padding: "12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, boxSizing: "border-box", background: "#f8fafc", color: "#94a3b8", cursor: "not-allowed" }} />
+        </div>
+      )}
+
+      {questions.map((q, idx) => {
+        const isAnswered = answers[q.id] !== undefined;
+        return (
+          <div key={q.id} style={{ background: "#fff", borderRadius: 16, padding: "24px", marginBottom: 20, border: isAnswered ? "1px solid #e2e8f0" : "1.5px solid #f59e0b", transition: "all 0.3s ease", opacity: isAnswered ? 0.8 : 1, boxShadow: isAnswered ? "none" : "0 4px 12px rgba(245,158,11,0.08)" }}>
+            <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0, border: "1px solid #f1f5f9" }}>
+                {q.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Q{idx + 1} • {q.category}</div>
+                <div style={{ fontSize: 15, color: "#0f172a", fontWeight: 700, lineHeight: 1.4 }}>{q.text}</div>
               </div>
             </div>
-          ) : (
-            <textarea rows={2} placeholder="Your response..."
-              value={answers[q.id] || ""}
-              onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))}
-              style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
-          )}
-        </div>
-      ))}
-      <button onClick={() => setSubmitted(true)}
-        style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", border: "none", borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
-        Submit Response →
+
+            {q.type === "scale" ? (
+              <div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "space-between" }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
+                    const selected = answers[q.id] === num;
+                    let activeBg = "#0f172a";
+                    if (num <= 3) activeBg = "#ef4444";
+                    else if (num >= 8) activeBg = "#22c55e";
+
+                    return (
+                      <button key={num} onClick={() => setAnswers(p => ({ ...p, [q.id]: num }))}
+                        style={{ flex: 1, minWidth: "24px", padding: "8px 0", borderRadius: 8, border: selected ? `1.5px solid ${activeBg}` : "1px solid #e2e8f0", background: selected ? `${activeBg}11` : "#fff", color: selected ? activeBg : "#64748b", fontSize: 13, fontWeight: 800, cursor: "pointer", transition: "all 0.2s", transform: selected ? "scale(1.05)" : "scale(1)" }}>
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94a3b8", marginTop: 8, fontWeight: 600 }}>
+                  <span>Not at all</span>
+                  <span>Absolutely</span>
+                </div>
+              </div>
+            ) : (
+              <textarea rows={3} placeholder="Type your thoughts here..." value={answers[q.id] || ""} onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+            )}
+          </div>
+        );
+      })}
+
+      <button onClick={() => setSubmitted(true)} disabled={!isComplete}
+        style={{ width: "100%", padding: "16px", background: isComplete ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "#e2e8f0", color: isComplete ? "#fff" : "#94a3b8", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: isComplete ? "pointer" : "not-allowed", transition: "all 0.3s ease", marginTop: 8 }}>
+        {isComplete ? "Test Submit Preview" : "Complete preview to submit"}
       </button>
     </div>
   );
