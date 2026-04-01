@@ -61,72 +61,101 @@ export const SURVEY_CONFIG = {
 };
 
 // ==========================
-// 🆔 UTIL: Generate ID
+// 🆔 UTIL: Generate ID (Enhanced)
 // ==========================
+/**
+ * Generate a unique ID with optional prefix and timestamp.
+ * @param {string} prefix - Prefix for the ID.
+ * @returns {string} Unique ID.
+ */
 export function generateId(prefix = "svy") {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // ==========================
 // 👤 USER CONTEXT (AUTO)
 // ==========================
-export function createUserContext({ userId = null, team = null, anonymous = true } = {}) {
+/**
+ * Create user context for a survey session.
+ * @param {Object} options - Configuration options.
+ * @param {string|null} options.userId - Optional user identifier.
+ * @param {string} options.team - Team name.
+ * @param {boolean} options.anonymous - Whether the survey is anonymous.
+ * @returns {Object} User context.
+ */
+export function createUserContext({ userId = null, team = "unknown", anonymous = true } = {}) {
   return {
     surveyId: generateId(),
     userId: anonymous ? null : userId,
-    team: team || "unknown",
+    team,
     anonymous,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   };
 }
 
 // ==========================
-// 🔀 QUESTION SELECTOR
+// 🔀 QUESTION SELECTOR (with caching)
 // ==========================
+let cachedQuestions = null;
+
+/**
+ * Select a random set of questions based on SURVEY_CONFIG.
+ * Uses caching to avoid recomputation for the same config.
+ * @param {Array} bank - Full question bank.
+ * @returns {Array} Selected questions.
+ */
 export function getQuestions(bank) {
-  const scaleQ = bank.filter(q => q.type === "scale");
-  const textQ  = bank.filter(q => q.type === "text");
+  const cacheKey = JSON.stringify(SURVEY_CONFIG);
+  if (cachedQuestions && cachedQuestions.key === cacheKey) {
+    return cachedQuestions.questions;
+  }
+
+  const scaleQ = bank.filter((q) => q.type === "scale");
+  const textQ = bank.filter((q) => q.type === "text");
 
   const scaleCount = Math.round(SURVEY_CONFIG.TOTAL_QUESTIONS * SURVEY_CONFIG.SCALE_RATIO);
-  const textCount  = SURVEY_CONFIG.TOTAL_QUESTIONS - scaleCount;
+  const textCount = SURVEY_CONFIG.TOTAL_QUESTIONS - scaleCount;
 
   function pickRandom(arr, n) {
+    if (n > arr.length) n = arr.length;
     return [...arr].sort(() => 0.5 - Math.random()).slice(0, n);
   }
 
+  let selected = [];
+
   if (!SURVEY_CONFIG.ENABLE_BALANCED) {
-    return [
-      ...pickRandom(scaleQ, scaleCount),
-      ...pickRandom(textQ, textCount)
-    ];
+    selected = [...pickRandom(scaleQ, scaleCount), ...pickRandom(textQ, textCount)];
+  } else {
+    // Balanced per category
+    const byCategory = {};
+    scaleQ.forEach((q) => {
+      if (!byCategory[q.category]) byCategory[q.category] = [];
+      byCategory[q.category].push(q);
+    });
+
+    const balanced = Object.values(byCategory).map((list) => list[Math.floor(Math.random() * list.length)]);
+    selected = [...pickRandom(balanced, scaleCount), ...pickRandom(textQ, textCount)];
   }
 
-  // Balanced per category
-  const byCategory = {};
-  scaleQ.forEach(q => {
-    if (!byCategory[q.category]) byCategory[q.category] = [];
-    byCategory[q.category].push(q);
-  });
-
-  const balanced = Object.values(byCategory)
-    .map(list => list[Math.floor(Math.random() * list.length)]);
-
-  return [
-    ...pickRandom(balanced, scaleCount),
-    ...pickRandom(textQ, textCount)
-  ].slice(0, SURVEY_CONFIG.TOTAL_QUESTIONS);
+  const result = selected.slice(0, SURVEY_CONFIG.TOTAL_QUESTIONS);
+  cachedQuestions = { key: cacheKey, questions: result };
+  return result;
 }
 
 // ==========================
-// 📊 SCORING
+// 📊 SCORING (Enhanced)
 // ==========================
+/**
+ * Calculate weighted average score for scale answers.
+ * @param {Array} answers - Array of answer objects { type, category, value }.
+ * @returns {number} Weighted score.
+ */
 export function calculateScore(answers) {
   let total = 0;
   let weightSum = 0;
 
-  answers.forEach(a => {
+  answers.forEach((a) => {
     if (a.type !== "scale") return;
-
     const weight = CATEGORY_WEIGHT[a.category] || 1;
     total += a.value * weight;
     weightSum += weight;
@@ -138,14 +167,19 @@ export function calculateScore(answers) {
 // ==========================
 // 🔥 RISK ANALYSIS (HR ONLY)
 // ==========================
+/**
+ * Analyze burnout risk from answers.
+ * @param {Array} answers - Array of answer objects.
+ * @returns {Object} Risk analysis.
+ */
 export function analyzeRisk(answers) {
   const result = {
     burnoutScore: null,
     riskLevel: "low",
-    flags: []
+    flags: [],
   };
 
-  const burnoutAnswers = answers.filter(a => a.category === "Burnout");
+  const burnoutAnswers = answers.filter((a) => a.category === "Burnout");
 
   if (burnoutAnswers.length > 0) {
     const avg = burnoutAnswers.reduce((sum, a) => sum + a.value, 0) / burnoutAnswers.length;
@@ -166,14 +200,284 @@ export function analyzeRisk(answers) {
 // ==========================
 // 🧠 MAIN PROCESSOR
 // ==========================
+/**
+ * Process the survey answers and return full report.
+ * @param {Object} params - Process parameters.
+ * @param {Array} params.answers - Survey answers.
+ * @param {Object} params.userContext - User context from createUserContext.
+ * @returns {Object} Processed survey result.
+ */
 export function processSurvey({ answers, userContext }) {
   const score = calculateScore(answers);
-  const risk  = analyzeRisk(answers);
+  const risk = analyzeRisk(answers);
 
   return {
     meta: userContext,
     score,
     risk,
-    submittedAt: new Date().toISOString()
+    submittedAt: new Date().toISOString(),
   };
+}
+
+// ==================================================
+// ✨ MASTERPIECE ADDITIONS (FITUR MODERN DI BAWAH INI)
+// ==================================================
+
+/**
+ * Calculate statistics for a set of scale answers.
+ * @param {Array} answers - Array of answer objects (scale only).
+ * @returns {Object|null} Statistics including mean, median, distribution.
+ */
+export function calculateStatistics(answers) {
+  const scaleAnswers = answers.filter((a) => a.type === "scale" && typeof a.value === "number");
+  if (scaleAnswers.length === 0) return null;
+
+  const values = scaleAnswers.map((a) => a.value).sort((a, b) => a - b);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / values.length;
+  const median =
+    values.length % 2 === 0
+      ? (values[values.length / 2 - 1] + values[values.length / 2]) / 2
+      : values[Math.floor(values.length / 2)];
+  const distribution = {};
+  values.forEach((v) => {
+    distribution[v] = (distribution[v] || 0) + 1;
+  });
+
+  return {
+    count: values.length,
+    mean: parseFloat(mean.toFixed(2)),
+    median,
+    min: values[0],
+    max: values[values.length - 1],
+    distribution,
+  };
+}
+
+/**
+ * Compute average score per category.
+ * @param {Array} answers - Array of answer objects.
+ * @returns {Object} Category scores { categoryName: score, ... }.
+ */
+export function getCategoryScores(answers) {
+  const categoryMap = new Map();
+
+  answers.forEach((a) => {
+    if (a.type !== "scale") return;
+    const cat = a.category;
+    if (!categoryMap.has(cat)) {
+      categoryMap.set(cat, { total: 0, count: 0 });
+    }
+    const entry = categoryMap.get(cat);
+    entry.total += a.value;
+    entry.count += 1;
+  });
+
+  const scores = {};
+  for (const [cat, { total, count }] of categoryMap.entries()) {
+    scores[cat] = parseFloat((total / count).toFixed(2));
+  }
+  return scores;
+}
+
+/**
+ * Generate actionable recommendations based on low category scores.
+ * @param {Object} categoryScores - Output from getCategoryScores.
+ * @param {number} threshold - Score below which to flag (default 3).
+ * @returns {Array} List of recommendation strings.
+ */
+export function generateRecommendations(categoryScores, threshold = 3) {
+  const recommendations = [];
+  const lowCategories = Object.entries(categoryScores).filter(([_, score]) => score < threshold);
+
+  const actionMap = {
+    Burnout: "🚨 Schedule 1-on-1 wellness check-ins. Encourage time-off.",
+    Workload: "⚖️ Review capacity planning and redistribute tasks.",
+    Recognition: "🏆 Implement peer shout-outs and manager recognition program.",
+    Management: "👤 Provide leadership training for managers.",
+    eNPS: "📣 Conduct stay interviews and improve engagement initiatives.",
+    Wellbeing: "⚖️ Promote flexible hours and mental health days.",
+    Safety: "🛡️ Run psychological safety workshops and anonymous feedback channels.",
+    Culture: "🤝 Organize team-building events and strengthen values.",
+    Tools: "🛠️ Audit tooling and software licenses; gather pain points.",
+    Autonomy: "🗝️ Encourage micro-decision making and reduce micro-management.",
+    Alignment: "🎯 Clarify OKRs and connect individual work to company goals.",
+    Confidence: "🚀 Share roadmap and financial health updates.",
+    Diversity: "🌍 Review DEI policies and create inclusive hiring practices.",
+    Growth: "🌱 Introduce learning budgets or mentorship programs.",
+    Retention: "⚓ Stay interviews and exit interview analysis.",
+    Communication: "📡 Improve cross-department communication channels.",
+    Clarity: "👓 Update role descriptions and regular expectation check-ins.",
+    Inclusion: "🌈 Foster ERGs and inclusive language training.",
+    Satisfaction: "😊 Conduct career path discussions.",
+    Collaboration: "🤝 Implement cross-functional projects and collaboration tools.",
+    Purpose: "🎯 Share customer impact stories and mission alignment.",
+    Support: "🙋 Encourage help-seeking culture and peer support systems.",
+    Meetings: "📅 Review meeting efficiency and implement no-meeting days.",
+    Compensation: "💰 Benchmark salaries and conduct pay equity audit.",
+  };
+
+  lowCategories.forEach(([cat]) => {
+    const recommendation = actionMap[cat] || `🔍 Investigate low score in ${cat} category.`;
+    recommendations.push(`${cat}: ${recommendation}`);
+  });
+
+  return recommendations;
+}
+
+/**
+ * Validate that all required questions have answers.
+ * @param {Array} answers - Provided answers.
+ * @param {Array} expectedQuestions - Questions that should be answered.
+ * @returns {Object} { valid: boolean, missing: Array }.
+ */
+export function validateAnswers(answers, expectedQuestions) {
+  const answeredIds = new Set(answers.map((a) => a.questionId));
+  const missing = expectedQuestions.filter((q) => !answeredIds.has(q.id));
+  return {
+    valid: missing.length === 0,
+    missing,
+  };
+}
+
+/**
+ * Save a survey result to localStorage for persistence.
+ * @param {string} surveyId - Unique survey ID.
+ * @param {Array} answers - Answers given.
+ * @param {Object} result - Processed result from processSurvey.
+ */
+export function saveSurveyToLocalStorage(surveyId, answers, result) {
+  const data = {
+    surveyId,
+    answers,
+    result,
+    savedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(`survey_${surveyId}`, JSON.stringify(data));
+}
+
+/**
+ * Load a survey from localStorage.
+ * @param {string} surveyId - Survey ID to load.
+ * @returns {Object|null} Stored data or null.
+ */
+export function loadSurveyFromLocalStorage(surveyId) {
+  const raw = localStorage.getItem(`survey_${surveyId}`);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Export survey data as JSON file download.
+ * @param {Object} data - Data to export (e.g., result, answers, etc.).
+ * @param {string} filename - Filename without extension.
+ */
+export function exportToJSON(data, filename = "survey_report") {
+  const jsonString = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonString], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Generate a form-friendly structure from selected questions.
+ * @param {Array} questions - Selected questions (from getQuestions).
+ * @returns {Object} Form schema with fields, validations, etc.
+ */
+export function createSurveyForm(questions) {
+  const fields = questions.map((q) => ({
+    id: q.id,
+    text: q.text,
+    type: q.type,
+    category: q.category,
+    icon: q.icon,
+    required: true,
+    ...(q.type === "scale" && {
+      min: 1,
+      max: 5,
+      step: 1,
+    }),
+  }));
+
+  return {
+    fields,
+    metadata: {
+      totalQuestions: questions.length,
+      scaleCount: questions.filter((q) => q.type === "scale").length,
+      textCount: questions.filter((q) => q.type === "text").length,
+    },
+  };
+}
+
+/**
+ * Simple event emitter for survey lifecycle hooks.
+ * Can be used to notify external systems when survey is completed.
+ */
+export class SurveyEventEmitter {
+  constructor() {
+    this.events = {};
+  }
+
+  on(event, listener) {
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(listener);
+  }
+
+  emit(event, data) {
+    if (!this.events[event]) return;
+    this.events[event].forEach((listener) => listener(data));
+  }
+
+  off(event, listener) {
+    if (!this.events[event]) return;
+    this.events[event] = this.events[event].filter((l) => l !== listener);
+  }
+}
+
+// Optional: Pre-create a global emitter instance
+export const surveyEmitter = new SurveyEventEmitter();
+
+/**
+ * Process survey and also emit event, optionally save to localStorage.
+ * @param {Object} params - Same as processSurvey plus options.
+ * @param {Array} params.answers - Answers.
+ * @param {Object} params.userContext - User context.
+ * @param {boolean} params.saveToLocal - If true, save to localStorage.
+ * @param {Array} params.expectedQuestions - For validation.
+ * @returns {Object} Processed result.
+ */
+export function processSurveyWithEnhancements({ answers, userContext, saveToLocal = false, expectedQuestions = null }) {
+  if (expectedQuestions) {
+    const validation = validateAnswers(answers, expectedQuestions);
+    if (!validation.valid) {
+      throw new Error(`Missing answers: ${validation.missing.map((q) => q.id).join(", ")}`);
+    }
+  }
+
+  const result = processSurvey({ answers, userContext });
+  const categoryScores = getCategoryScores(answers);
+  const recommendations = generateRecommendations(categoryScores);
+  const statistics = calculateStatistics(answers);
+
+  const enhancedResult = {
+    ...result,
+    categoryScores,
+    recommendations,
+    statistics,
+  };
+
+  if (saveToLocal) {
+    saveSurveyToLocalStorage(userContext.surveyId, answers, enhancedResult);
+  }
+
+  surveyEmitter.emit("surveyCompleted", enhancedResult);
+  return enhancedResult;
 }
