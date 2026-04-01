@@ -1,3 +1,8 @@
+import React, { useState } from "react";
+
+// ==========================
+// 🧠 QUESTION BANK (1-55 MERGED)
+// ==========================
 export const QUESTION_BANK = [
   { id: "q1",  text: "How manageable was your workload this week?",                  type: "scale", category: "Workload",      icon: "⚡" },
   { id: "q2",  text: "Do you feel recognized for your contributions?",               type: "scale", category: "Recognition",   icon: "🏆" },
@@ -38,51 +43,55 @@ export const QUESTION_BANK = [
   { id: "q37", text: "Do you feel meetings are productive and efficient?",             type: "scale", category: "Meetings",      icon: "📅" },
   { id: "q38", text: "How well does your manager communicate expectations?",           type: "scale", category: "Management",    icon: "🧭" },
   { id: "q39", text: "Do you feel there is a culture of accountability in your team?", type: "scale", category: "Culture",       icon: "📌" },
-  { id: "q40", text: "Is there anything else you would like to share?",                 type: "text",  category: "General",       icon: "🗨️" }
+  { id: "q40", text: "Is there anything else you would like to share?",                 type: "text",  category: "General",       icon: "🗨️" },
+  { id: "q41", text: "How effectively is AI/tools being integrated in your daily workflow?", type: "scale", category: "Innovation", icon: "🤖" },
+  { id: "q42", text: "Do you feel supported in hybrid/remote work arrangements?", type: "scale", category: "Wellbeing", icon: "🏠" },
+  { id: "q43", text: "How sustainable do you feel your current work pace is long-term?", type: "scale", category: "Burnout", icon: "🌱" },
+  { id: "q44", text: "Does the company demonstrate genuine commitment to environmental/social impact?", type: "scale", category: "Purpose", icon: "🌍" },
+  { id: "q45", text: "How comfortable are you with the pace of technological change here?", type: "scale", category: "Growth", icon: "⚡" },
+  { id: "q46", text: "Do you have access to mental health resources when needed?", type: "scale", category: "Wellbeing", icon: "🧠" },
+  { id: "q47", text: "How clear is the company's vision for the next 2-3 years?", type: "scale", category: "Confidence", icon: "🔮" },
+  { id: "q48", text: "What frustrates you most about our current tools/processes?", type: "text", category: "Tools", icon: "🔧" },
+  { id: "q49", text: "Have you received any training on new technologies this quarter?", type: "scale", category: "Growth", icon: "📚" },
+  { id: "q50", text: "Do you feel your voice is heard in company-wide decisions?", type: "scale", category: "Inclusion", icon: "🗣️" },
+  { id: "q51", text: "How would you rate the quality of cross-timezone collaboration?", type: "scale", category: "Collaboration", icon: "🌐" },
+  { id: "q52", text: "What's one process we should automate with AI next?", type: "text", category: "Innovation", icon: "💡" },
+  { id: "q53", text: "Do you feel the company supports your personal development goals?", type: "scale", category: "Career", icon: "🎯" },
+  { id: "q54", text: "How inclusive do you find our internal communication style?", type: "scale", category: "Culture", icon: "🌈" },
+  { id: "q55", text: "Anything else on your mind that we haven't covered?", type: "text", category: "General", icon: "🧩" }
 ];
 
 // ==========================
-// ⚙️ CONFIG
+// ⚙️ CONFIG (MERGED)
 // ==========================
 export const CATEGORY_WEIGHT = {
   Burnout: 2.0,
   Workload: 1.5,
-  Wellbeing: 2.0,
+  Wellbeing: 2.2,
   eNPS: 1.8,
   Management: 1.5,
   Culture: 1.2,
-  General: 1.0
+  General: 1.0,
+  Innovation: 1.6,
+  Purpose: 1.4,
 };
 
 export const SURVEY_CONFIG = {
-  TOTAL_QUESTIONS: 6,
-  SCALE_RATIO: 0.8, // 80% scale, 20% text
+  TOTAL_QUESTIONS: 8,
+  SCALE_RATIO: 0.8,
   ENABLE_BALANCED: true
 };
 
 // ==========================
-// 🆔 UTIL: Generate ID (Enhanced)
+// 🆔 UTIL: Generate ID
 // ==========================
-/**
- * Generate a unique ID with optional prefix and timestamp.
- * @param {string} prefix - Prefix for the ID.
- * @returns {string} Unique ID.
- */
 export function generateId(prefix = "svy") {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // ==========================
-// 👤 USER CONTEXT (AUTO)
+// 👤 USER CONTEXT
 // ==========================
-/**
- * Create user context for a survey session.
- * @param {Object} options - Configuration options.
- * @param {string|null} options.userId - Optional user identifier.
- * @param {string} options.team - Team name.
- * @param {boolean} options.anonymous - Whether the survey is anonymous.
- * @returns {Object} User context.
- */
 export function createUserContext({ userId = null, team = "unknown", anonymous = true } = {}) {
   return {
     surveyId: generateId(),
@@ -94,16 +103,10 @@ export function createUserContext({ userId = null, team = "unknown", anonymous =
 }
 
 // ==========================
-// 🔀 QUESTION SELECTOR (with caching)
+// 🔀 QUESTION SELECTOR (Cached)
 // ==========================
 let cachedQuestions = null;
 
-/**
- * Select a random set of questions based on SURVEY_CONFIG.
- * Uses caching to avoid recomputation for the same config.
- * @param {Array} bank - Full question bank.
- * @returns {Array} Selected questions.
- */
 export function getQuestions(bank) {
   const cacheKey = JSON.stringify(SURVEY_CONFIG);
   if (cachedQuestions && cachedQuestions.key === cacheKey) {
@@ -126,7 +129,6 @@ export function getQuestions(bank) {
   if (!SURVEY_CONFIG.ENABLE_BALANCED) {
     selected = [...pickRandom(scaleQ, scaleCount), ...pickRandom(textQ, textCount)];
   } else {
-    // Balanced per category
     const byCategory = {};
     scaleQ.forEach((q) => {
       if (!byCategory[q.category]) byCategory[q.category] = [];
@@ -143,13 +145,8 @@ export function getQuestions(bank) {
 }
 
 // ==========================
-// 📊 SCORING (Enhanced)
+// 📊 SCORING
 // ==========================
-/**
- * Calculate weighted average score for scale answers.
- * @param {Array} answers - Array of answer objects { type, category, value }.
- * @returns {number} Weighted score.
- */
 export function calculateScore(answers) {
   let total = 0;
   let weightSum = 0;
@@ -165,13 +162,8 @@ export function calculateScore(answers) {
 }
 
 // ==========================
-// 🔥 RISK ANALYSIS (HR ONLY)
+// 🔥 RISK ANALYSIS
 // ==========================
-/**
- * Analyze burnout risk from answers.
- * @param {Array} answers - Array of answer objects.
- * @returns {Object} Risk analysis.
- */
 export function analyzeRisk(answers) {
   const result = {
     burnoutScore: null,
@@ -200,13 +192,6 @@ export function analyzeRisk(answers) {
 // ==========================
 // 🧠 MAIN PROCESSOR
 // ==========================
-/**
- * Process the survey answers and return full report.
- * @param {Object} params - Process parameters.
- * @param {Array} params.answers - Survey answers.
- * @param {Object} params.userContext - User context from createUserContext.
- * @returns {Object} Processed survey result.
- */
 export function processSurvey({ answers, userContext }) {
   const score = calculateScore(answers);
   const risk = analyzeRisk(answers);
@@ -219,15 +204,9 @@ export function processSurvey({ answers, userContext }) {
   };
 }
 
-// ==================================================
-// ✨ MASTERPIECE ADDITIONS (FITUR MODERN DI BAWAH INI)
-// ==================================================
-
-/**
- * Calculate statistics for a set of scale answers.
- * @param {Array} answers - Array of answer objects (scale only).
- * @returns {Object|null} Statistics including mean, median, distribution.
- */
+// ==========================
+// ✨ STATISTICS & RECOMMENDATIONS
+// ==========================
 export function calculateStatistics(answers) {
   const scaleAnswers = answers.filter((a) => a.type === "scale" && typeof a.value === "number");
   if (scaleAnswers.length === 0) return null;
@@ -254,11 +233,6 @@ export function calculateStatistics(answers) {
   };
 }
 
-/**
- * Compute average score per category.
- * @param {Array} answers - Array of answer objects.
- * @returns {Object} Category scores { categoryName: score, ... }.
- */
 export function getCategoryScores(answers) {
   const categoryMap = new Map();
 
@@ -280,12 +254,6 @@ export function getCategoryScores(answers) {
   return scores;
 }
 
-/**
- * Generate actionable recommendations based on low category scores.
- * @param {Object} categoryScores - Output from getCategoryScores.
- * @param {number} threshold - Score below which to flag (default 3).
- * @returns {Array} List of recommendation strings.
- */
 export function generateRecommendations(categoryScores, threshold = 3) {
   const recommendations = [];
   const lowCategories = Object.entries(categoryScores).filter(([_, score]) => score < threshold);
@@ -325,12 +293,9 @@ export function generateRecommendations(categoryScores, threshold = 3) {
   return recommendations;
 }
 
-/**
- * Validate that all required questions have answers.
- * @param {Array} answers - Provided answers.
- * @param {Array} expectedQuestions - Questions that should be answered.
- * @returns {Object} { valid: boolean, missing: Array }.
- */
+// ==========================
+// 🛠️ VALIDATION & STORAGE
+// ==========================
 export function validateAnswers(answers, expectedQuestions) {
   const answeredIds = new Set(answers.map((a) => a.questionId));
   const missing = expectedQuestions.filter((q) => !answeredIds.has(q.id));
@@ -340,12 +305,6 @@ export function validateAnswers(answers, expectedQuestions) {
   };
 }
 
-/**
- * Save a survey result to localStorage for persistence.
- * @param {string} surveyId - Unique survey ID.
- * @param {Array} answers - Answers given.
- * @param {Object} result - Processed result from processSurvey.
- */
 export function saveSurveyToLocalStorage(surveyId, answers, result) {
   const data = {
     surveyId,
@@ -356,11 +315,6 @@ export function saveSurveyToLocalStorage(surveyId, answers, result) {
   localStorage.setItem(`survey_${surveyId}`, JSON.stringify(data));
 }
 
-/**
- * Load a survey from localStorage.
- * @param {string} surveyId - Survey ID to load.
- * @returns {Object|null} Stored data or null.
- */
 export function loadSurveyFromLocalStorage(surveyId) {
   const raw = localStorage.getItem(`survey_${surveyId}`);
   if (!raw) return null;
@@ -371,11 +325,6 @@ export function loadSurveyFromLocalStorage(surveyId) {
   }
 }
 
-/**
- * Export survey data as JSON file download.
- * @param {Object} data - Data to export (e.g., result, answers, etc.).
- * @param {string} filename - Filename without extension.
- */
 export function exportToJSON(data, filename = "survey_report") {
   const jsonString = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonString], { type: "application/json" });
@@ -387,11 +336,9 @@ export function exportToJSON(data, filename = "survey_report") {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Generate a form-friendly structure from selected questions.
- * @param {Array} questions - Selected questions (from getQuestions).
- * @returns {Object} Form schema with fields, validations, etc.
- */
+// ==========================
+// 📄 FORM BUILDER & EVENTS
+// ==========================
 export function createSurveyForm(questions) {
   const fields = questions.map((q) => ({
     id: q.id,
@@ -417,43 +364,26 @@ export function createSurveyForm(questions) {
   };
 }
 
-/**
- * Simple event emitter for survey lifecycle hooks.
- * Can be used to notify external systems when survey is completed.
- */
 export class SurveyEventEmitter {
   constructor() {
     this.events = {};
   }
-
   on(event, listener) {
     if (!this.events[event]) this.events[event] = [];
     this.events[event].push(listener);
   }
-
   emit(event, data) {
     if (!this.events[event]) return;
     this.events[event].forEach((listener) => listener(data));
   }
-
   off(event, listener) {
     if (!this.events[event]) return;
     this.events[event] = this.events[event].filter((l) => l !== listener);
   }
 }
 
-// Optional: Pre-create a global emitter instance
 export const surveyEmitter = new SurveyEventEmitter();
 
-/**
- * Process survey and also emit event, optionally save to localStorage.
- * @param {Object} params - Same as processSurvey plus options.
- * @param {Array} params.answers - Answers.
- * @param {Object} params.userContext - User context.
- * @param {boolean} params.saveToLocal - If true, save to localStorage.
- * @param {Array} params.expectedQuestions - For validation.
- * @returns {Object} Processed result.
- */
 export function processSurveyWithEnhancements({ answers, userContext, saveToLocal = false, expectedQuestions = null }) {
   if (expectedQuestions) {
     const validation = validateAnswers(answers, expectedQuestions);
@@ -482,48 +412,9 @@ export function processSurveyWithEnhancements({ answers, userContext, saveToLoca
   return enhancedResult;
 }
 
-// ==================================================
-// 🚀 MASTERPIECE UPGRADE 2026 — LEVEL UP EDITION (FULL)
-// ==================================================
-
-// ======================
-// 1. TAMBAHAN PERTANYAAN (q41 - q55)
-// ======================
-const ADDITIONAL_QUESTIONS = [
-  { id: "q41", text: "How effectively is AI/tools being integrated in your daily workflow?", type: "scale", category: "Innovation", icon: "🤖" },
-  { id: "q42", text: "Do you feel supported in hybrid/remote work arrangements?", type: "scale", category: "Wellbeing", icon: "🏠" },
-  { id: "q43", text: "How sustainable do you feel your current work pace is long-term?", type: "scale", category: "Burnout", icon: "🌱" },
-  { id: "q44", text: "Does the company demonstrate genuine commitment to environmental/social impact?", type: "scale", category: "Purpose", icon: "🌍" },
-  { id: "q45", text: "How comfortable are you with the pace of technological change here?", type: "scale", category: "Growth", icon: "⚡" },
-  { id: "q46", text: "Do you have access to mental health resources when needed?", type: "scale", category: "Wellbeing", icon: "🧠" },
-  { id: "q47", text: "How clear is the company's vision for the next 2-3 years?", type: "scale", category: "Confidence", icon: "🔮" },
-  { id: "q48", text: "What frustrates you most about our current tools/processes?", type: "text", category: "Tools", icon: "🔧" },
-  { id: "q49", text: "Have you received any training on new technologies this quarter?", type: "scale", category: "Growth", icon: "📚" },
-  { id: "q50", text: "Do you feel your voice is heard in company-wide decisions?", type: "scale", category: "Inclusion", icon: "🗣️" },
-  { id: "q51", text: "How would you rate the quality of cross-timezone collaboration?", type: "scale", category: "Collaboration", icon: "🌐" },
-  { id: "q52", text: "What's one process we should automate with AI next?", type: "text", category: "Innovation", icon: "💡" },
-  { id: "q53", text: "Do you feel the company supports your personal development goals?", type: "scale", category: "Career", icon: "🎯" },
-  { id: "q54", text: "How inclusive do you find our internal communication style?", type: "scale", category: "Culture", icon: "🌈" },
-  { id: "q55", text: "Anything else on your mind that we haven't covered?", type: "text", category: "General", icon: "🧩" }
-];
-
-// Merge ke QUESTION_BANK
-export const QUESTION_BANK = [
-  ...QUESTION_BANK,
-  ...ADDITIONAL_QUESTIONS
-];
-
-// Update weight
-export const CATEGORY_WEIGHT = {
-  ...CATEGORY_WEIGHT,
-  Innovation: 1.6,
-  Purpose: 1.4,
-  Wellbeing: 2.2,
-};
-
-// ======================
-// 2. UNIVERSAL STORAGE ADAPTER
-// ======================
+// ==========================
+// 💾 UNIVERSAL STORAGE ADAPTER
+// ==========================
 export class StorageAdapter {
   constructor(type = "local") {
     this.type = type;
@@ -554,9 +445,9 @@ export class StorageAdapter {
 
 export const storage = new StorageAdapter("local");
 
-// ======================
-// 3. SENTIMENT ANALYZER
-// ======================
+// ==========================
+// 📝 SENTIMENT ANALYZER
+// ==========================
 export function analyzeTextSentiment(answers) {
   const sentimentMap = {
     positive: ["great", "love", "awesome", "excellent", "amazing", "happy", "good", "fantastic", "proud"],
@@ -564,13 +455,13 @@ export function analyzeTextSentiment(answers) {
   };
 
   return answers
-    .filter(a => a.type === "text" && a.value)
-    .map(a => {
+    .filter((a) => a.type === "text" && a.value)
+    .map((a) => {
       const text = a.value.toLowerCase();
       let score = 0;
       let keywords = [];
-      sentimentMap.positive.forEach(w => { if (text.includes(w)) { score += 1; keywords.push(w); } });
-      sentimentMap.negative.forEach(w => { if (text.includes(w)) { score -= 1; keywords.push(w); } });
+      sentimentMap.positive.forEach((w) => { if (text.includes(w)) { score += 1; keywords.push(w); } });
+      sentimentMap.negative.forEach((w) => { if (text.includes(w)) { score -= 1; keywords.push(w); } });
 
       return {
         questionId: a.questionId,
@@ -582,14 +473,14 @@ export function analyzeTextSentiment(answers) {
     });
 }
 
-// ======================
-// 4. SMART ADAPTIVE SELECTOR
-// ======================
+// ==========================
+// 🧠 SMART ADAPTIVE SELECTOR
+// ==========================
 export function getAdaptiveQuestions(bank, previousSurveys = [], maxHistory = 3) {
   const lastSurveys = previousSurveys.slice(-maxHistory);
   const weakCategories = new Set();
 
-  lastSurveys.forEach(survey => {
+  lastSurveys.forEach((survey) => {
     const scores = getCategoryScores(survey.answers || survey);
     Object.entries(scores).forEach(([cat, score]) => {
       if (score < 3.2) weakCategories.add(cat);
@@ -597,11 +488,13 @@ export function getAdaptiveQuestions(bank, previousSurveys = [], maxHistory = 3)
   });
 
   let selected = [];
-  const scaleQ = bank.filter(q => q.type === "scale");
+  const scaleQ = bank.filter((q) => q.type === "scale");
 
   if (weakCategories.size > 0) {
-    const weakQs = scaleQ.filter(q => weakCategories.has(q.category));
-    selected.push(...pickRandom(weakQs, Math.min(3, weakCategories.size)));
+    const weakQs = scaleQ.filter((q) => weakCategories.has(q.category));
+    // custom inline pickRandom to avoid outer scope dependency
+    const rand = [...weakQs].sort(() => 0.5 - Math.random()).slice(0, Math.min(3, weakCategories.size));
+    selected.push(...rand);
   }
 
   const remaining = SURVEY_CONFIG.TOTAL_QUESTIONS - selected.length;
@@ -611,9 +504,9 @@ export function getAdaptiveQuestions(bank, previousSurveys = [], maxHistory = 3)
   return [...new Set(selected)];
 }
 
-// ======================
-// 5. SURVEY ENGINE CLASS (inti masterpiece)
-// ======================
+// ==========================
+// 🚀 SURVEY ENGINE CLASS
+// ==========================
 export class SurveyEngine {
   constructor(configOverrides = {}) {
     this.config = { ...SURVEY_CONFIG, ...configOverrides, ENABLE_ADAPTIVE: true };
@@ -678,8 +571,8 @@ export class SurveyEngine {
     if (!data) throw new Error("Survey not found");
     if (format === "csv") {
       const headers = ["questionId", "category", "type", "answer", "value"];
-      const rows = data.answers.map(a => [a.questionId, a.category, a.type, a.text || a.value, a.value || ""]);
-      const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+      const rows = data.answers.map((a) => [a.questionId, a.category, a.type, a.text || a.value, a.value || ""]);
+      const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -693,51 +586,11 @@ export class SurveyEngine {
 
 export const surveyEngine = new SurveyEngine({ TOTAL_QUESTIONS: 8 });
 
-// ======================================================
-// 🚀 FULL HR ANALYTICS ENGINE (TS + REACT READY)
-// ======================================================
-
-// ==========================
-// 🧾 TYPES
-// ==========================
-export type Answer = {
-  questionId: string;
-  type: "scale" | "text";
-  category: string;
-  value?: number;
-  text?: string;
-};
-
-export type SurveyResult = {
-  score: number;
-  categoryScores: Record<string, number>;
-  risk: {
-    burnoutScore: number | null;
-    riskLevel: "low" | "medium" | "high";
-  };
-};
-
-export type Trend = {
-  direction: "up" | "down" | "stable";
-  change: number;
-};
-
-export type CategoryTrend = Record<string, Trend>;
-
-export type ChurnResult = {
-  score: number;
-  risk: "low" | "medium" | "high";
-  reasons: string[];
-};
-
 // ==========================
 // 📈 CATEGORY TREND
 // ==========================
-export function calculateCategoryTrend(
-  current: Record<string, number>,
-  previous: Record<string, number>
-): CategoryTrend {
-  const trend: CategoryTrend = {};
+export function calculateCategoryTrend(current, previous) {
+  const trend = {};
 
   Object.keys(current).forEach((cat) => {
     const prev = previous[cat] ?? current[cat];
@@ -755,11 +608,8 @@ export function calculateCategoryTrend(
 // ==========================
 // 🔮 SMART INSIGHT
 // ==========================
-export function generateInsights(
-  scores: Record<string, number>,
-  risk: any
-): string[] {
-  const insights: string[] = [];
+export function generateInsights(scores, risk) {
+  const insights = [];
 
   if (scores.Burnout < 3 && scores.Workload < 3) {
     insights.push("⚠️ Employees likely experiencing overload and fatigue.");
@@ -787,11 +637,8 @@ export function generateInsights(
 // ==========================
 // 📊 BENCHMARK
 // ==========================
-export function calculateBenchmark(
-  teamScores: Record<string, number>,
-  globalScores: Record<string, number>
-) {
-  const result: Record<string, number> = {};
+export function calculateBenchmark(teamScores, globalScores) {
+  const result = {};
 
   Object.keys(teamScores).forEach((cat) => {
     const global = globalScores[cat] ?? teamScores[cat];
@@ -802,10 +649,10 @@ export function calculateBenchmark(
 }
 
 // ==========================
-// 🚨 ALERT
+// 🚨 ALERT & CHURN
 // ==========================
-export function generateAlerts(result: SurveyResult) {
-  const alerts: string[] = [];
+export function generateAlerts(result) {
+  const alerts = [];
 
   if (result.risk.riskLevel === "high") {
     alerts.push("🔥 Burnout risk critical");
@@ -822,12 +669,9 @@ export function generateAlerts(result: SurveyResult) {
   return alerts;
 }
 
-// ==========================
-// 🚨 CHURN PREDICTION
-// ==========================
-export function predictChurn(categoryScores: Record<string, number>): ChurnResult {
+export function predictChurn(categoryScores) {
   let riskScore = 0;
-  const reasons: string[] = [];
+  const reasons = [];
 
   if ((categoryScores.Burnout ?? 5) < 3) {
     riskScore += 2;
@@ -854,7 +698,7 @@ export function predictChurn(categoryScores: Record<string, number>): ChurnResul
     reasons.push("Lack of growth");
   }
 
-  let risk: "low" | "medium" | "high" = "low";
+  let risk = "low";
 
   if (riskScore >= 5) risk = "high";
   else if (riskScore >= 3) risk = "medium";
@@ -867,67 +711,47 @@ export function predictChurn(categoryScores: Record<string, number>): ChurnResul
 }
 
 // ==========================
-// 🏢 SAAS TYPES
-// ==========================
-export type Company = {
-  id: string;
-  name: string;
-  createdAt: string;
-};
-
-export type Team = {
-  id: string;
-  companyId: string;
-  name: string;
-};
-
-export type Employee = {
-  id: string;
-  companyId: string;
-  teamId: string;
-  name?: string;
-};
-
-// ==========================
 // 🗄️ SAAS STORAGE
 // ==========================
 export class SaaSStorage {
-  constructor(private storage: any) {}
+  constructor(storageAdapter) {
+    this.storage = storageAdapter;
+  }
 
-  saveSurvey(companyId: string, data: any) {
+  saveSurvey(companyId, data) {
     const key = `company_${companyId}_surveys`;
     const existing = this.storage.get(key) || [];
     existing.push(data);
     this.storage.set(key, existing);
   }
 
-  getCompanySurveys(companyId: string) {
+  getCompanySurveys(companyId) {
     return this.storage.get(`company_${companyId}_surveys`) || [];
   }
 
-  getTeamSurveys(companyId: string, teamId: string) {
+  getTeamSurveys(companyId, teamId) {
     const all = this.getCompanySurveys(companyId);
-    return all.filter((s: any) => s.meta.team === teamId);
+    return all.filter((s) => s.meta.team === teamId);
   }
 }
 
 // ==========================
-// 📊 AGGREGATION
+// 📊 AGGREGATION & INSIGHTS
 // ==========================
-export function aggregateScores(surveys: any[]) {
+export function aggregateScores(surveys) {
   if (!surveys.length) return {};
 
-  const totals: Record<string, number> = {};
-  const counts: Record<string, number> = {};
+  const totals = {};
+  const counts = {};
 
   surveys.forEach((s) => {
     Object.entries(s.categoryScores || {}).forEach(([cat, val]) => {
-      totals[cat] = (totals[cat] || 0) + (val as number);
+      totals[cat] = (totals[cat] || 0) + val;
       counts[cat] = (counts[cat] || 0) + 1;
     });
   });
 
-  const result: Record<string, number> = {};
+  const result = {};
   Object.keys(totals).forEach((cat) => {
     result[cat] = parseFloat((totals[cat] / counts[cat]).toFixed(2));
   });
@@ -935,15 +759,10 @@ export function aggregateScores(surveys: any[]) {
   return result;
 }
 
-// ==========================
-// 📈 COMPANY vs TEAM
-// ==========================
-export function getCompanyInsights(storage: SaaSStorage, companyId: string) {
-  const surveys = storage.getCompanySurveys(companyId);
-
+export function getCompanyInsights(saasStorage, companyId) {
+  const surveys = saasStorage.getCompanySurveys(companyId);
   const companyScore = aggregateScores(surveys);
-
-  const teams: Record<string, any[]> = {};
+  const teams = {};
 
   surveys.forEach((s) => {
     const team = s.meta.team || "unknown";
@@ -951,7 +770,7 @@ export function getCompanyInsights(storage: SaaSStorage, companyId: string) {
     teams[team].push(s);
   });
 
-  const teamInsights: Record<string, any> = {};
+  const teamInsights = {};
 
   Object.entries(teams).forEach(([team, data]) => {
     teamInsights[team] = aggregateScores(data);
@@ -963,66 +782,7 @@ export function getCompanyInsights(storage: SaaSStorage, companyId: string) {
   };
 }
 
-// ==========================
-// ⚛️ REACT HOOK
-// ==========================
-import { useState } from "react";
-
-export function useSurveyEngine(engine: any) {
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [result, setResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function start(userContext: any) {
-    setLoading(true);
-    const res = await engine.startSurvey(userContext);
-    setQuestions(res.questions);
-    setLoading(false);
-  }
-
-  async function submit(answers: any, userContext: any) {
-    setLoading(true);
-    const res = await engine.submit(answers, userContext);
-    setResult(res);
-    setLoading(false);
-  }
-
-  return { questions, result, loading, start, submit };
-}
-
-// ==========================
-// 📊 DASHBOARD
-// ==========================
-import React from "react";
-
-export function SurveyDashboard({ result }: any) {
-  if (!result) return <div>No data</div>;
-
-  return (
-    <div>
-      <h2>Score: {result.score}</h2>
-      <h3>Risk: {result.risk.riskLevel}</h3>
-
-      {Object.entries(result.categoryScores).map(([cat, val]) => (
-        <div key={cat}>
-          {cat}: {val}
-        </div>
-      ))}
-
-      <h3>Recommendations</h3>
-      <ul>
-        {result.recommendations?.map((r: string, i: number) => (
-          <li key={i}>{r}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ==========================
-// 🎯 BONUS COMBINE
-// ==========================
-export function enrichResult(result: any, globalScores?: any) {
+export function enrichResult(result, globalScores = null) {
   const churn = predictChurn(result.categoryScores);
   const insights = generateInsights(result.categoryScores, result.risk);
   const alerts = generateAlerts(result);
@@ -1038,4 +798,53 @@ export function enrichResult(result: any, globalScores?: any) {
     alerts,
     benchmark,
   };
+}
+
+// ==========================
+// ⚛️ REACT HOOKS & COMPONENTS
+// ==========================
+export function useSurveyEngine(engine) {
+  const [questions, setQuestions] = useState([]);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function start(userContext) {
+    setLoading(true);
+    const res = await engine.startSurvey(userContext);
+    setQuestions(res.questions);
+    setLoading(false);
+  }
+
+  async function submit(answers, userContext) {
+    setLoading(true);
+    const res = await engine.submit(answers, userContext);
+    setResult(res);
+    setLoading(false);
+  }
+
+  return { questions, result, loading, start, submit };
+}
+
+export function SurveyDashboard({ result }) {
+  if (!result) return <div>No data</div>;
+
+  return (
+    <div>
+      <h2>Score: {result.score}</h2>
+      <h3>Risk: {result.risk.riskLevel}</h3>
+
+      {Object.entries(result.categoryScores).map(([cat, val]) => (
+        <div key={cat}>
+          {cat}: {val}
+        </div>
+      ))}
+
+      <h3>Recommendations</h3>
+      <ul>
+        {result.recommendations?.map((r, i) => (
+          <li key={i}>{r}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
