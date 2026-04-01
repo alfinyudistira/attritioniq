@@ -396,10 +396,6 @@ function SampleBanner({ onHide }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// EMPTY STATE — shown when no data and showSample=false
-// ─────────────────────────────────────────────
-
 function M9EmptyState({ onShowSample }) {
   return (
     <div style={{
@@ -485,6 +481,23 @@ export default function M9PulseSurvey() {
   const [streamActive,    setStreamActive]    = useState(false);
   const streamRef = useRef(null);
     const [showDummyText, setShowDummyText] = useState(false);
+  const [localSurveys, setLocalSurveys] = useState([]);
+  useEffect(() => {
+    const loadRealData = () => {
+      const loaded = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("survey_")) {
+          try { loaded.push(JSON.parse(localStorage.getItem(key))); } catch (e) {}
+        }
+      }
+      setLocalSurveys(loaded.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)));
+    };
+    loadRealData();
+    window.addEventListener("focus", loadRealData);
+    return () => window.removeEventListener("focus", loadRealData);
+  }, [activeTab]);
+
 
   const hasUserData    = data.length > 0;
   const isUsingSample  = !hasUserData && showSample;
@@ -509,11 +522,20 @@ export default function M9PulseSurvey() {
   }, [hasUserData, latestOrgPulse, setPulseOverride]);
 
   const depts = useMemo(() => [...new Set(src.map(e => e.Department))], [src]);
-  const allResponses = useMemo(() => {
+    const allResponses = useMemo(() => {
     const raw = history.flatMap(w => w.textResponses || []);
-    if (hasUserData && !showDummyText) return [];
-    return raw;
-  }, [history, hasUserData, showDummyText]);
+    const dummy = (hasUserData && !showDummyText) ? [] : raw;
+    const realText = localSurveys.flatMap(s => {
+      if (!s.textSentiment) return [];
+      return s.textSentiment.map(ts => ({
+        dept: s.meta?.team || "Unknown",
+        text: ts.text,
+        sentiment: ts.sentiment
+      }));
+    });
+
+    return [...realText, ...dummy];
+  }, [history, hasUserData, showDummyText, localSurveys]);
 
   const deptScores = useMemo(() => {
     if (!current) return [];
