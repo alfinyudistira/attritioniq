@@ -14,6 +14,7 @@ import M7FatigueRadar from "./modules/M7FatigueRadar";
 import M8TalentMatch from "./modules/M8TalentMatch";
 import M9PulseSurvey from "./modules/M9PulseSurvey";
 import ComingSoon from "./modules/ComingSoon";
+import { QUESTION_BANK, surveyEngine, createUserContext } from "./utils/questionBank";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 const MODULES = [
@@ -106,6 +107,34 @@ useEffect(() => {
     setShowResetConfirm(false);
     setActive("m1");
   }, [resetWorkspace]);
+
+  const [surveyHash, setSurveyHash] = useState(() => {
+    const hash = window.location.hash;
+    return hash.startsWith("#survey") ? hash : null;
+  });
+
+  if (surveyHash) {
+    const params = new URLSearchParams(surveyHash.replace("#survey?", ""));
+    const dept = params.get("dept") || "General";
+    const questionIds = (params.get("q") || "").split(",").filter(Boolean);
+    const isAnon = params.get("anon") === "1";
+    const coName = params.get("co") || "Company";
+
+    const questions = QUESTION_BANK.filter(q => questionIds.includes(q.id));
+    
+    return (
+      <StandaloneSurvey 
+        dept={dept} 
+        questions={questions} 
+        anonymous={isAnon} 
+        companyName={coName}
+        onClose={() => {
+          window.location.hash = "";
+          setSurveyHash(null);
+        }}
+      />
+    );
+  }
 
   if (!company) return <CompanySetup onSave={setCompany} />;
 
@@ -503,14 +532,107 @@ useEffect(() => {
   );
 }
 
-// ── AppBridge — reads AppContext values that child Providers need as props ──
-// Must sit INSIDE AppProvider but OUTSIDE the Providers that need the values.
+function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) {
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [name, setName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const formattedAnswers = questions.map(q => ({
+      questionId: q.id,
+      type: q.type,
+      category: q.category,
+      value: q.type === "scale" ? (answers[q.id] || 5) : undefined,
+      text: q.type === "text" ? (answers[q.id] || "") : undefined,
+    }));
+
+    const context = createUserContext({ 
+      userId: anonymous ? null : (name || "Employee"), 
+      team: dept, 
+      anonymous 
+    });
+
+    await surveyEngine.submit(formattedAnswers, context, true);
+    
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setSubmitted(true);
+    }, 800);
+  };
+
+  if (submitted) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+      <div style={{ textAlign: "center", padding: "40px 32px", background: "#fff", borderRadius: 20, boxShadow: "0 20px 60px rgba(15,23,42,0.1)", maxWidth: 400 }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Response Recorded!</div>
+        <div style={{ fontSize: 14, color: "#64748b", marginBottom: 24, lineHeight: 1.5 }}>
+          Thank you. Your feedback will be processed by our Hiring Intelligence engine.
+        </div>
+        <button onClick={onClose} style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+          Back to App
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", padding: "40px 16px", fontFamily: "system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 500, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>Weekly Pulse Check</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{companyName} • {dept} Department</div>
+        </div>
+
+        {anonymous && (
+          <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 16px", border: "1px solid #bbf7d0", marginBottom: 20, fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+            🔒 Your identity is protected (Anonymous Mode)
+          </div>
+        )}
+
+        {!anonymous && (
+          <div style={{ background: "#fff", borderRadius: 14, padding: "16px", marginBottom: 16, border: "1px solid #e2e8f0" }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>EMPLOYEE NAME</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter your full name..." style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+          </div>
+        )}
+
+        {questions.map((q) => (
+          <div key={q.id} style={{ background: "#fff", borderRadius: 14, padding: "20px", border: "1px solid #e2e8f0", marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+              <span style={{ fontSize: 24 }}>{q.icon}</span>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>{q.category}</div>
+                <div style={{ fontSize: 15, color: "#1e293b", fontWeight: 600, lineHeight: 1.4 }}>{q.text}</div>
+              </div>
+            </div>
+            {q.type === "scale" ? (
+              <div>
+                <input type="range" min={1} max={10} step={1} value={answers[q.id] || 5} onChange={e => setAnswers(p => ({ ...p, [q.id]: Number(e.target.value) }))} style={{ width: "100%", accentColor: "#f59e0b" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>
+                  <span>1 - Poor</span>
+                  <span style={{ color: "#f59e0b", fontSize: 14, fontWeight: 800 }}>{answers[q.id] || 5}/10</span>
+                  <span>10 - Excellent</span>
+                </div>
+              </div>
+            ) : (
+              <textarea rows={3} placeholder="Type your feedback here..." value={answers[q.id] || ""} onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))} style={{ width: "100%", padding: "12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, resize: "vertical", boxSizing: "border-box" }} />
+            )}
+          </div>
+        ))}
+
+        <button onClick={handleSubmit} disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: isSubmitting ? "#94a3b8" : "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", border: "none", borderRadius: 14, fontSize: 15, fontWeight: 800, cursor: isSubmitting ? "not-allowed" : "pointer", marginTop: 8 }}>
+          {isSubmitting ? "Processing Data..." : "Submit Pulse Survey"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppBridge({ children }) {
   const { dataSessionId } = useDataSession();
-
-  // Guard: pastikan dataSessionId selalu string valid
-  // Kalau undefined/null sampai ke ModuleDataProvider,
-  // semua session check di ModuleDataContext akan skip
   const safeSessionId = dataSessionId || "default_session";
 
   return (
