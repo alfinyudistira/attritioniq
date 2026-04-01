@@ -833,7 +833,7 @@ export default function M9PulseSurvey() {
                 {liveStream.map((r, i) => {
                   const color = r.answer >= 7 ? "#22c55e" : r.answer >= 4 ? "#f59e0b" : "#ef4444";
                   return (
-                    <div key={r.id} style={{ background: "#f8fafc", borderRadius: 10, padding: "10px 14px", marginBottom: 8, border: `1.5px solid ${color}33` }}>
+                    <div key={r.id} style={{ background: "#f8fafc", borderRadius: 10, padding: "10px 14px", marginBottom: 8, border: `1.5px solid ${color}33`, animation: i === liveStream.length - 1 ? "none" : undefined}}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, boxShadow: `0 0 6px ${color}` }} />
