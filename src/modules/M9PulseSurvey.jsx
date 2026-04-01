@@ -3,25 +3,7 @@ import { useApp, useHRData } from "../context/AppContext";
 import { SAMPLE_DATA, SAMPLE_DATA_METADATA } from "../utils/sampleData";
 import { useModuleData } from "../context/ModuleDataContext";
 import { GaugeChart, SparklineChart } from "../components/Charts";
-
-// ─────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────
-
-const QUESTION_BANK = [
-  { id: "q1",  text: "How manageable was your workload this week?",                  type: "scale", category: "Workload",      icon: "⚡" },
-  { id: "q2",  text: "Do you feel recognized for your contributions?",              type: "scale", category: "Recognition",   icon: "🏆" },
-  { id: "q3",  text: "How supported do you feel by your manager?",                  type: "scale", category: "Management",    icon: "👤" },
-  { id: "q4",  text: "How likely are you to recommend this company as a workplace?",type: "scale", category: "eNPS",          icon: "📣" },
-  { id: "q5",  text: "Do you have clear visibility into your career growth path?",  type: "scale", category: "Career",        icon: "📈" },
-  { id: "q6",  text: "How balanced is your work-life this week?",                   type: "scale", category: "Wellbeing",     icon: "⚖️" },
-  { id: "q7",  text: "Do you feel psychologically safe to speak up?",               type: "scale", category: "Safety",        icon: "🛡️" },
-  { id: "q8",  text: "How connected do you feel to your team?",                     type: "scale", category: "Culture",       icon: "🤝" },
-  { id: "q9",  text: "Were there any blockers preventing you from doing great work?",type: "text", category: "Blockers",      icon: "🚧" },
-  { id: "q10", text: "What's one thing leadership could do better this week?",      type: "text",  category: "Feedback",      icon: "💬" },
-  { id: "q11", text: "How energized do you feel coming to work?",                   type: "scale", category: "Energy",        icon: "🔋" },
-  { id: "q12", text: "How fair do you feel your compensation is?",                  type: "scale", category: "Compensation",  icon: "💰" },
-];
+import { QUESTION_BANK } from "../utils/questionBank";
 
 const WORD_SENTIMENT = {
   negative: ["burnout","overload","underpaid","leaving","quit","stressed","exhausted","unmotivated","ignored","frustrated","blocker","heavy"],
@@ -36,10 +18,6 @@ const METRIC_LABELS = {
   recognition:  "Recognition",
 };
 
-// ─────────────────────────────────────────────
-// SEEDED RNG — deterministic, stable across renders
-// ─────────────────────────────────────────────
-
 function seededRand(seed) {
   let s = seed | 0;
   return () => {
@@ -47,13 +25,6 @@ function seededRand(seed) {
     return (s >>> 0) / 0x100000000;
   };
 }
-
-// ─────────────────────────────────────────────
-// PULSE HISTORY GENERATOR
-// Takes real employee data (or sample) and produces
-// 8 weeks of simulated pulse history.
-// NOTE: caller is responsible for passing the correct src.
-// ─────────────────────────────────────────────
 
 function generatePulseHistory(src) {
   const depts = [...new Set(src.map(e => e.Department))];
@@ -90,8 +61,6 @@ function generatePulseHistory(src) {
 
     const allScores = Object.values(deptData).map(d => d.pulseScore);
     const orgPulse  = allScores.length > 0 ? Math.round(allScores.reduce((s, v) => s + v, 0) / allScores.length) : 50;
-
-    // Hardcoded sample text responses — shown only when using sample data
     const textResponses =
       wi >= 5 ? [
         { dept: "Sales",            text: "The workload keeps increasing but the team size stays the same",          sentiment: "negative" },
@@ -111,10 +80,6 @@ function generatePulseHistory(src) {
     return { week, wi, deptData, orgPulse, textResponses };
   });
 }
-
-// ─────────────────────────────────────────────
-// AI INTERVENTION
-// ─────────────────────────────────────────────
 
 async function fetchAIIntervention(alert, company) {
   const prompt = `You are an HR intervention specialist at ${company?.name || "a company"}.
@@ -142,10 +107,6 @@ Under 180 words. Urgent, specific, no jargon. No bullet points.`;
   const data = await response.json();
   return data.content?.[0]?.text || data.text || data.response || "AI intervention unavailable.";
 }
-
-// ─────────────────────────────────────────────
-// WORD CLOUD
-// ─────────────────────────────────────────────
 
 function WordCloud({ responses }) {
   const freq = {};
@@ -190,10 +151,6 @@ function WordCloud({ responses }) {
     </svg>
   );
 }
-
-// ─────────────────────────────────────────────
-// RESPONSE HEATMAP
-// ─────────────────────────────────────────────
 
 function ResponseHeatmap({ responses }) {
   const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -263,10 +220,6 @@ function ResponseHeatmap({ responses }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// SURVEY PREVIEW (interactive mock for employees)
-// ─────────────────────────────────────────────
-
 function SurveyPreview({ questions, anonymous }) {
   const [answers,   setAnswers]   = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -322,10 +275,6 @@ function SurveyPreview({ questions, anonymous }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// BENCHMARK MULTI-LINE CHART
-// ─────────────────────────────────────────────
-
 function BenchmarkChart({ history, metric }) {
   if (!history || history.length < 2) return null;
   const depts = Object.keys(history[0]?.deptData || {});
@@ -359,11 +308,6 @@ function BenchmarkChart({ history, metric }) {
     </svg>
   );
 }
-
-// ─────────────────────────────────────────────
-// SAMPLE DATA BANNER — shown at top of every tab
-// when M9 is rendering simulated/sample data
-// ─────────────────────────────────────────────
 
 function SampleBanner({ onHide }) {
   return (
@@ -462,6 +406,14 @@ function M9EmptyState({ onShowSample }) {
 export default function M9PulseSurvey() {
   const { company, setPulseOverride, pushNotification } = useApp();
   const { data }                                        = useHRData();
+    const [copiedLink, setCopiedLink] = useState(null);
+
+  const handleCopyLink = useCallback((dept, link) => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedLink(dept);
+      setTimeout(() => setCopiedLink(null), 2000);
+    });
+  }, []);
   const { state: m9State, update: updateM9 }            = useModuleData("m9");
 
   // ── Persisted state (survives tab switches) ──
@@ -490,15 +442,10 @@ export default function M9PulseSurvey() {
   const [streamActive,    setStreamActive]    = useState(false);
   const streamRef = useRef(null);
 
-  // ── Data source resolution ──
-  // Priority: real CSV > showSample (explicit user choice) > nothing
   const hasUserData    = data.length > 0;
   const isUsingSample  = !hasUserData && showSample;
   const isEmpty        = !hasUserData && !showSample;
-  // src is the employee dataset used for pulse generation
   const src = hasUserData ? data : (showSample ? SAMPLE_DATA : []);
-
-  // ── Pulse history — only computed when src is non-empty ──
   const history = useMemo(
     () => src.length > 0 ? generatePulseHistory(src) : [],
     [src]
@@ -506,8 +453,6 @@ export default function M9PulseSurvey() {
   const current = history[history.length - 1];
   const prev    = history[history.length - 2];
 
-  // ── Sync latest pulse score → M1 KPI ──
-  // Only syncs when there's real user data to avoid polluting M1 with sample scores
   const latestOrgPulse = current?.orgPulse;
   useEffect(() => {
     if (!hasUserData || !current) return;
@@ -522,7 +467,6 @@ export default function M9PulseSurvey() {
   const depts = useMemo(() => [...new Set(src.map(e => e.Department))], [src]);
   const allResponses = useMemo(() => history.flatMap(w => w.textResponses), [history]);
 
-  // ── Dept pulse cards (sorted worst → best) ──
   const deptScores = useMemo(() => {
     if (!current) return [];
     return depts.map(dept => {
@@ -533,7 +477,6 @@ export default function M9PulseSurvey() {
     }).sort((a, b) => (a.pulseScore || 0) - (b.pulseScore || 0));
   }, [current, prev, depts]);
 
-  // ── Burnout early warning — 3-week consecutive decline ──
   const earlyWarnings = useMemo(() => {
     return depts.map(dept => {
       const scores   = history.slice(-4).map(w => Number(w.deptData[dept]?.pulseScore || 0));
@@ -543,7 +486,6 @@ export default function M9PulseSurvey() {
     }).filter(w => w.declining && w.drop3w > 5);
   }, [history, depts]);
 
-  // ── Live stream simulation ──
   const startStream = useCallback(() => {
     if (streamRef.current) clearInterval(streamRef.current);
     setStreamActive(true);
@@ -1070,21 +1012,38 @@ export default function M9PulseSurvey() {
             <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>🔗 Survey Link Generator</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {depts.map(dept => {
-                const link = `attritioniq.app/survey/${dept.toLowerCase().replace(/\s/g, "-")}/${(dept.charCodeAt(0) * 31 + selectedQuestions.length).toString(36)}`;
+                const surveyParams = new URLSearchParams({
+  dept: dept,
+  q: selectedQuestions.join(","),
+  anon: anonymous ? "1" : "0",
+  co: company?.name || "AttritionIQ",
+});
+const link = `${window.location.origin}${window.location.pathname}#survey?${surveyParams.toString()}`;
                 return (
                   <div key={dept} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: "1.5px solid #f1f5f9" }}>
                     <div style={{ fontWeight: 600, fontSize: 12, color: "#1e293b", marginBottom: 6 }}>{dept}</div>
                     <div style={{ fontSize: 10, color: "#94a3b8", background: "#fff", borderRadius: 7, padding: "6px 10px", border: "1px solid #e2e8f0", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {link}
                     </div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                      <div style={{ background: anonymous ? "#f0fdf4" : "#fef2f2", border: `1px solid ${anonymous ? "#bbf7d0" : "#fecaca"}`, borderRadius: 6, padding: "3px 8px", fontSize: 9, color: anonymous ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
-                        {anonymous ? "🔒 Anonymous" : "Named"}
-                      </div>
-                      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6, padding: "3px 8px", fontSize: 9, color: "#1d4ed8", fontWeight: 700 }}>
-                        {selectedQuestions.length}Q
-                      </div>
-                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+  <div style={{ background: anonymous ? "#f0fdf4" : "#fef2f2", border: `1px solid ${anonymous ? "#bbf7d0" : "#fecaca"}`, borderRadius: 6, padding: "3px 8px", fontSize: 9, color: anonymous ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
+    {anonymous ? "🔒 Anonymous" : "Named"}
+  </div>
+  <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6, padding: "3px 8px", fontSize: 9, color: "#1d4ed8", fontWeight: 700 }}>
+    {selectedQuestions.length}Q
+  </div>
+  <button
+    onClick={() => handleCopyLink(dept, link)}
+    style={{
+      marginLeft: "auto", background: copiedLink === dept ? "#f0fdf4" : "#f8fafc",
+      border: `1px solid ${copiedLink === dept ? "#bbf7d0" : "#e2e8f0"}`,
+      borderRadius: 6, padding: "3px 10px", fontSize: 9,
+      color: copiedLink === dept ? "#16a34a" : "#475569",
+      fontWeight: 700, cursor: "pointer",
+    }}>
+    {copiedLink === dept ? "✅ Copied!" : "📋 Copy Link"}
+  </button>
+</div>
                   </div>
                 );
               })}
