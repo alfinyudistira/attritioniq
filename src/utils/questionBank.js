@@ -481,3 +481,214 @@ export function processSurveyWithEnhancements({ answers, userContext, saveToLoca
   surveyEmitter.emit("surveyCompleted", enhancedResult);
   return enhancedResult;
 }
+
+// ==================================================
+// 🚀 MASTERPIECE UPGRADE 2026 — LEVEL UP EDITION (FULL)
+// ==================================================
+
+// ======================
+// 1. TAMBAHAN PERTANYAAN (q41 - q55)
+// ======================
+const ADDITIONAL_QUESTIONS = [
+  { id: "q41", text: "How effectively is AI/tools being integrated in your daily workflow?", type: "scale", category: "Innovation", icon: "🤖" },
+  { id: "q42", text: "Do you feel supported in hybrid/remote work arrangements?", type: "scale", category: "Wellbeing", icon: "🏠" },
+  { id: "q43", text: "How sustainable do you feel your current work pace is long-term?", type: "scale", category: "Burnout", icon: "🌱" },
+  { id: "q44", text: "Does the company demonstrate genuine commitment to environmental/social impact?", type: "scale", category: "Purpose", icon: "🌍" },
+  { id: "q45", text: "How comfortable are you with the pace of technological change here?", type: "scale", category: "Growth", icon: "⚡" },
+  { id: "q46", text: "Do you have access to mental health resources when needed?", type: "scale", category: "Wellbeing", icon: "🧠" },
+  { id: "q47", text: "How clear is the company's vision for the next 2-3 years?", type: "scale", category: "Confidence", icon: "🔮" },
+  { id: "q48", text: "What frustrates you most about our current tools/processes?", type: "text", category: "Tools", icon: "🔧" },
+  { id: "q49", text: "Have you received any training on new technologies this quarter?", type: "scale", category: "Growth", icon: "📚" },
+  { id: "q50", text: "Do you feel your voice is heard in company-wide decisions?", type: "scale", category: "Inclusion", icon: "🗣️" },
+  { id: "q51", text: "How would you rate the quality of cross-timezone collaboration?", type: "scale", category: "Collaboration", icon: "🌐" },
+  { id: "q52", text: "What's one process we should automate with AI next?", type: "text", category: "Innovation", icon: "💡" },
+  { id: "q53", text: "Do you feel the company supports your personal development goals?", type: "scale", category: "Career", icon: "🎯" },
+  { id: "q54", text: "How inclusive do you find our internal communication style?", type: "scale", category: "Culture", icon: "🌈" },
+  { id: "q55", text: "Anything else on your mind that we haven't covered?", type: "text", category: "General", icon: "🧩" }
+];
+
+// Merge ke QUESTION_BANK
+export const QUESTION_BANK = [
+  ...QUESTION_BANK,
+  ...ADDITIONAL_QUESTIONS
+];
+
+// Update weight
+export const CATEGORY_WEIGHT = {
+  ...CATEGORY_WEIGHT,
+  Innovation: 1.6,
+  Purpose: 1.4,
+  Wellbeing: 2.2,
+};
+
+// ======================
+// 2. UNIVERSAL STORAGE ADAPTER
+// ======================
+export class StorageAdapter {
+  constructor(type = "local") {
+    this.type = type;
+    this.isBrowser = typeof window !== "undefined";
+    if (this.type === "memory") this._memory = new Map();
+  }
+
+  set(key, value) {
+    const data = JSON.stringify(value);
+    if (this.type === "local" && this.isBrowser) localStorage.setItem(key, data);
+    else if (this.type === "session" && this.isBrowser) sessionStorage.setItem(key, data);
+    else if (this.type === "memory") this._memory.set(key, value);
+  }
+
+  get(key) {
+    if (this.type === "local" && this.isBrowser) {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    }
+    if (this.type === "session" && this.isBrowser) {
+      const raw = sessionStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    }
+    if (this.type === "memory") return this._memory.get(key);
+    return null;
+  }
+}
+
+export const storage = new StorageAdapter("local");
+
+// ======================
+// 3. SENTIMENT ANALYZER
+// ======================
+export function analyzeTextSentiment(answers) {
+  const sentimentMap = {
+    positive: ["great", "love", "awesome", "excellent", "amazing", "happy", "good", "fantastic", "proud"],
+    negative: ["frustrated", "bad", "poor", "terrible", "overwhelmed", "hate", "annoying", "stress", "burnout"]
+  };
+
+  return answers
+    .filter(a => a.type === "text" && a.value)
+    .map(a => {
+      const text = a.value.toLowerCase();
+      let score = 0;
+      let keywords = [];
+      sentimentMap.positive.forEach(w => { if (text.includes(w)) { score += 1; keywords.push(w); } });
+      sentimentMap.negative.forEach(w => { if (text.includes(w)) { score -= 1; keywords.push(w); } });
+
+      return {
+        questionId: a.questionId,
+        text: a.value,
+        sentiment: score > 0 ? "positive" : score < 0 ? "negative" : "neutral",
+        score,
+        keywords: [...new Set(keywords)]
+      };
+    });
+}
+
+// ======================
+// 4. SMART ADAPTIVE SELECTOR
+// ======================
+export function getAdaptiveQuestions(bank, previousSurveys = [], maxHistory = 3) {
+  const lastSurveys = previousSurveys.slice(-maxHistory);
+  const weakCategories = new Set();
+
+  lastSurveys.forEach(survey => {
+    const scores = getCategoryScores(survey.answers || survey);
+    Object.entries(scores).forEach(([cat, score]) => {
+      if (score < 3.2) weakCategories.add(cat);
+    });
+  });
+
+  let selected = [];
+  const scaleQ = bank.filter(q => q.type === "scale");
+
+  if (weakCategories.size > 0) {
+    const weakQs = scaleQ.filter(q => weakCategories.has(q.category));
+    selected.push(...pickRandom(weakQs, Math.min(3, weakCategories.size)));
+  }
+
+  const remaining = SURVEY_CONFIG.TOTAL_QUESTIONS - selected.length;
+  const balancedRest = getQuestions(bank).slice(0, remaining);
+
+  selected = [...selected, ...balancedRest].slice(0, SURVEY_CONFIG.TOTAL_QUESTIONS);
+  return [...new Set(selected)];
+}
+
+// ======================
+// 5. SURVEY ENGINE CLASS (inti masterpiece)
+// ======================
+export class SurveyEngine {
+  constructor(configOverrides = {}) {
+    this.config = { ...SURVEY_CONFIG, ...configOverrides, ENABLE_ADAPTIVE: true };
+    this.storage = storage;
+    this.emitter = surveyEmitter;
+  }
+
+  async startSurvey(userContext) {
+    const previous = this.storage.get(`user_history_${userContext.userId || "anonymous"}`) || [];
+    const questions = this.config.ENABLE_ADAPTIVE && previous.length > 0
+      ? getAdaptiveQuestions(QUESTION_BANK, previous)
+      : getQuestions(QUESTION_BANK);
+
+    return {
+      questions,
+      formSchema: createSurveyForm(questions),
+      userContext
+    };
+  }
+
+  async submit(answers, userContext, save = true) {
+    const enhanced = processSurveyWithEnhancements({
+      answers,
+      userContext,
+      saveToLocal: false,
+      expectedQuestions: []
+    });
+
+    const textSentiment = analyzeTextSentiment(answers);
+    const previousSurveys = this.storage.get(`user_history_${userContext.userId || "anonymous"}`) || [];
+
+    const finalResult = {
+      ...enhanced,
+      textSentiment,
+      trend: previousSurveys.length > 1 ? this._calculateTrend(enhanced.score, previousSurveys) : null
+    };
+
+    if (save) {
+      this.storage.set(`survey_${userContext.surveyId}`, finalResult);
+      const historyKey = `user_history_${userContext.userId || "anonymous"}`;
+      const history = this.storage.get(historyKey) || [];
+      history.push({ surveyId: userContext.surveyId, score: enhanced.score, submittedAt: finalResult.submittedAt });
+      this.storage.set(historyKey, history.slice(-10));
+    }
+
+    this.emitter.emit("surveyCompleted", finalResult);
+    return finalResult;
+  }
+
+  _calculateTrend(currentScore, previous) {
+    const lastScore = previous[previous.length - 1].score;
+    const change = currentScore - lastScore;
+    return {
+      direction: change > 0 ? "up" : change < 0 ? "down" : "stable",
+      change: parseFloat(change.toFixed(2)),
+      lastScore
+    };
+  }
+
+  exportReport(surveyId, format = "json") {
+    const data = this.storage.get(`survey_${surveyId}`);
+    if (!data) throw new Error("Survey not found");
+    if (format === "csv") {
+      const headers = ["questionId", "category", "type", "answer", "value"];
+      const rows = data.answers.map(a => [a.questionId, a.category, a.type, a.text || a.value, a.value || ""]);
+      const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `survey_${surveyId}.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      exportToJSON(data, `survey_report_${surveyId}`);
+    }
+  }
+}
+
+export const surveyEngine = new SurveyEngine({ TOTAL_QUESTIONS: 8 });
