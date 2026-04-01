@@ -532,11 +532,17 @@ useEffect(() => {
   );
 }
 
+// ── 2. UI STANDALONE SURVEY (PREMIUM SAAS GRADE) ──
 function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Menghitung progress pengisian survei
+  const answeredCount = Object.keys(answers).length;
+  const progressPct = Math.round((answeredCount / questions.length) * 100);
+  const isComplete = answeredCount === questions.length;
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -554,6 +560,7 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
       anonymous 
     });
 
+    // Submit ke Mesin Analitik
     await surveyEngine.submit(formattedAnswers, context, true);
     
     setTimeout(() => {
@@ -562,70 +569,133 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
     }, 800);
   };
 
+  // TAMPILAN SUCCESS (SETELAH SUBMIT)
   if (submitted) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
-      <div style={{ textAlign: "center", padding: "40px 32px", background: "#fff", borderRadius: 20, boxShadow: "0 20px 60px rgba(15,23,42,0.1)", maxWidth: 400 }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Response Recorded!</div>
-        <div style={{ fontSize: 14, color: "#64748b", marginBottom: 24, lineHeight: 1.5 }}>
-          Thank you. Your feedback will be processed by our Hiring Intelligence engine.
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: 20 }}>
+      <div style={{ textAlign: "center", padding: "50px 40px", background: "#fff", borderRadius: 24, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.1)", maxWidth: 440, width: "100%", animation: "slideIn 0.5s ease" }}>
+        <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
+        <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 28, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>You're all set!</div>
+        <div style={{ fontSize: 15, color: "#64748b", marginBottom: 32, lineHeight: 1.6 }}>
+          Thank you for sharing your voice. Your feedback goes directly into our Hiring Intelligence engine to build a better workplace.
         </div>
-        <button onClick={onClose} style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-          Back to App
+        <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", background: "#0f172a", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "transform 0.2s" }}>
+          Close Page
         </button>
       </div>
     </div>
   );
 
+  // TAMPILAN FORM SURVEI
   return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9", padding: "40px 16px", fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ maxWidth: 500, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>Weekly Pulse Check</div>
-          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{companyName} • {dept} Department</div>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "0 0 60px 0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      
+      {/* Top Navigation & Progress Bar */}
+      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #f1f5f9", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>⚡</span>
+          Pulse Check
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>{progressPct}%</div>
+          <div style={{ width: 100, height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ width: `${progressPct}%`, height: "100%", background: progressPct === 100 ? "#22c55e" : "#f59e0b", transition: "width 0.4s ease" }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px" }}>
+        
+        {/* Header Section */}
+        <div style={{ marginBottom: 40, textAlign: "center" }}>
+          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 32, fontWeight: 800, color: "#0f172a", marginBottom: 10 }}>
+            {companyName}
+          </div>
+          <div style={{ fontSize: 15, color: "#64748b", fontWeight: 500 }}>
+            {dept} Department • Takes ~2 mins
+          </div>
+          {anonymous && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", color: "#16a34a", padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, marginTop: 16, border: "1px solid #bbf7d0" }}>
+              🔒 100% Anonymous Mode
+            </div>
+          )}
         </div>
 
-        {anonymous && (
-          <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 16px", border: "1px solid #bbf7d0", marginBottom: 20, fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
-            🔒 Your identity is protected (Anonymous Mode)
-          </div>
-        )}
-
+        {/* Input Nama (Jika tidak anonim) */}
         {!anonymous && (
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px", marginBottom: 16, border: "1px solid #e2e8f0" }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>EMPLOYEE NAME</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter your full name..." style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+          <div style={{ background: "#fff", borderRadius: 16, padding: "24px", marginBottom: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9" }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Your Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Type your full name here..." style={{ width: "100%", padding: "16px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 15, boxSizing: "border-box", outline: "none", transition: "border 0.2s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
           </div>
         )}
 
-        {questions.map((q) => (
-          <div key={q.id} style={{ background: "#fff", borderRadius: 14, padding: "20px", border: "1px solid #e2e8f0", marginBottom: 16 }}>
-            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-              <span style={{ fontSize: 24 }}>{q.icon}</span>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>{q.category}</div>
-                <div style={{ fontSize: 15, color: "#1e293b", fontWeight: 600, lineHeight: 1.4 }}>{q.text}</div>
-              </div>
-            </div>
-            {q.type === "scale" ? (
-              <div>
-                <input type="range" min={1} max={10} step={1} value={answers[q.id] || 5} onChange={e => setAnswers(p => ({ ...p, [q.id]: Number(e.target.value) }))} style={{ width: "100%", accentColor: "#f59e0b" }} />
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginTop: 6, fontWeight: 600 }}>
-                  <span>1 - Poor</span>
-                  <span style={{ color: "#f59e0b", fontSize: 14, fontWeight: 800 }}>{answers[q.id] || 5}/10</span>
-                  <span>10 - Excellent</span>
+        {/* List Pertanyaan (SaaS Grade) */}
+        {questions.map((q, idx) => {
+          const isAnswered = answers[q.id] !== undefined;
+          return (
+            <div key={q.id} style={{ background: "#fff", borderRadius: 20, padding: "32px 28px", marginBottom: 24, boxShadow: isAnswered ? "none" : "0 10px 25px -5px rgba(0,0,0,0.05)", border: isAnswered ? "1px solid #e2e8f0" : "1.5px solid #f59e0b", transition: "all 0.3s ease", opacity: isAnswered ? 0.7 : 1 }}>
+              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, border: "1px solid #f1f5f9" }}>
+                  {q.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+                    Q{idx + 1} • {q.category}
+                  </div>
+                  <div style={{ fontSize: 18, color: "#0f172a", fontWeight: 700, lineHeight: 1.4 }}>
+                    {q.text}
+                  </div>
                 </div>
               </div>
-            ) : (
-              <textarea rows={3} placeholder="Type your feedback here..." value={answers[q.id] || ""} onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))} style={{ width: "100%", padding: "12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, resize: "vertical", boxSizing: "border-box" }} />
-            )}
-          </div>
-        ))}
 
-        <button onClick={handleSubmit} disabled={isSubmitting} style={{ width: "100%", padding: "16px", background: isSubmitting ? "#94a3b8" : "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", border: "none", borderRadius: 14, fontSize: 15, fontWeight: 800, cursor: isSubmitting ? "not-allowed" : "pointer", marginTop: 8 }}>
-          {isSubmitting ? "Processing Data..." : "Submit Pulse Survey"}
-        </button>
+              {/* Segmented Control 1-10 (Pengganti Slider) */}
+              {q.type === "scale" ? (
+                <div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "space-between" }}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
+                      const selected = answers[q.id] === num;
+                      // Gradasi warna: Merah (1-3), Kuning (4-7), Hijau (8-10)
+                      let activeBg = "#0f172a";
+                      if (num <= 3) activeBg = "#ef4444";
+                      else if (num >= 8) activeBg = "#22c55e";
+
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => setAnswers(p => ({ ...p, [q.id]: num }))}
+                          style={{
+                            flex: 1, minWidth: "30px", padding: "12px 0", borderRadius: 10,
+                            border: selected ? `2px solid ${activeBg}` : "1.5px solid #e2e8f0",
+                            background: selected ? `${activeBg}11` : "#fff",
+                            color: selected ? activeBg : "#64748b",
+                            fontSize: 15, fontWeight: 800, cursor: "pointer",
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                            transform: selected ? "scale(1.05)" : "scale(1)"
+                          }}
+                        >
+                          {num}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8", marginTop: 12, fontWeight: 600 }}>
+                    <span>Not at all</span>
+                    <span>Absolutely</span>
+                  </div>
+                </div>
+              ) : (
+                <textarea rows={4} placeholder="Type your thoughts here..." value={answers[q.id] || ""} onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))} style={{ width: "100%", padding: "16px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 15, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", outline: "none" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
+              )}
+            </div>
+          );
+        })}
+
+        {/* Action Button */}
+        <div style={{ marginTop: 32 }}>
+          <button onClick={handleSubmit} disabled={isSubmitting || !isComplete} style={{ width: "100%", padding: "20px", background: isComplete ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "#e2e8f0", color: isComplete ? "#fff" : "#94a3b8", border: "none", borderRadius: 16, fontSize: 16, fontWeight: 800, cursor: isComplete ? "pointer" : "not-allowed", transition: "all 0.3s ease", boxShadow: isComplete ? "0 10px 25px -5px rgba(245,158,11,0.4)" : "none" }}>
+            {isSubmitting ? "Processing Data..." : isComplete ? "Submit Pulse Survey" : "Please answer all questions"}
+          </button>
+        </div>
+
       </div>
     </div>
   );
