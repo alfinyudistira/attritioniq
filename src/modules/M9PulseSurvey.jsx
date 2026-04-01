@@ -415,15 +415,12 @@ export default function M9PulseSurvey() {
     });
   }, []);
   const { state: m9State, update: updateM9 }            = useModuleData("m9");
-
-  // ── Persisted state (survives tab switches) ──
   const activeTab         = m9State.activeTab         || "dashboard";
   const anonymous         = m9State.anonymous         ?? true;
   const selectedQuestions = m9State.selectedQuestions || QUESTION_BANK.slice(0, 4).map(q => q.id);
   const selectedDept      = m9State.selectedDept      || "All";
   const benchmarkMetric   = m9State.benchmarkMetric   || "pulseScore";
   const showWarnings      = m9State.showWarnings      ?? false;
-  // NEW: explicit sample visibility control
   const showSample        = m9State.showSample        ?? false;
 
   const setActiveTab         = useCallback((v) => updateM9({ activeTab: v }),                                                              [updateM9]);
@@ -433,14 +430,13 @@ export default function M9PulseSurvey() {
   const setBenchmarkMetric   = useCallback((v) => updateM9({ benchmarkMetric: v }),                                                        [updateM9]);
   const setShowWarnings      = useCallback((v) => updateM9({ showWarnings: typeof v === "function" ? v(showWarnings) : v }),               [showWarnings, updateM9]);
   const setShowSample        = useCallback((v) => updateM9({ showSample: v }),                                                             [updateM9]);
-
-  // ── Transient (local) state ──
   const [alertDept,       setAlertDept]       = useState(null);
   const [aiIntervention,  setAiIntervention]  = useState({});
   const [aiLoading,       setAiLoading]       = useState({});
   const [liveStream,      setLiveStream]      = useState([]);
   const [streamActive,    setStreamActive]    = useState(false);
   const streamRef = useRef(null);
+    const [showDummyText, setShowDummyText] = useState(false);
 
   const hasUserData    = data.length > 0;
   const isUsingSample  = !hasUserData && showSample;
@@ -465,7 +461,11 @@ export default function M9PulseSurvey() {
   }, [hasUserData, latestOrgPulse, setPulseOverride]);
 
   const depts = useMemo(() => [...new Set(src.map(e => e.Department))], [src]);
-  const allResponses = useMemo(() => history.flatMap(w => w.textResponses), [history]);
+  const allResponses = useMemo(() => {
+    const raw = history.flatMap(w => w.textResponses || []);
+    if (hasUserData && !showDummyText) return [];
+    return raw;
+  }, [history, hasUserData, showDummyText]);
 
   const deptScores = useMemo(() => {
     if (!current) return [];
@@ -926,14 +926,20 @@ export default function M9PulseSurvey() {
       {activeTab === "wordcloud" && (
         <div>
           <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>☁️ Voice of Employee Word Cloud</div>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
                   Extracted from {allResponses.length} text responses · Red = negative · Green = positive
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                {hasUserData && (
+                  <button onClick={() => setShowDummyText(!showDummyText)}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: showDummyText ? "#f8fafc" : "#fff", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer", marginRight: 8 }}>
+                    {showDummyText ? "🙈 Hide Sample Text" : "👁️ View Sample Text"}
+                  </button>
+                )}
                 {["All", ...depts].map(d => (
                   <button key={d} onClick={() => setSelectedDept(d)}
                     style={{ padding: "4px 10px", borderRadius: 16, border: "none", cursor: "pointer", fontSize: 11, background: selectedDept === d ? "#f59e0b" : "#f1f5f9", color: selectedDept === d ? "#fff" : "#64748b", fontWeight: selectedDept === d ? 700 : 500 }}>
@@ -943,28 +949,47 @@ export default function M9PulseSurvey() {
               </div>
             </div>
 
-            <div style={{ background: "#f8fafc", borderRadius: 12, padding: "20px", border: "1.5px solid #f1f5f9" }}>
-              <WordCloud responses={selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)} />
-            </div>
+            {/* Jika kosong (belum ada respons atau mode hide) */}
+            {allResponses.length === 0 ? (
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: "40px 20px", border: "1.5px dashed #cbd5e1", textAlign: "center" }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>☁️</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>Empty Keyword Cloud</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
+                  Keywords are generated from survey text responses. No responses available yet.
+                </div>
+                {hasUserData && (
+                  <button onClick={() => setShowDummyText(true)}
+                    style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
+                    👁️ View Sample Data
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: "20px", border: "1.5px solid #f1f5f9" }}>
+                <WordCloud responses={selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)} />
+              </div>
+            )}
           </div>
 
-          {/* Raw text responses */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Raw Text Responses</div>
-            {(selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)).map((r, i) => {
-              const color = r.sentiment === "positive" ? "#22c55e" : r.sentiment === "negative" ? "#ef4444" : "#f59e0b";
-              const bg    = r.sentiment === "positive" ? "#f0fdf4" : r.sentiment === "negative" ? "#fef2f2" : "#fffbeb";
-              return (
-                <div key={`${r.dept}-resp-${i}`} style={{ background: bg, borderRadius: 9, padding: "10px 14px", border: `1px solid ${color}33`, marginBottom: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>{r.dept}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: "capitalize" }}>{r.sentiment}</span>
+          {/* Raw text responses - Hanya muncul kalau ada datanya */}
+          {allResponses.length > 0 && (
+            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Raw Text Responses</div>
+              {(selectedDept === "All" ? allResponses : allResponses.filter(r => r.dept === selectedDept)).map((r, i) => {
+                const color = r.sentiment === "positive" ? "#22c55e" : r.sentiment === "negative" ? "#ef4444" : "#f59e0b";
+                const bg    = r.sentiment === "positive" ? "#f0fdf4" : r.sentiment === "negative" ? "#fef2f2" : "#fffbeb";
+                return (
+                  <div key={`${r.dept}-resp-${i}`} style={{ background: bg, borderRadius: 9, padding: "10px 14px", border: `1px solid ${color}33`, marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>{r.dept}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: "capitalize" }}>{r.sentiment}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.5, fontStyle: "italic" }}>"{r.text}"</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.5, fontStyle: "italic" }}>"{r.text}"</div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
