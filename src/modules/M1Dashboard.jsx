@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
 import { useModuleData } from "../context/ModuleDataContext"; 
-import { BarChart, DonutChart } from "../components/Charts";
+import { BarChart, DonutChart, HorizontalBarChart } from "../components/Charts";
 
 function FilterBtn({ val, cur, onSet }) {
   const isActive = cur === val;
@@ -226,7 +226,31 @@ export default function M1Dashboard() {
   }), [filtered]);
 
   const genZCrisis = genData.find(g => g.label === "Gen Z" && g.rate >= 0.8);
-  
+  const tenureStats = useMemo(() => {
+    const bands = [
+      { label: "< 1 Year", min: 0, max: 0.99, total: 0, bad: 0 },
+      { label: "1 - 3 Years", min: 1, max: 2.99, total: 0, bad: 0 },
+      { label: "3 - 5 Years", min: 3, max: 4.99, total: 0, bad: 0 },
+      { label: "5+ Years", min: 5, max: 99, total: 0, bad: 0 },
+    ];
+    filtered.forEach(d => {
+      const y = d.YearsAtCompany || 0;
+      const band = bands.find(b => y >= b.min && y <= b.max);
+      if (band) {
+        band.total++;
+        if (d.AttritionStatus !== "Active") band.bad++;
+      }
+    });
+    return bands.map(b => {
+      const rate = b.total > 0 ? b.bad / b.total : 0;
+      return {
+        label: b.label,
+        value: Math.round(rate * 100),
+        color: rate > 0.5 ? appConfig.colors.high : rate > 0.2 ? appConfig.colors.medium : appConfig.colors.low
+      };
+    });
+  }, [filtered, appConfig]);
+
   const kpis = [
     { label: "Flight Risk", value: `${flightRisk}%`, sub: `${resigned + highRisk} of ${total} at risk`, color: appConfig.colors.high, icon: "🚨", bg: `${appConfig.colors.high}22`, title: "Risk threshold can be changed in the menu  ⚙️" },
     { label: "Resigned",          value: resigned,                   sub: `${total > 0 ? ((resigned/total)*100).toFixed(0) : 0}% of workforce`, color: appConfig.colors.high, icon: "🚪", bg: `${appConfig.colors.high}22` },
@@ -312,8 +336,7 @@ export default function M1Dashboard() {
       </div>
 
       {/* Charts Row 1 */}
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[14px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[14px]">
         
         {/* 1. Attrition by Dept */}
         <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
@@ -325,17 +348,15 @@ export default function M1Dashboard() {
           />
         </div>
 
-        {/* 2. Workforce Status (Donut) */}
+        {/* 2. Workforce Status / Donut*/}
         <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 flex flex-col items-center">
           <div className="font-bold text-[13px] text-brand-dark mb-0.5 self-start">Workforce Status</div>
           <div className="text-[10px] text-slate-400 mb-3 self-start">{total} employees</div>
-          
           <DonutChart data={[
             { label: "Resigned",  value: resigned,  color: appConfig.colors.high },
             { label: "High Risk", value: highRisk,  color: appConfig.colors.medium },
             { label: "Active",    value: active,    color: appConfig.colors.low },
           ]} size={160} /> 
-          
           <div className="flex gap-2.5 mt-4 flex-wrap justify-center">
             {[
               { l: "Resigned", c: appConfig.colors.high, v: resigned },
@@ -361,12 +382,27 @@ export default function M1Dashboard() {
           {genZCrisis && !dismissedAlerts.has("genZ") && (
             <div className="mt-2 rounded-lg p-[7px_10px] border flex justify-between items-start gap-1.5" style={{ background: `${appConfig.colors.high}22`, borderColor: appConfig.colors.high }}>
               <span className="text-[10px] font-bold" style={{ color: appConfig.colors.high }}>
-                ⚠️ Gen Z Crisis: {(genZCrisis.rate * 100).toFixed(0)}% attrition — mentorship gap detected
+                ⚠️ Gen Z Crisis: {(genZCrisis.rate * 100).toFixed(0)}% attrition
               </span>
               <button onClick={() => dismissAlert("genZ")} className="bg-transparent border-none cursor-pointer text-sm leading-none shrink-0" style={{ color: appConfig.colors.high }}>×</button>
             </div>
           )}
         </div>
+
+        {/* 4. CHART: Risk by Tenure */}
+        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 flex flex-col">
+          <div className="font-bold text-[13px] text-brand-dark mb-0.5">Risk by Tenure</div>
+          <div className="text-[10px] text-slate-400 mb-3">% at-risk based on years at company</div>
+          <div className="flex-1 flex flex-col justify-center">
+            <HorizontalBarChart 
+              data={tenureStats} 
+              formatValue={(val) => `${val}%`}
+              barHeight={24}
+              gap={12}
+            />
+          </div>
+        </div>
+
       </div>
 
       {/* Charts Row 2 - Executive Summary */}
