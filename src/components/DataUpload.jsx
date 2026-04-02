@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 import { useApp, parseCSV, SAMPLE_DATA } from "../context/AppContext";
-import { getMappingReport, validateMappedData, normalizeJobSatisfaction } from "../utils/autoMapping";
+import { getMappingReport, validateMappedData } from "../utils/autoMapping";
 import { SAMPLE_DATA_METADATA } from "../utils/sampleData";
 
 const CSV_TEMPLATE = `EmployeeID,FirstName,LastName,Department,MonthlySalary,OvertimeStatus,JobSatisfaction,AttritionStatus,YearsAtCompany,Age
