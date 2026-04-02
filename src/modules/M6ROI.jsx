@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
 import { useApp, useHRData, useCurrency } from "../context/AppContext";
-import { SAMPLE_DATA } from "../utils/sampleData";
 import { useModuleData } from "../context/ModuleDataContext";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
