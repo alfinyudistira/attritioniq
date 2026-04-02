@@ -141,6 +141,7 @@ export function BarChart({
             <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#0f172a" floodOpacity="0.08" />
           </filter>
         </defs>
+
         {[0.25, 0.5, 0.75, 1].map(ratio => {
           const gy = padT + chartH - ratio * chartH;
           return (
@@ -156,50 +157,60 @@ export function BarChart({
           const y         = padT + chartH - bh;
           const color     = colorFn ? colorFn(d) : "#f59e0b";
           const displayVal = formatValue ? formatValue(rawVal) : rawVal < 1 && rawVal > 0 ? (rawVal * 100).toFixed(0) + "%" : String(rawVal);
+          
           const label = String(d[labelKey] ?? "");
-        let shortLabel = label;
-        if (count > 4) {
-          if (label.includes(" ")) {
-              shortLabel = label.split(" ")[0] + "..";
+          let shortLabel = label;
+
+          if (count > 4) {
+            if (label.length <= 5) {
+              shortLabel = label;
+            } else if (label.includes(" ")) {
+              shortLabel = label.split(" ").map(w => w[0]).join("").toUpperCase();
+            } else {
+              const lower = label.toLowerCase();
+              if (lower === "operations") shortLabel = "Ops";
+              else if (lower === "product") shortLabel = "Prod";
+              else shortLabel = label.slice(0, 4); 
+            }
+          } else {
+            if (shortLabel.length > 15) shortLabel = shortLabel.slice(0, 14) + "..";
           }
-  if (shortLabel.length > 11) shortLabel = shortLabel.slice(0, 9) + "…";
-} else {
-  if (shortLabel.length > 15) shortLabel = shortLabel.slice(0, 14) + "…";
-}
-          const labelY = Math.max(padT - 6, y - 6);
+          const labelY = Math.max(padT - 6, y - 6);          
+          const tooltipContent = (
+            <div style={{fontWeight:700}}>
+              {label}<br/>
+              <span style={{color: color, fontSize: '14px', fontWeight: 800}}>{displayVal}</span>
+            </div>
+          );
 
           return (
             <g key={`bar-${i}`} className="group" style={{ transformOrigin: `${x + barW/2}px ${padT + chartH}px`, transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
-              <rect x={slotStart} y={0} width={slotW} height={height} fill="transparent" 
-                onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{label}<br/><span style={{color: color, fontSize: '14px', fontWeight: 800}}>{displayVal}</span></div>)}
-                onMouseMove={move}
-                onMouseLeave={hide}
-              />
               
               <rect
                 x={x} y={y} width={barW} height={bh} rx={6}
                 fill={color} opacity={0.9}
                 filter="url(#bar-shadow)"
-                style={{ cursor: "crosshair", transition: "all 0.3s ease" }}
+                style={{ transition: "all 0.3s ease" }}
+                pointerEvents="none"
               />
               
-              <rect x={x} y={y} width={barW} height={bh * 0.3} rx={6} fill="white" opacity={0.15} style={{ pointerEvents: "none" }} />
+              <rect x={x} y={y} width={barW} height={bh * 0.3} rx={6} fill="white" opacity={0.15} pointerEvents="none" />
 
-              <text x={x + barW / 2} y={labelY} textAnchor="middle" fontSize={10} fill={color} fontWeight="800">
+              <text x={x + barW / 2} y={labelY} textAnchor="middle" fontSize={10} fill={color} fontWeight="800" pointerEvents="none">
                 {displayVal}
               </text>
-              <text 
-                x={count > 4 ? x + barW / 2 + 2 : x + barW / 2} 
-                y={height - 6} 
-                textAnchor={count > 4 ? "end" : "middle"} 
-                fontSize={count > 4 ? 8.5 : 9} 
-                fill={colors.textSubtle} 
-                fontWeight="600"
-                transform={count > 4 ? `rotate(-20, ${x + barW / 2 + 2}, ${height - 6})` : ""}
-              >
+              
+              <text x={x + barW / 2} y={height - 6} textAnchor="middle" fontSize={10} fill={colors.textSubtle} fontWeight="700" pointerEvents="none">
                 {shortLabel}
               </text>
 
+              <rect x={slotStart} y={0} width={slotW} height={height} fill="transparent" 
+                onMouseEnter={(e) => show(e, tooltipContent)}
+                onMouseMove={move}
+                onMouseLeave={hide}
+                onClick={(e) => show(e, tooltipContent)}
+                style={{ cursor: "pointer" }}
+              />
             </g>
           );
         })}
@@ -207,7 +218,6 @@ export function BarChart({
     </>
   );
 }
-
 
 export function HorizontalBarChart({
   data,
