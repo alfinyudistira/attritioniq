@@ -312,8 +312,11 @@ export default function M1Dashboard() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px] mb-[14px]">
-        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 md:col-span-2 lg:col-span-1">
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px] mb-[14px]">
+        
+        {/* 1. Attrition by Dept */}
+        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
           <div className="font-bold text-[13px] text-brand-dark mb-0.5">Attrition by Department</div>
           <div className="text-[10px] text-slate-400 mb-3">% at-risk per dept</div>
           <BarChart
@@ -322,15 +325,18 @@ export default function M1Dashboard() {
           />
         </div>
 
+        {/* 2. Workforce Status (Donut) */}
         <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 flex flex-col items-center">
           <div className="font-bold text-[13px] text-brand-dark mb-0.5 self-start">Workforce Status</div>
-          <div className="text-[10px] text-slate-400 mb-2.5 self-start">{total} employees</div>
+          <div className="text-[10px] text-slate-400 mb-3 self-start">{total} employees</div>
+          
           <DonutChart data={[
             { label: "Resigned",  value: resigned,  color: appConfig.colors.high },
             { label: "High Risk", value: highRisk,  color: appConfig.colors.medium },
             { label: "Active",    value: active,    color: appConfig.colors.low },
-          ]} size={120} />
-          <div className="flex gap-2.5 mt-2.5 flex-wrap justify-center">
+          ]} size={160} /> 
+          
+          <div className="flex gap-2.5 mt-4 flex-wrap justify-center">
             {[
               { l: "Resigned", c: appConfig.colors.high, v: resigned },
               { l: "High Risk", c: appConfig.colors.medium, v: highRisk },
@@ -344,7 +350,8 @@ export default function M1Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 md:col-span-1 lg:col-span-1">
+        {/* 3. By Generation */}
+        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
           <div className="font-bold text-[13px] text-brand-dark mb-0.5">By Generation</div>
           <div className="text-[10px] text-slate-400 mb-3">Gen Z · Millennial · Senior</div>
           <BarChart
