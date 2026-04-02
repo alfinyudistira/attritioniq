@@ -1,9 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApp, useHRData, useCurrency } from "../context/AppContext";
 import { useModuleData } from "../context/ModuleDataContext"; 
 import { ChartTooltip, useChartTooltip } from "../components/Charts";
 
-// ── CUSTOM HOOK: AI Copilot via Vercel ──
 function useCopilot() {
   const { state, update } = useModuleData("m2");
   const [loading, setLoading] = useState(false);
