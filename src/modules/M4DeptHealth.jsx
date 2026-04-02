@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useApp, useHRData, useCurrency, getGeneration } from "../context/AppContext";
-import { SAMPLE_DATA } from "../utils/sampleData";
 import { useModuleData } from "../context/ModuleDataContext";
 
 function computeDeptHealth(employees, cliff) {
