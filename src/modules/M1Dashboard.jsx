@@ -282,7 +282,7 @@ const drivers = useMemo(() => {
       )}
 
       {/* Filters */}
-      <div style={{ background: "#fff", borderRadius: 14, padding: "14px 18px", marginBottom: 18, border: "1.5px solid #f1f5f9", display: "flex", flexWrap: "wrap", gap: 14 }}>
+      <div style={{ background: "#fff", borderRadius: 14, padding: "14px 18px", marginBottom: 18, border: "1.5px solid #f1f5f9" }} className="flex flex-wrap gap-3">
         {[
           { label: "Department", values: depts,         cur: deptF,   set: setDeptF },
           { label: "Generation", values: ["All","Gen Z","Millennial","Senior"], cur: genF, set: setGenF },
@@ -299,7 +299,7 @@ const drivers = useMemo(() => {
       </div>
 
             {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 18 }}>
+      <div className="card-grid card-grid-2" style={{ gap: 12, marginBottom: 18 }}>
         {kpis.map((k, i) => <KPICard key={i} {...k} />)}
         {pulseOverride && (
           <KPICard
@@ -314,7 +314,7 @@ const drivers = useMemo(() => {
       </div>
 
       {/* Charts Row 1 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginBottom: 14 }}>
+      <div className="card-grid card-grid-3" style={{ gap: 14, marginBottom: 14 }}>
         <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 2 }}>Attrition by Department</div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 12 }}>% at-risk per dept</div>
@@ -417,13 +417,13 @@ const drivers = useMemo(() => {
           <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
             Employee Records <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8" }}>({filtered.length} records)</span>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+         <div className="flex flex-wrap gap-2 items-center">
             <input
               type="text"
               placeholder="🔍 Search name, dept, ID..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc", outline: "none", width: 200 }}
+              style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc", outline: "none", width: "min(200px, 100%)" }}
             />
             <button
               onClick={() => {
@@ -440,7 +440,7 @@ const drivers = useMemo(() => {
             </button>
           </div>
         </div>
-        <div style={{ overflowX: "auto" }}>
+        <div className="table-responsive">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
