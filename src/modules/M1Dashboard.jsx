@@ -405,17 +405,19 @@ export default function M1Dashboard() {
 
       {/* Employee Table */}
       <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
-        <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
+        
+        {/* Header Table (Search & Export) */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3.5 gap-3">
           <div className="font-bold text-[13px] text-brand-dark">
             Employee Records <span className="text-[11px] font-medium text-slate-400">({filtered.length} records)</span>
           </div>
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex gap-2 items-center w-full sm:w-auto">
             <input
               type="text"
               placeholder="🔍 Search name, dept, ID..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="p-[6px_12px] rounded-lg border-[1.5px] border-slate-200 text-xs text-brand-navy bg-slate-50 outline-none w-full sm:max-w-[200px]"
+              className="p-[6px_12px] rounded-lg border-[1.5px] border-slate-200 text-xs text-brand-navy bg-slate-50 outline-none flex-1 min-w-0 sm:w-[200px] focus:border-brand-amber transition-colors"
             />
             <button
               onClick={() => {
@@ -426,7 +428,7 @@ export default function M1Dashboard() {
                 const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
                 a.download = `attritioniq_export_${Date.now()}.csv`; a.click();
               }}
-              className="p-[6px_13px] rounded-lg border-[1.5px] border-slate-200 bg-slate-50 text-xs text-slate-600 font-semibold cursor-pointer whitespace-nowrap hover:bg-slate-100 transition-colors"
+              className="p-[6px_13px] rounded-lg border-[1.5px] border-slate-200 bg-slate-50 text-xs text-slate-600 font-semibold cursor-pointer whitespace-nowrap hover:bg-slate-100 shrink-0 transition-colors"
             >
               ⬇ Export CSV
             </button>
