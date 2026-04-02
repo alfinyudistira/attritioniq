@@ -157,10 +157,12 @@ export function BarChart({
           const color     = colorFn ? colorFn(d) : "#f59e0b";
           const displayVal = formatValue ? formatValue(rawVal) : rawVal < 1 && rawVal > 0 ? (rawVal * 100).toFixed(0) + "%" : String(rawVal);
           const label = String(d[labelKey] ?? "");
-let shortLabel = label;
-if (count > 4) {
-  shortLabel = label.split(" ")[0]; 
-  if (shortLabel.length > 11) shortLabel = shortLabel.slice(0, 10) + "…";
+        let shortLabel = label;
+        if (count > 4) {
+          if (label.includes(" ")) {
+              shortLabel = label.split(" ")[0] + "..";
+          }
+  if (shortLabel.length > 11) shortLabel = shortLabel.slice(0, 9) + "…";
 } else {
   if (shortLabel.length > 15) shortLabel = shortLabel.slice(0, 14) + "…";
 }
@@ -187,16 +189,17 @@ if (count > 4) {
                 {displayVal}
               </text>
               <text 
-                x={count > 4 ? x + barW / 2 + 4 : x + barW / 2} 
-                y={height - 4} 
+                x={count > 4 ? x + barW / 2 + 2 : x + barW / 2} 
+                y={height - 6} 
                 textAnchor={count > 4 ? "end" : "middle"} 
-                fontSize={count > 4 ? 8 : 9} 
+                fontSize={count > 4 ? 8.5 : 9} 
                 fill={colors.textSubtle} 
                 fontWeight="600"
-                transform={count > 4 ? `rotate(-40, ${x + barW / 2 + 4}, ${height - 4})` : ""}
+                transform={count > 4 ? `rotate(-20, ${x + barW / 2 + 2}, ${height - 6})` : ""}
               >
                 {shortLabel}
               </text>
+
             </g>
           );
         })}
