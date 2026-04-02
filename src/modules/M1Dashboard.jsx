@@ -135,7 +135,7 @@ const { company, pulseOverride, appConfig } = useApp();
   }, [page, updateM1]);
   
   const PAGE_SIZE = 25;
-const dismissedAlerts = new Set(m1State.dismissedAlerts || []);
+const dismissedAlerts = useMemo(() => new Set(m1State.dismissedAlerts || []), [m1State.dismissedAlerts]);
 const dismissAlert = useCallback((key) => {
   updateM1({ dismissedAlerts: [...dismissedAlerts, key] });
 }, [dismissedAlerts, updateM1]);
