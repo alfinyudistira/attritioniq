@@ -1,12 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
 import { useApp, useHRData, useCurrency, getGeneration, getStatusColor } from "../context/AppContext";
-import { SAMPLE_DATA, SAMPLE_DATA_METADATA } from "../utils/sampleData";
 import { useModuleData } from "../context/ModuleDataContext";
 
-// ── Detect salary cliff from data ──
 function detectCliff(data, manualCliff) {
   if (!data || data.length === 0) return manualCliff || 5000;
-  // Find salary point where attrition rate jumps dramatically
   const sorted = [...data].sort((a, b) => (a.MonthlySalary || 0) - (b.MonthlySalary || 0));
   const brackets = {};
   sorted.forEach(e => {
@@ -228,16 +225,8 @@ export default function M3Salary() {
   const useAutoCliff = m3State.useAutoCliff ?? true;
   const customCliff  = m3State.customCliff  ?? manualCliff;
   const simTarget    = m3State.simTarget    ?? (manualCliff + 200);
-  // showSample: false by default — user harus explicitly minta lihat sample
-  const showSample   = m3State.showSample   ?? false;
+const src = data;
 
-  // ── Data source logic (sama persis seperti M5) ──
-  const hasUserData  = data.length > 0;
-  const src          = hasUserData ? data : (showSample ? SAMPLE_DATA : []);
-  const isUsingSample = !hasUserData && showSample;
-  const isEmpty       = !hasUserData && !showSample;
-
-  // Market rate: derive dari data aktif, default berdasarkan cliff agar currency-aware
   const marketRate = m3State.marketRate || (() => {
     const depts = [...new Set(src.map(e => e.Department).filter(Boolean))];
     const result = {};
@@ -322,62 +311,15 @@ export default function M3Salary() {
 
   return (
     <div>
-      {/* ── SAMPLE DATA PANEL — selalu visible di atas ── */}
+
+{/* ── HEADER INFO ── */}
       <div style={{ background: "#fff", borderRadius: 14, padding: "14px 20px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 7 }}>
-              💰 Salary Benchmarking
-              {isUsingSample && (
-                <span style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "1px 8px", fontSize: 9, color: "#92400e", fontWeight: 700 }}>
-                  SAMPLE
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-              {hasUserData
-                ? `${data.length} karyawan dari CSV kamu · analisis salary aktif`
-                : isUsingSample
-                  ? `Menampilkan ${SAMPLE_DATA_METADATA.totalRows} data contoh — bukan data kamu`
-                  : "Belum ada data — upload CSV di panel atas atau lihat contoh dulu"}
-            </div>
-          </div>
-          {!hasUserData && (
-            <button
-              onClick={() => updateM3({ showSample: !showSample })}
-              style={{ padding: "7px 14px", borderRadius: 8, border: `1.5px solid ${showSample ? "#fecaca" : "#e2e8f0"}`, background: showSample ? "#fef2f2" : "#f8fafc", fontSize: 12, color: showSample ? "#dc2626" : "#475569", cursor: "pointer", fontWeight: 600 }}>
-              {showSample ? "🙈 Sembunyikan Contoh" : "👁 Lihat Contoh Data"}
-            </button>
-          )}
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>💰 Salary Benchmarking</div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+          {data.length} employees from your CSV · salary analysis active
         </div>
-        {isUsingSample && (
-          <div style={{ marginTop: 10, background: "#fffbeb", borderRadius: 9, padding: "8px 14px", border: "1px solid #fde68a", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ fontSize: 11, color: "#92400e" }}>
-              📋 <strong>Ini data contoh</strong> — {SAMPLE_DATA_METADATA.description} Hasil analisis di bawah berdasarkan data demo, bukan data perusahaan kamu.
-            </div>
-            <button onClick={() => updateM3({ showSample: false })}
-              style={{ background: "none", border: "1px solid #fde68a", borderRadius: 7, padding: "3px 9px", fontSize: 11, color: "#92400e", cursor: "pointer", fontWeight: 700, flexShrink: 0 }}>
-              Tutup ✕
-            </button>
-          </div>
-        )}
       </div>
-
-      {/* ── EMPTY STATE ── */}
-      {isEmpty && (
-        <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>💰</div>
-          <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Salary Benchmarking</div>
-          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 20, maxWidth: 400, margin: "0 auto 20px" }}>
-            Upload CSV karyawan di panel atas untuk melihat analisis salary cliff, gap per karyawan, dan simulasi budget adjustment.
-          </div>
-          <button onClick={() => updateM3({ showSample: true })}
-            style={{ padding: "10px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 13, color: "#475569", cursor: "pointer", fontWeight: 600 }}>
-            👁 Lihat Contoh Dulu
-          </button>
-        </div>
-      )}
-
+      
       {/* Tab switcher */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {TABS.map(t => (
