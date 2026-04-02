@@ -117,7 +117,6 @@ const { company, pulseOverride, appConfig } = useApp();
   const cliff      = company?.salaryCliff || 5000;
   const multiplier = company?.replacementMultiplier || 1.5;
   
-    // ── Smart Modular Storage: Filter tidak akan ke-reset walau pindah modul ──
   const { state: m1State, update: updateM1 } = useModuleData("m1");
   
   const deptF   = m1State.deptF || "All";
@@ -452,7 +451,7 @@ const drivers = useMemo(() => {
             </thead>
             <tbody>
               {paginated.map((d, i) => {
-                const gen = getGeneration(d.Age);
+                const gen = d.Generation || "Unknown";
                 return (
                   <tr key={d.EmployeeID || i} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
                     <td style={{ padding: "7px 10px", color: "#94a3b8", fontSize: 11 }}>{d.EmployeeID}</td>
