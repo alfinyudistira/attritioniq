@@ -130,18 +130,10 @@ useEffect(() => {
   const mod = MODULES.find(m => m.id === active);
   const companyInitial = company.name?.charAt(0)?.toUpperCase() || "?";
   return (
-<div style={{ 
-  display: "flex", minHeight: "100vh", 
-  background: isDark ? "#0f172a" : "#f8fafc", 
-  fontFamily: "'DM Sans','Segoe UI',sans-serif" 
-}}>
+<div className={`flex min-h-screen font-body ${isDark ? "dark bg-brand-dark" : "bg-slate-50"}`} style={{ fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       
 {/* ── Notification Toasts ── */}
-      <div className="toast-container" style={{
-  position: "fixed", bottom: 24, right: 24,
-  zIndex: 9999, display: "flex", flexDirection: "column", gap: 8,
-  pointerEvents: "none",
-}}>
+      <div className="toast-container fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none" style={{ zIndex: 9999 }}>
         {notifications.map(n => (
   <div key={n.id} style={{
     background:
@@ -313,16 +305,13 @@ useEffect(() => {
         <div className="sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
       )}
 
-      {/* ── Sidebar ── */}
+{/* ── Sidebar ── */}
       <aside
-        className={`sidebar-drawer${mobileSidebarOpen ? " open" : ""}`}
+        className={`sidebar-drawer flex flex-col bg-brand-dark overflow-y-auto overflow-x-hidden flex-shrink-0${mobileSidebarOpen ? " open" : ""}`}
         style={{
-          width: sidebarOpen ? 232 : 56, minWidth: sidebarOpen ? 232 : 56,
-          background: "#0f172a", transition: "width 0.22s, transform 0.25s",
-          display: "flex", flexDirection: "column",
-          position: "sticky", top: 0, height: "100vh",
-          overflowY: "auto", overflowX: "hidden", zIndex: 100,
-          flexShrink: 0,
+          width: sidebarOpen ? 232 : 56,
+          minWidth: sidebarOpen ? 232 : 56,
+          transition: "var(--transition-sidebar)",
         }}
       >
         {/* Logo */}
@@ -442,14 +431,14 @@ useEffect(() => {
       </aside>
 
       {/* ── Main ── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <main className="main-content flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Topbar */}
-        <div style={{ background: isDark ? "#1e293b" : "#fff", borderBottom: `1.5px solid ${isDark ? "#334155" : "#f1f5f9"}`, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50 }}>
+        <div className={`flex items-center justify-between sticky top-0 px-4 py-3 border-b ${isDark ? "bg-brand-navy border-slate-700" : "bg-white border-slate-100"}`} style={{ zIndex: 50 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
             <button
               onClick={() => setMobileSidebarOpen(p => !p)}
-              style={{ display: "none", background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: "2px 6px", flexShrink: 0, color: isDark ? "#f1f5f9" : "#0f172a" }}
-              className="mobile-menu-btn"
+              className="mobile-menu-btn items-center justify-center bg-transparent border-none cursor-pointer text-xl flex-shrink-0 px-1"
+              style={{ display: "none", color: isDark ? "#f1f5f9" : "#0f172a" }}
               aria-label="Open menu"
             >
               ☰
@@ -511,7 +500,7 @@ useEffect(() => {
 
 
                 {/* Content */}
-<div className="content-area" style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
+<div className="content-area flex-1 overflow-y-auto" style={{ padding: "22px 24px" }}>
           
           <ErrorBoundary>
             <DataUpload />
