@@ -17,18 +17,33 @@
       extend: {
         screens: {
           'xs': '375px',
+          'sm': '640px',
+          'md': '768px',
+          'lg': '1024px',
+          'xl': '1280px',
         },
         colors: {
           brand: {
-            amber: '#f59e0b',
-            red:   '#ef4444',
-            dark:  '#0f172a',
-            navy:  '#1e293b',
+            amber:  '#f59e0b',
+            red:    '#ef4444',
+            dark:   '#0f172a',
+            navy:   '#1e293b',
+            slate:  '#475569',
           }
         },
         fontFamily: {
           display: ["'Playfair Display'", 'Georgia', 'serif'],
           body:    ["'DM Sans'", "'Segoe UI'", 'sans-serif'],
+        },
+        maxWidth: {
+          'sidebar': '232px',
+          'sidebar-collapsed': '56px',
+        },
+        zIndex: {
+          'sidebar':  '100',
+          'topbar':   '50',
+          'modal':    '2000',
+          'toast':    '9999',
         }
       }
     }
