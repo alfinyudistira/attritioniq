@@ -30,6 +30,7 @@ function detectCliff(data, manualCliff) {
   return cliffPoint;
 }
 
+// ── Mini scatter plot (UPGRADED) ──
 function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" }) {
   const { tooltip, show, hide, move } = useChartTooltip();
   
@@ -37,9 +38,12 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
   const salaries = data.map(d => d.MonthlySalary).filter(Boolean);
   const maxS = Math.max(...salaries, cliff + 1000);
   const minS = Math.min(...salaries, cliff - 1500);
-  const pad = { l: 38, r: 16, t: 16, b: 32 };
-  const W = 320 - pad.l - pad.r;
-  const H = 170 - pad.t - pad.b;
+  
+  // Ukuran SVG diperbesar biar gak banyak space kosong! (Tinggi jadi 220)
+  const W_SVG = 340, H_SVG = 220;
+  const pad = { l: 30, r: 15, t: 30, b: 45 }; 
+  const W = W_SVG - pad.l - pad.r;
+  const H = H_SVG - pad.t - pad.b;
   
   const toX = s => {
     if (maxS === minS) return pad.l + W / 2;
@@ -49,10 +53,17 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
   const cliffX = toX(cliff);
   const statusColor = s => s === "Resigned" ? "#ef4444" : s === "High Risk" ? "#f59e0b" : "#22c55e";
 
+  const formatShort = (val) => {
+    const num = Number(val);
+    if (num >= 1000000) return `${currSymbol}${(num / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (num >= 1000) return `${currSymbol}${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return `${currSymbol}${num}`;
+  };
+
   return (
     <>
       <ChartTooltip tooltip={tooltip} />
-      <svg width="100%" viewBox="0 0 320 170" style={{ overflow: "visible" }}>
+      <svg width="100%" viewBox={`0 0 ${W_SVG} ${H_SVG}`} style={{ overflow: "visible" }}>
         <defs>
           <filter id="scatter-glow" x="-50%" y="-50%" width="200%" height="200%">
             <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#0f172a" floodOpacity="0.15" />
@@ -63,14 +74,18 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
         <rect x={pad.l} y={pad.t} width={Math.max(0, cliffX - pad.l)} height={H} fill="#fef2f2" opacity={0.6} rx={4} />
         <rect x={cliffX} y={pad.t} width={Math.max(0, pad.l + W - cliffX)} height={H} fill="#f0fdf4" opacity={0.5} rx={4} />
         
-        {/* Axes & Cliff Line */}
+        {/* Axes */}
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
         <line x1={pad.l} y1={pad.t + H} x2={pad.l + W} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
-        <line x1={cliffX} y1={pad.t} x2={cliffX} y2={pad.t + H} stroke="#f59e0b" strokeWidth={2} strokeDasharray="4,4" />
         
-        {/* Labels */}
-        <text x={pad.l + 6} y={pad.t + H - 6} fontSize={8} fill="#ef4444" fontWeight="800" letterSpacing="0.05em">⚠ DANGER ZONE</text>
-        <text x={cliffX + 6} y={pad.t + H - 6} fontSize={8} fill="#16a34a" fontWeight="800" letterSpacing="0.05em">✓ SAFE ZONE</text>
+        {/* DANGER & SAFE ZONE LABELS (DIPINDAH KE ATAS) */}
+        <text x={pad.l + 6} y={pad.t + 12} fontSize={9} fill="#ef4444" fontWeight="800" letterSpacing="0.05em">⚠ DANGER ZONE</text>
+        <text x={cliffX + 6} y={pad.t + 12} fontSize={9} fill="#16a34a" fontWeight="800" letterSpacing="0.05em">✓ SAFE ZONE</text>
+
+        {/* Cliff Line & Indikator Nilai Cliff */}
+        <line x1={cliffX} y1={pad.t} x2={cliffX} y2={pad.t + H} stroke="#f59e0b" strokeWidth={2} strokeDasharray="4,4" />
+        <rect x={cliffX - 25} y={pad.t - 18} width={50} height={14} fill="#fffbeb" rx={4} stroke="#fde68a" />
+        <text x={cliffX} y={pad.t - 8} fontSize={8} fill="#b45309" textAnchor="middle" fontWeight="800">CLIFF: {formatShort(cliff)}</text>
         
         {/* Dots Interaktif */}
         {data.map((d, i) => {
@@ -95,14 +110,24 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
         {/* Axis Labels */}
         <text x={pad.l - 6} y={pad.t + 4} fontSize={8} fill="#94a3b8" textAnchor="end" fontWeight="600">10</text>
         <text x={pad.l - 6} y={pad.t + H} fontSize={8} fill="#94a3b8" textAnchor="end" fontWeight="600">1</text>
-        <text x={pad.l} y={170 - 2} fontSize={8} fill="#94a3b8" fontWeight="600">Salary →</text>
-        <text x={pad.l - 16} y={pad.t + H / 2} fontSize={8} fill="#94a3b8" textAnchor="middle" fontWeight="600" transform={`rotate(-90, ${pad.l - 16}, ${pad.t + H / 2})`}>Satisfaction</text>
+        <text x={pad.l + W / 2} y={pad.t + H + 14} fontSize={8} fill="#94a3b8" textAnchor="middle" fontWeight="600">Monthly Salary →</text>
+        <text x={pad.l - 18} y={pad.t + H / 2} fontSize={8} fill="#94a3b8" textAnchor="middle" fontWeight="600" transform={`rotate(-90, ${pad.l - 18}, ${pad.t + H / 2})`}>Satisfaction</text>
+
+        {/* Legend (Turun ke Bawah Tengah) */}
+        <g transform={`translate(${W_SVG / 2 - 70}, ${H_SVG - 10})`}>
+          {[["Resigned","#ef4444"],["High Risk","#f59e0b"],["Active","#22c55e"]].map(([lbl, clr], i) => (
+            <g key={lbl} transform={`translate(${i * 55}, 0)`}>
+              <circle cx={0} cy={-2} r={3.5} fill={clr} opacity={0.85} />
+              <text x={6} y={1} fontSize={7.5} fill="#64748b" fontWeight="600">{lbl}</text>
+            </g>
+          ))}
+        </g>
       </svg>
     </>
   );
 }
 
-// ── Salary distribution bar chart ──
+// ── Salary distribution bar chart (UPGRADED) ──
 function SalaryDistribution({ data, cliff, currSymbol = "$" }) {
   const { tooltip, show, hide, move } = useChartTooltip();
   
@@ -118,13 +143,15 @@ function SalaryDistribution({ data, cliff, currSymbol = "$" }) {
   const entries = Object.entries(buckets).sort((a, b) => Number(a[0]) - Number(b[0]));
   const maxCount = Math.max(...entries.map(e => e[1].count), 1);
   
-  const W = 320, H = 170, pad = { l: 28, r: 8, t: 16, b: 45 }; 
+  // Ukuran SVG diperbesar (Tinggi jadi 220)
+  const W = 340, H = 220, pad = { l: 28, r: 8, t: 16, b: 45 }; 
   const bW = Math.max(12, Math.floor((W - pad.l - pad.r) / entries.length) - 4);
 
+  // Smart Formatter (Fixed biar angka gak kembar)
   const formatShort = (val) => {
     const num = Number(val);
-    if (num >= 1000000) return `${currSymbol}${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${currSymbol}${(num / 1000).toFixed(0)}k`;
+    if (num >= 1000000) return `${currSymbol}${(num / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (num >= 1000) return `${currSymbol}${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`;
     return `${currSymbol}${num}`;
   };
 
@@ -146,7 +173,6 @@ function SalaryDistribution({ data, cliff, currSymbol = "$" }) {
           
           return (
             <g key={sal} className="group">
-              {/* Hitbox area penuh biar gampang dihover */}
               <rect x={x - 2} y={pad.t} width={bW + 4} height={H - pad.b} fill="transparent"
                 onMouseEnter={(e) => show(e, <div><strong>{formatShort(sal)} Range</strong><br/>Total: {val.count} employees<br/><span style={{color: isBelow ? '#ef4444' : '#f59e0b'}}>{val.atRisk} at risk</span></div>)}
                 onMouseMove={move} onMouseLeave={hide}
@@ -154,10 +180,9 @@ function SalaryDistribution({ data, cliff, currSymbol = "$" }) {
               />
               
               <rect x={x} y={H - pad.b - totalH} width={bW} height={totalH} fill={isBelow ? "#fecaca" : "#bbf7d0"} rx={4} />
-              
               <rect x={x} y={H - pad.b - riskH} width={bW} height={riskH} fill={isBelow ? "#ef4444" : "#22c55e"} rx={4} filter="url(#dist-shadow)" opacity={0.9} style={{ pointerEvents: "none" }} />
-
-              <text x={x + bW / 2 + 4} y={H - pad.b + 12} textAnchor="end" fontSize={8} fill="#64748b" fontWeight="600" transform={`rotate(-35, ${x + bW / 2 + 4}, ${H - pad.b + 12})`}>
+              
+              <text x={x + bW / 2 + 4} y={H - pad.b + 14} textAnchor="end" fontSize={8} fill="#64748b" fontWeight="600" transform={`rotate(-35, ${x + bW / 2 + 4}, ${H - pad.b + 14})`}>
                 {formatShort(sal)}
               </text>
             </g>
