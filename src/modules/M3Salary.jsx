@@ -30,7 +30,7 @@ function detectCliff(data, manualCliff) {
   return cliffPoint;
 }
 
-// ── Mini scatter plot (UPGRADED) ──
+// ── Mini scatter plot (UPGRADED V2 - FIX OVERLAP & HEIGHT) ──
 function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" }) {
   const { tooltip, show, hide, move } = useChartTooltip();
   
@@ -39,9 +39,11 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
   const maxS = Math.max(...salaries, cliff + 1000);
   const minS = Math.min(...salaries, cliff - 1500);
   
-  // Ukuran SVG diperbesar biar gak banyak space kosong! (Tinggi jadi 220)
-  const W_SVG = 340, H_SVG = 220;
-  const pad = { l: 30, r: 15, t: 30, b: 45 }; 
+  // Legend SVG dihapus, jadi padding bawah (b) kita pangkas dari 45 jadi 20.
+  // Tinggi SVG (H_SVG) kita naikkan jadi 240. 
+  // Hasilnya: Area dalam chart akan JAUH lebih panjang ke bawah!
+  const W_SVG = 340, H_SVG = 240;
+  const pad = { l: 30, r: 15, t: 30, b: 20 }; 
   const W = W_SVG - pad.l - pad.r;
   const H = H_SVG - pad.t - pad.b;
   
@@ -78,9 +80,9 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
         <line x1={pad.l} y1={pad.t + H} x2={pad.l + W} y2={pad.t + H} stroke="#e2e8f0" strokeWidth={1} />
         
-        {/* DANGER & SAFE ZONE LABELS (DIPINDAH KE ATAS) */}
+        {/* DANGER & SAFE ZONE LABELS (STAGGERED: Danger di atas, Safe di bawah) */}
         <text x={pad.l + 6} y={pad.t + 12} fontSize={9} fill="#ef4444" fontWeight="800" letterSpacing="0.05em">⚠ DANGER ZONE</text>
-        <text x={cliffX + 6} y={pad.t + 12} fontSize={9} fill="#16a34a" fontWeight="800" letterSpacing="0.05em">✓ SAFE ZONE</text>
+        <text x={cliffX + 6} y={pad.t + 24} fontSize={9} fill="#16a34a" fontWeight="800" letterSpacing="0.05em">✓ SAFE ZONE</text>
 
         {/* Cliff Line & Indikator Nilai Cliff */}
         <line x1={cliffX} y1={pad.t} x2={cliffX} y2={pad.t + H} stroke="#f59e0b" strokeWidth={2} strokeDasharray="4,4" />
@@ -110,18 +112,8 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
         {/* Axis Labels */}
         <text x={pad.l - 6} y={pad.t + 4} fontSize={8} fill="#94a3b8" textAnchor="end" fontWeight="600">10</text>
         <text x={pad.l - 6} y={pad.t + H} fontSize={8} fill="#94a3b8" textAnchor="end" fontWeight="600">1</text>
-        <text x={pad.l + W / 2} y={pad.t + H + 14} fontSize={8} fill="#94a3b8" textAnchor="middle" fontWeight="600">Monthly Salary →</text>
+        <text x={pad.l + W / 2} y={pad.t + H + 12} fontSize={8} fill="#94a3b8" textAnchor="middle" fontWeight="600">Monthly Salary →</text>
         <text x={pad.l - 18} y={pad.t + H / 2} fontSize={8} fill="#94a3b8" textAnchor="middle" fontWeight="600" transform={`rotate(-90, ${pad.l - 18}, ${pad.t + H / 2})`}>Satisfaction</text>
-
-        {/* Legend (Turun ke Bawah Tengah) */}
-        <g transform={`translate(${W_SVG / 2 - 70}, ${H_SVG - 10})`}>
-          {[["Resigned","#ef4444"],["High Risk","#f59e0b"],["Active","#22c55e"]].map(([lbl, clr], i) => (
-            <g key={lbl} transform={`translate(${i * 55}, 0)`}>
-              <circle cx={0} cy={-2} r={3.5} fill={clr} opacity={0.85} />
-              <text x={6} y={1} fontSize={7.5} fill="#64748b" fontWeight="600">{lbl}</text>
-            </g>
-          ))}
-        </g>
       </svg>
     </>
   );
