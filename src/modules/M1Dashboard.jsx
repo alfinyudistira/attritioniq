@@ -402,17 +402,18 @@ export default function M1Dashboard() {
             />
           </div>
         </div>
-
       </div>
 
       {/* Charts Row 2 - Executive Summary */}
-      <div className="bg-white rounded-[14px] p-[20px_24px] border-[1.5px] border-slate-100 mb-[18px] flex gap-6 items-center flex-wrap">
-        <div className="flex-1 min-w-[300px]">
-          <div className="flex items-center gap-2 mb-1.5">
+      <div className="bg-white rounded-[14px] p-[20px_24px] border-[1.5px] border-slate-100 mb-[18px] flex flex-col gap-5">
+        
+        {/* Teks AI Insight */}
+        <div className="w-full">
+          <div className="flex items-center gap-2 mb-2">
              <div className="px-2 py-1 rounded-md text-[11px] font-extrabold tracking-widest" style={{ background: `${appConfig.colors.high}22`, color: appConfig.colors.high }}>AI INSIGHT</div>
              <div className="font-bold text-sm text-brand-dark">Top Attrition Drivers</div>
           </div>
-          <div className="text-xs text-slate-500 leading-relaxed">
+          <div className="text-xs text-slate-500 leading-relaxed max-w-4xl">
             Based on the analysis of <strong>{total}</strong> employee records, our algorithm detected 3 main patterns driving the highest retention risk in your company:
           </div>
           {flightRisk > 50 && (
@@ -422,7 +423,8 @@ export default function M1Dashboard() {
           )}
         </div>
 
-        <div className="flex-[2_1_400px] grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+        {/* 3 Card */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
           {drivers.map((item, index) => (
             <div key={index} className="p-4 rounded-[16px] flex flex-col gap-1 shadow-[0_4px_12px_rgba(15,23,42,0.03)] border" style={{ background: item.bg, borderColor: `${item.border}33`, borderLeftWidth: '5px', borderLeftColor: item.border }}>
               <div className="flex justify-between items-center">
