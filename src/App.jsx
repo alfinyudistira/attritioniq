@@ -13,7 +13,6 @@ import M6ROI from "./modules/M6ROI";
 import M7FatigueRadar from "./modules/M7FatigueRadar";
 import M8TalentMatch from "./modules/M8TalentMatch";
 import M9PulseSurvey from "./modules/M9PulseSurvey";
-import ComingSoon from "./modules/ComingSoon";
 import { QUESTION_BANK, surveyEngine, createUserContext } from "./utils/questionBank";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -28,17 +27,6 @@ const MODULES = [
   { id: "m8", label: "Talent Matchmaker",      icon: "🔗", short: "M8", live: true },
   { id: "m9", label: "Micro-Pulse Survey",     icon: "💬", short: "M9", live: true },
 ];
-
-const MODULE_DETAILS = {
-  m2: { title: "Predictive Risk Scorer",     icon: "🎯", desc: "Input any employee's details and get an AI-powered flight risk score from 0–100% with factor breakdown.", features: ["Risk Gauge 0-100%","Factor Breakdown","Gen Z Warning","Bulk CSV Score","AI Explanation"] },
-  m3: { title: "Salary Benchmarking Studio", icon: "💰", desc: "Detect your company's salary cliff threshold, visualize danger zones, and simulate salary adjustments.", features: ["Cliff Detector","Danger Zone Map","Adjustment Simulator","Budget Impact","Market Compare"] },
-  m4: { title: "Department Health Monitor",  icon: "🏥", desc: "Traffic-light scorecards per department with Survivor Burnout Alert and Human Buffer Metric.", features: ["Traffic Light System","🚨 Survivor Burnout Alert","Human Buffer Metric","Dept Comparison","Trend Tracking"] },
-  m5: { title: "Exit Interview Analyzer",    icon: "🚪", desc: "Paste exit interview notes — AI categorizes reasons, detects patterns, generates word cloud.", features: ["AI Categorization","Pattern Detector","Keyword Cloud","Sentiment Score","Export Summary"] },
-  m6: { title: "Retention ROI Calculator",   icon: "📈", desc: "Simulate interventions with sliders, get ROI timeline, ghost cost toggle, and auto Gantt Action Plan.", features: ["3 Intervention Sliders","ROI Timeline","Ghost Cost Toggle","AI Executive Summary","90-Day Gantt Chart"] },
-  m7: { title: "Shift & Fatigue Radar",      icon: "😴", desc: "Analyze shift patterns, calculate Fatigue Index, simulate schedule changes to predict burnout.", features: ["Fatigue Index Score","Schedule Optimizer","Burnout Predictor","AI Insight","Team Radar"] },
-  m8: { title: "Internal Talent Matchmaker", icon: "🔗", desc: "Build skill matrices for at-risk employees — AI scans other departments for match opportunities.", features: ["Skill Matrix","AI Matchmaker","Mobility Radar Chart","Match % Score","Transfer Recommendation"] },
-  m9: { title: "Micro-Pulse Survey Engine",  icon: "💬", desc: "Generate weekly survey links — real-time sentiment stream updates satisfaction scores live.", features: ["Survey Generator","Real-time Stream","Word Cloud D3","Sentiment Scoring","Auto Update M1"] },
-};
 
 function AppShell() {
   const {
@@ -56,7 +44,7 @@ function AppShell() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
 
-  const { isMobile, isTablet } = useWindowSize();
+  const { isMobile } = useWindowSize();
 useEffect(() => {
   if (isMobile) setSidebarOpen(false);
 }, [isMobile]);
@@ -139,7 +127,6 @@ useEffect(() => {
   if (!company) return <CompanySetup onSave={setCompany} />;
 
   const mod = MODULES.find(m => m.id === active);
-  const det = MODULE_DETAILS[active];
   const companyInitial = company.name?.charAt(0)?.toUpperCase() || "?";
   return (
 <div style={{ 
@@ -522,7 +509,6 @@ useEffect(() => {
                 : active === "m7" ? <M7FatigueRadar />
                 : active === "m8" ? <M8TalentMatch />
                 : active === "m9" ? <M9PulseSurvey />
-                : det ? <ComingSoon icon={det.icon} title={det.title} desc={det.desc} features={det.features} />
                 : null}
             </div>
           </ErrorBoundary>          
