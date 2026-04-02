@@ -44,15 +44,15 @@ function AppShell() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-
   const { isMobile } = useWindowSize();
-useEffect(() => {
-  if (isMobile) setSidebarOpen(false);
-}, [isMobile]);
 
   useEffect(() => {
-  if (company?.currency) syncCurrency(company.currency, company.name);
-}, [company?.currency, company?.name, syncCurrency]);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (company?.currency) syncCurrency(company.currency, company.name);
+  }, [company?.currency, company?.name, syncCurrency]);
 
   useEffect(() => {
     updateSettings({ sidebarOpen });
@@ -73,12 +73,12 @@ useEffect(() => {
   }, [computed, appConfig]);
 
   const prevDataLengthRef = useRef(0);
-useEffect(() => {
-  if (data.length > 0 && prevDataLengthRef.current === 0) {
-    setActive("m1");
-  }
-  prevDataLengthRef.current = data.length;
-}, [data.length]);
+  useEffect(() => {
+    if (data.length > 0 && prevDataLengthRef.current === 0) {
+      setActive("m1");
+    }
+    prevDataLengthRef.current = data.length;
+  }, [data.length]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -129,41 +129,30 @@ useEffect(() => {
 
   const mod = MODULES.find(m => m.id === active);
   const companyInitial = company.name?.charAt(0)?.toUpperCase() || "?";
+
   return (
-<div className={`flex min-h-screen font-body ${isDark ? "dark bg-brand-dark" : "bg-slate-50"}`} style={{ fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
+    <div className={`flex min-h-screen font-body ${isDark ? "dark bg-brand-dark" : "bg-slate-50"}`}>
       
-{/* ── Notification Toasts ── */}
-      <div className="toast-container fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none" style={{ zIndex: 9999 }}>
-        {notifications.map(n => (
-  <div key={n.id} style={{
-    background:
-      n.type === "error"   ? "#fef2f2" :
-      n.type === "success" ? "#f0fdf4" :
-      n.type === "warning" ? "#fffbeb" : "#f8fafc",
-    border: `1.5px solid ${
-      n.type === "error"   ? "#fecaca" :
-      n.type === "success" ? "#bbf7d0" :
-      n.type === "warning" ? "#fde68a" : "#e2e8f0"
-    }`,
-    color:
-      n.type === "error"   ? "#dc2626" :
-      n.type === "success" ? "#16a34a" :
-      n.type === "warning" ? "#b45309" : "#475569",
-    borderRadius: 12, padding: "10px 16px",
-    fontSize: 13, fontWeight: 600,
-    boxShadow: "0 4px 20px rgba(15,23,42,0.12)",
-    animation: "slideIn 0.25s ease",
-    maxWidth: 320,
-    display: "flex", alignItems: "flex-start", gap: 8,
-  }}>
-    <span style={{ flexShrink: 0, fontSize: 15 }}>
-      {n.type === "success" ? "✅" :
-       n.type === "error"   ? "❌" :
-       n.type === "warning" ? "⚠️" : "ℹ️"}
-    </span>
-    <span style={{ lineHeight: 1.5 }}>{n.msg}</span>
-  </div>
-))}
+      {/* ── Notification Toasts ── */}
+      <div className="toast-container fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none z-toast">
+        {notifications.map(n => {
+          const typeClasses = {
+            error: "bg-red-50 border-red-200 text-red-600",
+            success: "bg-green-50 border-green-200 text-green-600",
+            warning: "bg-amber-50 border-amber-200 text-amber-700",
+            default: "bg-slate-50 border-slate-200 text-slate-600"
+          };
+          const activeClass = typeClasses[n.type] || typeClasses.default;
+          
+          return (
+            <div key={n.id} className={`flex items-start gap-2 p-[10px_16px] rounded-xl text-[13px] font-semibold shadow-[0_4px_20px_rgba(15,23,42,0.12)] animate-[slideIn_0.25s_ease] max-w-[320px] border-[1.5px] ${activeClass}`}>
+              <span className="shrink-0 text-[15px]">
+                {n.type === "success" ? "✅" : n.type === "error" ? "❌" : n.type === "warning" ? "⚠️" : "ℹ️"}
+              </span>
+              <span className="leading-relaxed">{n.msg}</span>
+            </div>
+          );
+        })}
       </div>
       
       {/* ── Reset Confirm Modal ── */}
@@ -173,31 +162,24 @@ useEffect(() => {
           aria-modal="true"
           aria-label="Confirm workspace reset"
           onClick={() => setShowResetConfirm(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
-            backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
-            justifyContent: "center", zIndex: 2000, padding: 16,
-          }}
+          className="fixed inset-0 bg-brand-dark/60 backdrop-blur-sm flex items-center justify-center z-modal p-4"
         >
           <div
-  onClick={e => e.stopPropagation()}
-  className="modal-sheet"
-  style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}
->
-            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>⚠️</div>
-            <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", textAlign: "center", marginBottom: 8 }}>
+            onClick={e => e.stopPropagation()}
+            className="modal-sheet bg-white rounded-[18px] p-[28px_24px] max-w-[380px] w-full shadow-[0_24px_60px_rgba(15,23,42,0.2)]"
+          >
+            <div className="text-[32px] text-center mb-3">⚠️</div>
+            <div className="font-display text-lg font-bold text-brand-dark text-center mb-2">
               Change Workspace?
             </div>
-            <div style={{ fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 1.6, marginBottom: 24 }}>
+            <div className="text-[13px] text-slate-500 text-center leading-relaxed mb-6">
               This will clear your current company settings and all loaded data. You'll return to the setup screen.
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowResetConfirm(false)}
-                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
+            <div className="flex gap-2.5">
+              <button onClick={() => setShowResetConfirm(false)} className="flex-1 p-[11px] rounded-[10px] border-[1.5px] border-slate-200 bg-slate-50 text-slate-600 font-bold cursor-pointer text-[13px]">
                 Cancel
               </button>
-              <button onClick={handleReset}
-                style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#ef4444,#dc2626)", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
+              <button onClick={handleReset} className="flex-1 p-[11px] rounded-[10px] border-none bg-gradient-to-br from-brand-red to-red-600 text-white font-bold cursor-pointer text-[13px]">
                 Yes, Reset
               </button>
             </div>
@@ -205,55 +187,45 @@ useEffect(() => {
         </div>
       )}
 
-{/* ── Config Modal ── */}
+      {/* ── Config Modal ── */}
       {showConfigModal && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Risk Configuration"
           onClick={() => setShowConfigModal(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)",
-            backdropFilter: "blur(6px)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16,
-          }}
+          className="fixed inset-0 bg-brand-dark/60 backdrop-blur-sm flex items-center justify-center z-modal p-4"
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: "#fff", borderRadius: 18, padding: "28px 32px", maxWidth: 420, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}
+            className="bg-white rounded-[18px] p-[28px_32px] max-w-[420px] w-full shadow-[0_24px_60px_rgba(15,23,42,0.2)]"
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700 }}>⚙️ Risk Configuration</div>
-              <button
-                onClick={() => setShowConfigModal(false)}
-                aria-label="Close configuration"
-                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", lineHeight: 1 }}
-              >✕</button>
+            <div className="flex justify-between items-center mb-4">
+              <div className="font-display text-lg font-bold text-brand-dark">⚙️ Risk Configuration</div>
+              <button onClick={() => setShowConfigModal(false)} className="bg-transparent border-none text-xl cursor-pointer leading-none text-brand-dark hover:text-brand-red">✕</button>
             </div>
 
-            {/* High Risk Threshold */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-slate-700">
                 High Risk Threshold (%) — currently {appConfig.thresholds.high}%
               </label>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 6, marginTop: 2 }}>
-                Employees with risk score at or above this % are flagged High Risk across all modules.
+              <div className="text-[10px] text-slate-400 mb-1.5 mt-0.5">
+                Employees with risk score at or above this % are flagged High Risk.
               </div>
               <input
                 type="number"
                 min={1} max={99}
                 value={appConfig.thresholds.high}
                 onChange={e => updateConfig({ thresholds: { high: Number(e.target.value) } })}
-                style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }}
+                className="w-full p-[8px_12px] rounded-[10px] border border-slate-200 text-[13px] outline-none focus:border-brand-amber focus:ring-1 focus:ring-brand-amber"
               />
             </div>
 
-            {/* Medium Risk Threshold */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-slate-700">
                 Medium Risk Threshold (%) — currently {appConfig.thresholds.medium}%
               </label>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 6, marginTop: 2 }}>
+              <div className="text-[10px] text-slate-400 mb-1.5 mt-0.5">
                 Employees between this and the High threshold are flagged Medium Risk.
               </div>
               <input
@@ -261,27 +233,26 @@ useEffect(() => {
                 min={1} max={99}
                 value={appConfig.thresholds.medium}
                 onChange={e => updateConfig({ thresholds: { medium: Number(e.target.value) } })}
-                style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }}
+                className="w-full p-[8px_12px] rounded-[10px] border border-slate-200 text-[13px] outline-none focus:border-brand-amber focus:ring-1 focus:ring-brand-amber"
               />
             </div>
 
-            {/* Risk Colors */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>Risk Level Colors</label>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 6, marginTop: 2 }}>
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-slate-700">Risk Level Colors</label>
+              <div className="text-[10px] text-slate-400 mb-1.5 mt-0.5">
                 Applied to all charts, badges, and indicators across every module.
               </div>
-              <div style={{ display: "flex", gap: 16, marginTop: 6 }}>
+              <div className="flex gap-4 mt-1.5">
                 {["high", "medium", "low"].map(level => (
-                  <div key={level} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: "#475569" }}>{level}</div>
+                  <div key={level} className="flex flex-col items-center gap-1">
+                    <div className="text-[10px] font-bold capitalize text-slate-600">{level}</div>
                     <input
                       type="color"
                       value={appConfig.colors[level]}
                       onChange={e => updateConfig({ colors: { [level]: e.target.value } })}
-                      style={{ width: 44, height: 44, borderRadius: 10, border: "1.5px solid #e2e8f0", cursor: "pointer", padding: 2 }}
+                      className="w-11 h-11 rounded-[10px] border-[1.5px] border-slate-200 cursor-pointer p-0.5"
                     />
-                    <div style={{ fontSize: 9, color: "#94a3b8" }}>{appConfig.colors[level]}</div>
+                    <div className="text-[9px] text-slate-400">{appConfig.colors[level]}</div>
                   </div>
                 ))}
               </div>
@@ -292,7 +263,7 @@ useEffect(() => {
                 thresholds: { high: 30, medium: 15 },
                 colors: { high: "#ef4444", medium: "#eab308", low: "#22c55e" },
               })}
-              style={{ width: "100%", padding: "10px", background: "#f1f5f9", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", marginTop: 4 }}
+              className="w-full p-2.5 bg-slate-100 border-none rounded-[10px] text-xs font-semibold cursor-pointer mt-1 text-slate-700 hover:bg-slate-200"
             >
               ↺ Reset to Defaults
             </button>
@@ -300,41 +271,38 @@ useEffect(() => {
         </div>
       )}
 
-{/* ── Mobile Sidebar Overlay ── */}
+      {/* ── Mobile Sidebar Overlay ── */}
       {mobileSidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
+        <div className="sidebar-overlay block" onClick={() => setMobileSidebarOpen(false)} />
       )}
 
-{/* ── Sidebar ── */}
+      {/* ── Sidebar ── */}
       <aside
-        className={`sidebar-drawer flex flex-col bg-brand-dark overflow-y-auto overflow-x-hidden flex-shrink-0${mobileSidebarOpen ? " open" : ""}`}
+        className={`sidebar-drawer flex flex-col bg-brand-dark overflow-y-auto overflow-x-hidden flex-shrink-0 transition-all duration-300 ease-in-out ${mobileSidebarOpen ? " open" : ""}`}
         style={{
           width: sidebarOpen ? 232 : 56,
           minWidth: sidebarOpen ? 232 : 56,
-          transition: "var(--transition-sidebar)",
         }}
       >
         {/* Logo */}
-        <div style={{ padding: sidebarOpen ? "22px 18px 18px" : "22px 10px 18px", borderBottom: "1px solid #1e293b" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 17 }}>⚡</div>
+        <div className={`border-b border-brand-navy ${sidebarOpen ? "p-[22px_18px_18px]" : "p-[22px_10px_18px]"}`}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-[34px] h-[34px] bg-gradient-to-br from-brand-amber to-brand-red rounded-[9px] flex items-center justify-center shrink-0 text-[17px]">⚡</div>
             {sidebarOpen && (
               <div>
-                <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>AttritionIQ</div>
-                <div style={{ fontSize: 9, color: "#475569" }}>by Pulse Digital</div>
+                <div className="font-display text-[15px] font-bold text-white leading-tight">AttritionIQ</div>
+                <div className="text-[9px] text-slate-500">by Pulse Digital</div>
               </div>
             )}
           </div>
           {sidebarOpen && (
-            <div style={{ marginTop: 12, background: "#1e293b", borderRadius: 9, padding: "7px 11px" }}>
-              <div style={{ fontSize: 9, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em" }}>Workspace</div>
-              <div style={{ fontSize: 12, color: "#f1f5f9", fontWeight: 600, marginTop: 1 }}>{company.name}</div>
-              <div style={{ fontSize: 10, color: "#64748b" }}>{company.industry} · {company.currency}</div>
-              {/* ── Change Company Button ── */}
-              <button onClick={() => setShowResetConfirm(true)}
-                style={{ marginTop: 8, width: "100%", padding: "5px 8px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#64748b", fontSize: 10, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.target.style.color = "#f59e0b"; e.target.style.borderColor = "#f59e0b44"; }}
-                onMouseLeave={e => { e.target.style.color = "#64748b"; e.target.style.borderColor = "#334155"; }}
+            <div className="mt-3 bg-brand-navy rounded-[9px] p-[7px_11px]">
+              <div className="text-[9px] text-slate-500 uppercase tracking-widest">Workspace</div>
+              <div className="text-xs text-slate-100 font-semibold mt-px">{company.name}</div>
+              <div className="text-[10px] text-slate-400">{company.industry} · {company.currency}</div>
+              <button 
+                onClick={() => setShowResetConfirm(true)}
+                className="mt-2 w-full p-[5px_8px] rounded-md border border-slate-700 bg-transparent text-slate-500 text-[10px] cursor-pointer text-left transition-all hover:text-brand-amber hover:border-brand-amber/30"
               >
                 ↩ Change Company
               </button>
@@ -344,21 +312,19 @@ useEffect(() => {
 
         {/* Data status */}
         {sidebarOpen && (
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid #1e293b" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: insight?.color || "#475569", flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: data.length > 0 ? "#22c55e" : "#475569" }}>
-                {insight
-  ? `${insight.total} employees synced · ${insight.status}`
-  : "No data loaded"}
+          <div className="p-[10px_16px] border-b border-brand-navy">
+            <div className="flex items-center gap-[7px]">
+              <div className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: insight?.color || "#475569" }} />
+              <span className={`text-[11px] ${data.length > 0 ? "text-green-500" : "text-slate-500"}`}>
+                {insight ? `${insight.total} employees synced · ${insight.status}` : "No data loaded"}
               </span>
             </div>
           </div>
         )}
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: "10px 8px" }}>
-                    {MODULES.map(m => {
+        <nav className="flex-1 p-[10px_8px]">
+          {MODULES.map(m => {
             const isActive   = active === m.id;
             const isDisabled = !data.length && m.id !== "m1";
             return (
@@ -368,25 +334,19 @@ useEffect(() => {
                 disabled={isDisabled}
                 aria-current={isActive ? "page" : undefined}
                 title={isDisabled ? `${m.label} — Upload data first` : m.label}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 9,
-                  padding: "9px 10px", borderRadius: 9, border: "none",
-                  cursor: isDisabled ? "not-allowed" : "pointer", marginBottom: 1,
-                  background: isActive ? "rgba(245,158,11,0.12)" : "transparent",
-                  color: isActive ? "#f59e0b" : isDisabled ? "#334155" : "#64748b",
-                  textAlign: "left", transition: "all 0.15s ease",
-                  borderLeft: isActive ? "3px solid #f59e0b" : "3px solid transparent",
-                  opacity: isDisabled ? 0.35 : 1,
-                  pointerEvents: isDisabled ? "none" : "auto",
-                }}
+                className={`w-full flex items-center gap-[9px] p-[9px_10px] rounded-[9px] border-none mb-px text-left transition-all duration-150
+                  ${isActive ? "bg-brand-amber/10 text-brand-amber border-l-[3px] border-brand-amber" : "bg-transparent border-l-[3px] border-transparent"}
+                  ${isDisabled ? "text-slate-700 cursor-not-allowed opacity-35 pointer-events-none" : "cursor-pointer hover:bg-white/5"}
+                  ${!isActive && !isDisabled ? "text-slate-400" : ""}
+                `}
               >
-                <span style={{ fontSize: 15, flexShrink: 0 }}>{m.icon}</span>
+                <span className="text-[15px] shrink-0">{m.icon}</span>
                 {sidebarOpen && (
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: isActive ? 700 : 500, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.label}</div>
-                    <div style={{ fontSize: 9, opacity: 0.4, marginTop: 1, display: "flex", alignItems: "center", gap: 4 }}>
+                  <div className="min-w-0">
+                    <div className={`text-[11px] leading-tight truncate ${isActive ? "font-bold" : "font-medium"}`}>{m.label}</div>
+                    <div className="text-[9px] opacity-40 mt-px flex items-center gap-1">
                       {m.short}
-                      {m.live && <span style={{ background: "#22c55e", color: "#fff", borderRadius: 4, padding: "0px 4px", fontSize: 8, fontWeight: 700 }}>LIVE</span>}
+                      {m.live && <span className="bg-green-500 text-white rounded-[4px] px-1 text-[8px] font-bold">LIVE</span>}
                     </div>
                   </div>
                 )}
@@ -396,94 +356,68 @@ useEffect(() => {
         </nav>
 
         {/* Theme toggle + Collapse */}
-<div style={{ padding: "10px 8px", borderTop: "1px solid #1e293b", display: "flex", flexDirection: "column", gap: 6 }}>
-  <button
-    onClick={toggleTheme}
-    title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-    style={{
-      width: "100%", padding: "7px", borderRadius: 8,
-      border: "1px solid #1e293b", background: "transparent",
-      color: "#475569", cursor: "pointer", fontSize: 13,
-      display: "flex", alignItems: "center",
-      justifyContent: sidebarOpen ? "flex-start" : "center",
-      gap: 8,
-    }}
-  >
-    <span style={{ fontSize: 15 }}>{isDark ? "☀️" : "🌙"}</span>
-    {sidebarOpen && (
-      <span style={{ fontSize: 11, color: "#64748b" }}>
-        {isDark ? "Light Mode" : "Dark Mode"}
-      </span>
-    )}
-  </button>
+        <div className="p-[10px_8px] border-t border-brand-navy flex flex-col gap-1.5">
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            className={`w-full p-[7px] rounded-lg border border-brand-navy bg-transparent text-slate-500 cursor-pointer text-[13px] flex items-center gap-2 hover:bg-white/5 ${sidebarOpen ? "justify-start" : "justify-center"}`}
+          >
+            <span className="text-[15px]">{isDark ? "☀️" : "🌙"}</span>
+            {sidebarOpen && <span className="text-[11px] text-slate-400">{isDark ? "Light Mode" : "Dark Mode"}</span>}
+          </button>
 
-  <button
-    onClick={() => setSidebarOpen(p => !p)}
-    style={{
-      width: "100%", padding: "7px", borderRadius: 8,
-      border: "1px solid #1e293b", background: "transparent",
-      color: "#475569", cursor: "pointer", fontSize: 13,
-    }}
-  >
-    {sidebarOpen ? "◀ Collapse" : "▶"}
-  </button>
-</div>
+          <button
+            onClick={() => setSidebarOpen(p => !p)}
+            className="w-full p-[7px] rounded-lg border border-brand-navy bg-transparent text-slate-500 cursor-pointer text-[13px] hover:bg-white/5"
+          >
+            {sidebarOpen ? "◀ Collapse" : "▶"}
+          </button>
+        </div>
       </aside>
 
       {/* ── Main ── */}
       <main className="main-content flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Topbar */}
-        <div className={`flex items-center justify-between sticky top-0 px-4 py-3 border-b ${isDark ? "bg-brand-navy border-slate-700" : "bg-white border-slate-100"}`} style={{ zIndex: 50 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+        <div className={`flex items-center justify-between sticky top-0 px-4 py-3 border-b z-topbar ${isDark ? "bg-brand-navy border-slate-700" : "bg-white border-slate-100"}`}>
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
               onClick={() => setMobileSidebarOpen(p => !p)}
-              className="mobile-menu-btn items-center justify-center bg-transparent border-none cursor-pointer text-xl flex-shrink-0 px-1"
-              style={{ display: "none", color: isDark ? "#f1f5f9" : "#0f172a" }}
+              className="mobile-menu-btn items-center justify-center bg-transparent border-none cursor-pointer text-xl shrink-0 px-1 dark:text-slate-100 text-brand-dark"
               aria-label="Open menu"
             >
               ☰
             </button>
-            <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
-  <div className="topbar-title text-safe" style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: isDark ? "#f1f5f9" : "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-    {mod?.icon} {mod?.label}
-  </div>
-  <div className="text-safe" style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
-    {data.length > 0 && insight
-      ? `${insight.total} emp · ${company.name} · ${insight.highRisk} high`
-      : "Upload CSV or use sample data"}
-  </div>
-</div>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="topbar-title text-safe font-display text-lg font-bold truncate dark:text-slate-100 text-brand-dark">
+                {mod?.icon} {mod?.label}
+              </div>
+              <div className="text-safe text-[11px] mt-px truncate max-w-full" style={{ color: insight?.color || "#94a3b8" }}>
+                {data.length > 0 && insight
+                  ? `${insight.total} emp · ${company.name} · ${insight.highRisk} high`
+                  : "Upload CSV or use sample data"}
+              </div>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0, minWidth: 0 }}>
-  {data.length > 0 && insight && (
-    <div className="topbar-badge-hide-xs" style={{
-      background: insight.color + "22",
+          <div className="flex gap-2 items-center shrink-0 min-w-0">
+            {data.length > 0 && insight && (
+              <div className="topbar-badge-hide-xs rounded-full px-[11px] py-1 text-[10px] font-bold whitespace-nowrap border" style={{
+                background: insight.color + "22",
                 border: `1px solid ${insight.color}55`,
-                borderRadius: 20,
-                padding: "4px 11px",
-                fontSize: 10,
                 color: insight.color,
-                fontWeight: 700,
-                whiteSpace: "nowrap"
               }}>
                 {insight.status} · {insight.highRisk} High Risk
               </div>
             )}
             
             {isSampleData && (
-              <div style={{
-                background: "#fffbeb", border: "1px solid #fde68a",
-                borderRadius: 20, padding: "3px 10px",
-                fontSize: 10, color: "#92400e", fontWeight: 700,
-                whiteSpace: "nowrap",
-              }}>
+              <div className="bg-amber-50 border border-amber-200 rounded-full px-2.5 py-[3px] text-[10px] text-amber-800 font-bold whitespace-nowrap">
                 📋 Sample Data
               </div>
             )}
 
             <button 
               onClick={() => setShowConfigModal(true)}
-              style={{ background: "#f1f5f9", border: "none", borderRadius: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, flexShrink: 0 }}
+              className="bg-slate-100 hover:bg-slate-200 border-none rounded-full w-[34px] h-[34px] flex items-center justify-center cursor-pointer text-lg shrink-0 transition-colors"
               title="Settings"
             >
               ⚙️
@@ -491,23 +425,20 @@ useEffect(() => {
 
             <div
               title={`${company.name} · ${company.industry || ""} · ${company.currency || "USD"}`}
-              style={{ width: 34, height: 34, background: "linear-gradient(135deg,#f59e0b,#ef4444)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "default", flexShrink: 0 }}
+              className="w-[34px] h-[34px] bg-gradient-to-br from-brand-amber to-brand-red rounded-[9px] flex items-center justify-center text-white font-bold text-sm cursor-default shrink-0"
             >
               {companyInitial}
             </div>
           </div>
         </div>
 
-
-                {/* Content */}
-<div className="content-area flex-1 overflow-y-auto" style={{ padding: "22px 24px" }}>
-          
+        {/* Content */}
+        <div className="content-area flex-1 overflow-y-auto p-[22px_24px]">
           <ErrorBoundary>
             <DataUpload />
           </ErrorBoundary>
 
-                    <ErrorBoundary key={active}>
-            
+          <ErrorBoundary key={active}>
             <div key={active} className="module-fade-in">
               {active === "m1" ? <M1Dashboard />
                 : active === "m2" ? <M2RiskScorer />
@@ -527,7 +458,6 @@ useEffect(() => {
   );
 }
 
-// ── 2. UI STANDALONE SURVEY (PREMIUM SAAS GRADE) ──
 function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -562,14 +492,14 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
   };
 
   if (submitted) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: 20 }}>
-      <div style={{ textAlign: "center", padding: "50px 40px", background: "#fff", borderRadius: 24, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.1)", maxWidth: 440, width: "100%", animation: "slideIn 0.5s ease" }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
-        <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 28, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>You're all set!</div>
-        <div style={{ fontSize: 15, color: "#64748b", marginBottom: 32, lineHeight: 1.6 }}>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-5 font-body">
+      <div className="text-center p-[50px_40px] bg-white rounded-[24px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)] max-w-[440px] w-full animate-[slideIn_0.5s_ease]">
+        <div className="text-[64px] mb-5">🎉</div>
+        <div className="font-display text-[28px] font-extrabold text-brand-dark mb-3">You're all set!</div>
+        <div className="text-[15px] text-slate-500 mb-8 leading-relaxed">
           Thank you for sharing your voice. Your feedback goes directly into our Hiring Intelligence engine to build a better workplace.
         </div>
-        <button onClick={onClose} style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", background: "#0f172a", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "transform 0.2s" }}>
+        <button onClick={onClose} className="w-full p-4 rounded-[14px] border-none bg-brand-dark text-white text-[15px] font-bold cursor-pointer transition-transform hover:scale-[1.02]">
           Close Page
         </button>
       </div>
@@ -577,111 +507,120 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "0 0 60px 0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-slate-50 pb-[60px] font-body">
       
       {/* Top Navigation & Progress Bar */}
-      <div style={{ background: "#fff", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid #f1f5f9", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>⚡</span>
+      <div className="bg-white sticky top-0 z-topbar border-b border-slate-100 p-[16px_24px] flex items-center justify-between">
+        <div className="font-extrabold text-base text-brand-dark flex items-center gap-2">
+          <span className="bg-gradient-to-br from-brand-amber to-brand-red bg-clip-text text-transparent">⚡</span>
           Pulse Check
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>{progressPct}%</div>
-          <div style={{ width: 100, height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ width: `${progressPct}%`, height: "100%", background: progressPct === 100 ? "#22c55e" : "#f59e0b", transition: "width 0.4s ease" }} />
+        <div className="flex items-center gap-3">
+          <div className="text-xs font-bold text-slate-500">{progressPct}%</div>
+          <div className="w-[100px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-400 ease-in-out ${progressPct === 100 ? "bg-green-500" : "bg-brand-amber"}`} 
+              style={{ width: `${progressPct}%` }} 
+            />
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px" }}>
+      <div className="max-w-[600px] mx-auto p-[40px_20px]">
         
         {/* Header Section */}
-        <div style={{ marginBottom: 40, textAlign: "center" }}>
-          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 32, fontWeight: 800, color: "#0f172a", marginBottom: 10 }}>
+        <div className="mb-10 text-center">
+          <div className="font-display text-[32px] font-extrabold text-brand-dark mb-2.5">
             {companyName}
           </div>
-          <div style={{ fontSize: 15, color: "#64748b", fontWeight: 500 }}>
+          <div className="text-[15px] text-slate-500 font-medium">
             {dept} Department • Takes ~2 mins
           </div>
           {anonymous && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", color: "#16a34a", padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, marginTop: 16, border: "1px solid #bbf7d0" }}>
+            <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 p-[6px_12px] rounded-full text-xs font-bold mt-4 border border-green-200">
               🔒 100% Anonymous Mode
             </div>
           )}
         </div>
 
-        {/* Input Nama (Jika tidak anonim) */}
         {!anonymous && (
-          <div style={{ background: "#fff", borderRadius: 16, padding: "24px", marginBottom: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9" }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Your Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Type your full name here..." style={{ width: "100%", padding: "16px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 15, boxSizing: "border-box", outline: "none", transition: "border 0.2s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
+          <div className="bg-white rounded-[16px] p-6 mb-6 shadow-sm border border-slate-100">
+            <label className="block text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3">Your Name</label>
+            <input 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              placeholder="Type your full name here..." 
+              className="w-full p-4 rounded-xl border-[1.5px] border-slate-200 text-[15px] outline-none transition-colors focus:border-brand-amber" 
+            />
           </div>
         )}
 
-        {/* List Pertanyaan (SaaS Grade) */}
         {questions.map((q, idx) => {
           const isAnswered = answers[q.id] !== undefined;
           return (
-            <div key={q.id} style={{ background: "#fff", borderRadius: 20, padding: "32px 28px", marginBottom: 24, boxShadow: isAnswered ? "none" : "0 10px 25px -5px rgba(0,0,0,0.05)", border: isAnswered ? "1px solid #e2e8f0" : "1.5px solid #f59e0b", transition: "all 0.3s ease", opacity: isAnswered ? 0.7 : 1 }}>
-              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, border: "1px solid #f1f5f9" }}>
+            <div key={q.id} className={`bg-white rounded-[20px] p-[32px_28px] mb-6 transition-all duration-300 ${isAnswered ? "border border-slate-200 opacity-70" : "border-[1.5px] border-brand-amber shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)]"}`}>
+              <div className="flex gap-4 mb-6">
+                <div className="w-11 h-11 rounded-xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100">
                   {q.icon}
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+                  <div className="text-[11px] font-extrabold text-brand-amber uppercase tracking-wider mb-1.5">
                     Q{idx + 1} • {q.category}
                   </div>
-                  <div style={{ fontSize: 18, color: "#0f172a", fontWeight: 700, lineHeight: 1.4 }}>
+                  <div className="text-lg text-brand-dark font-bold leading-relaxed">
                     {q.text}
                   </div>
                 </div>
               </div>
 
-              {/* Segmented Control 1-10 (Pengganti Slider) */}
               {q.type === "scale" ? (
                 <div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "space-between" }}>
+                  <div className="flex gap-1.5 flex-wrap justify-between">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
                       const selected = answers[q.id] === num;
-                      // Gradasi warna: Merah (1-3), Kuning (4-7), Hijau (8-10)
-                      let activeBg = "#0f172a";
-                      if (num <= 3) activeBg = "#ef4444";
-                      else if (num >= 8) activeBg = "#22c55e";
+                      let colorClasses = "text-slate-500 border-slate-200 bg-white";
+                      if (selected) {
+                        if (num <= 3) colorClasses = "text-brand-red border-brand-red bg-red-50";
+                        else if (num >= 8) colorClasses = "text-green-500 border-green-500 bg-green-50";
+                        else colorClasses = "text-brand-dark border-brand-dark bg-slate-100";
+                      }
 
                       return (
                         <button
                           key={num}
                           onClick={() => setAnswers(p => ({ ...p, [q.id]: num }))}
-                          style={{
-                            flex: 1, minWidth: "30px", padding: "12px 0", borderRadius: 10,
-                            border: selected ? `2px solid ${activeBg}` : "1.5px solid #e2e8f0",
-                            background: selected ? `${activeBg}11` : "#fff",
-                            color: selected ? activeBg : "#64748b",
-                            fontSize: 15, fontWeight: 800, cursor: "pointer",
-                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                            transform: selected ? "scale(1.05)" : "scale(1)"
-                          }}
+                          className={`flex-1 min-w-[30px] py-3 rounded-[10px] border-[1.5px] text-[15px] font-extrabold cursor-pointer transition-all duration-200 ${colorClasses} ${selected ? "scale-105" : "hover:bg-slate-50"}`}
                         >
                           {num}
                         </button>
                       );
                     })}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8", marginTop: 12, fontWeight: 600 }}>
+                  <div className="flex justify-between text-xs text-slate-400 mt-3 font-semibold">
                     <span>Not at all</span>
                     <span>Absolutely</span>
                   </div>
                 </div>
               ) : (
-                <textarea rows={4} placeholder="Type your thoughts here..." value={answers[q.id] || ""} onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))} style={{ width: "100%", padding: "16px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 15, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", outline: "none" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
+                <textarea 
+                  rows={4} 
+                  placeholder="Type your thoughts here..." 
+                  value={answers[q.id] || ""} 
+                  onChange={e => setAnswers(p => ({ ...p, [q.id]: e.target.value }))} 
+                  className="w-full p-4 rounded-xl border-[1.5px] border-slate-200 text-[15px] resize-y outline-none font-inherit transition-colors focus:border-brand-amber" 
+                />
               )}
             </div>
           );
         })}
 
         {/* Action Button */}
-        <div style={{ marginTop: 32 }}>
-          <button onClick={handleSubmit} disabled={isSubmitting || !isComplete} style={{ width: "100%", padding: "20px", background: isComplete ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "#e2e8f0", color: isComplete ? "#fff" : "#94a3b8", border: "none", borderRadius: 16, fontSize: 16, fontWeight: 800, cursor: isComplete ? "pointer" : "not-allowed", transition: "all 0.3s ease", boxShadow: isComplete ? "0 10px 25px -5px rgba(245,158,11,0.4)" : "none" }}>
+        <div className="mt-8">
+          <button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || !isComplete} 
+            className={`w-full p-5 border-none rounded-[16px] text-base font-extrabold transition-all duration-300 ${isComplete ? "bg-gradient-to-br from-brand-amber to-brand-red text-white cursor-pointer shadow-[0_10px_25px_-5px_rgba(245,158,11,0.4)] hover:scale-[1.01]" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}
+          >
             {isSubmitting ? "Processing Data..." : isComplete ? "Submit Pulse Survey" : "Please answer all questions"}
           </button>
         </div>
