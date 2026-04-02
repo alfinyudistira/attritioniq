@@ -137,11 +137,11 @@ useEffect(() => {
 }}>
       
 {/* ── Notification Toasts ── */}
-      <div style={{
-        position: "fixed", bottom: 24, right: 24,
-        zIndex: 9999, display: "flex", flexDirection: "column", gap: 8,
-        pointerEvents: "none",
-      }}>
+      <div className="toast-container" style={{
+  position: "fixed", bottom: 24, right: 24,
+  zIndex: 9999, display: "flex", flexDirection: "column", gap: 8,
+  pointerEvents: "none",
+}}>
         {notifications.map(n => (
   <div key={n.id} style={{
     background:
@@ -188,9 +188,10 @@ useEffect(() => {
           }}
         >
           <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: "#fff", borderRadius: 18, padding: "32px 36px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}
-          >
+  onClick={e => e.stopPropagation()}
+  className="modal-sheet"
+  style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.2)" }}
+>
             <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>⚠️</div>
             <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", textAlign: "center", marginBottom: 8 }}>
               Change Workspace?
@@ -453,21 +454,21 @@ useEffect(() => {
             >
               ☰
             </button>
-            <div style={{ minWidth: 0 }}>
-              <div className="topbar-title text-safe" style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: isDark ? "#f1f5f9" : "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {mod?.icon} {mod?.label}
-              </div>
-              <div className="text-safe" style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {data.length > 0 && insight
-                  ? `${insight.total} emp · ${company.name} · ${insight.highRisk} high risk`
-                  : "No data — upload CSV or use sample data"}
-              </div>
-            </div>
+            <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+  <div className="topbar-title text-safe" style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: isDark ? "#f1f5f9" : "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+    {mod?.icon} {mod?.label}
+  </div>
+  <div className="text-safe" style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+    {data.length > 0 && insight
+      ? `${insight.total} emp · ${company.name} · ${insight.highRisk} high`
+      : "Upload CSV or use sample data"}
+  </div>
+</div>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-            {data.length > 0 && insight && (
-              <div style={{
-                background: insight.color + "22",
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0, minWidth: 0 }}>
+  {data.length > 0 && insight && (
+    <div className="topbar-badge-hide-xs" style={{
+      background: insight.color + "22",
                 border: `1px solid ${insight.color}55`,
                 borderRadius: 20,
                 padding: "4px 11px",
