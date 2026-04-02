@@ -296,8 +296,8 @@ export default function M1Dashboard() {
         ))}
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-[18px]">
+            {/* KPIs */}
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-[18px]">
         {kpis.map((k, i) => <KPICard key={i} {...k} />)}
         {pulseOverride && (
           <KPICard
@@ -312,8 +312,8 @@ export default function M1Dashboard() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-[14px]">
-        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px] mb-[14px]">
+        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 md:col-span-2 lg:col-span-1">
           <div className="font-bold text-[13px] text-brand-dark mb-0.5">Attrition by Department</div>
           <div className="text-[10px] text-slate-400 mb-3">% at-risk per dept</div>
           <BarChart
@@ -344,7 +344,7 @@ export default function M1Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
+        <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 md:col-span-1 lg:col-span-1">
           <div className="font-bold text-[13px] text-brand-dark mb-0.5">By Generation</div>
           <div className="text-[10px] text-slate-400 mb-3">Gen Z · Millennial · Senior</div>
           <BarChart
