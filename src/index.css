@@ -32,6 +32,9 @@
     margin-left: 0 !important;
     width: 100% !important;
   }
+  .mobile-menu-btn {
+    display: flex !important;
+  }
   .topbar-title {
     font-size: 15px !important;
   }
@@ -87,7 +90,7 @@ input, select, textarea {
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
 }
 
-/* ── Animasi Transisi Modul SaaS (Wow Factor) ── */
+
 .module-fade-in {
   animation: moduleFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
