@@ -42,6 +42,7 @@ function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(() => settings.sidebarOpen ?? true);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
 
   const { isMobile } = useWindowSize();
@@ -306,15 +307,23 @@ useEffect(() => {
         </div>
       )}
 
+{/* ── Mobile Sidebar Overlay ── */}
+      {mobileSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setMobileSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside style={{
-        width: sidebarOpen ? 232 : 56, minWidth: sidebarOpen ? 232 : 56,
-        background: "#0f172a", transition: "width 0.22s",
-        display: "flex", flexDirection: "column",
-        position: "sticky", top: 0, height: "100vh",
-        overflowY: "auto", overflowX: "hidden", zIndex: 100,
-        flexShrink: 0,
-      }}>
+      <aside
+        className={`sidebar-drawer${mobileSidebarOpen ? " open" : ""}`}
+        style={{
+          width: sidebarOpen ? 232 : 56, minWidth: sidebarOpen ? 232 : 56,
+          background: "#0f172a", transition: "width 0.22s, transform 0.25s",
+          display: "flex", flexDirection: "column",
+          position: "sticky", top: 0, height: "100vh",
+          overflowY: "auto", overflowX: "hidden", zIndex: 100,
+          flexShrink: 0,
+        }}
+      >
         {/* Logo */}
         <div style={{ padding: sidebarOpen ? "22px 18px 18px" : "22px 10px 18px", borderBottom: "1px solid #1e293b" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -434,18 +443,28 @@ useEffect(() => {
       {/* ── Main ── */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Topbar */}
-        <div style={{ background: "#fff", borderBottom: "1.5px solid #f1f5f9", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50 }}>
-          <div>
-            <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
-              {mod?.icon} {mod?.label}
-            </div>
-            <div style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8" }}>
-              {data.length > 0 && insight
-                ? `${insight.total} employees · ${company.name} · ${insight.highRisk} high risk (${insight.riskRate.toFixed(0)}%)${company.salaryCliff ? ` · cliff ${fmt(company.salaryCliff, true)}` : ""}`
-                : "No data — upload CSV or use sample data"}
+        <div style={{ background: isDark ? "#1e293b" : "#fff", borderBottom: `1.5px solid ${isDark ? "#334155" : "#f1f5f9"}`, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+            <button
+              onClick={() => setMobileSidebarOpen(p => !p)}
+              style={{ display: "none", background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: "2px 6px", flexShrink: 0, color: isDark ? "#f1f5f9" : "#0f172a" }}
+              className="mobile-menu-btn"
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+            <div style={{ minWidth: 0 }}>
+              <div className="topbar-title text-safe" style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: isDark ? "#f1f5f9" : "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {mod?.icon} {mod?.label}
+              </div>
+              <div className="text-safe" style={{ fontSize: 11, marginTop: 1, color: insight?.color || "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {data.length > 0 && insight
+                  ? `${insight.total} emp · ${company.name} · ${insight.highRisk} high risk`
+                  : "No data — upload CSV or use sample data"}
+              </div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
             {data.length > 0 && insight && (
               <div style={{
                 background: insight.color + "22",
@@ -491,14 +510,14 @@ useEffect(() => {
 
 
                 {/* Content */}
-        <div style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
+<div className="content-area" style={{ flex: 1, padding: "22px 24px", overflowY: "auto" }}>
           
           <ErrorBoundary>
             <DataUpload />
           </ErrorBoundary>
 
                     <ErrorBoundary key={active}>
-            {/* Animasi Transisi Modul SaaS */}
+            
             <div key={active} className="module-fade-in">
               {active === "m1" ? <M1Dashboard />
                 : active === "m2" ? <M2RiskScorer />
@@ -524,8 +543,6 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Menghitung progress pengisian survei
   const answeredCount = Object.keys(answers).length;
   const progressPct = Math.round((answeredCount / questions.length) * 100);
   const isComplete = answeredCount === questions.length;
@@ -546,7 +563,6 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
       anonymous 
     });
 
-    // Submit ke Mesin Analitik
     await surveyEngine.submit(formattedAnswers, context, true);
     
     setTimeout(() => {
@@ -555,7 +571,6 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
     }, 800);
   };
 
-  // TAMPILAN SUCCESS (SETELAH SUBMIT)
   if (submitted) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", padding: 20 }}>
       <div style={{ textAlign: "center", padding: "50px 40px", background: "#fff", borderRadius: 24, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.1)", maxWidth: 440, width: "100%", animation: "slideIn 0.5s ease" }}>
@@ -571,7 +586,6 @@ function StandaloneSurvey({ dept, questions, anonymous, companyName, onClose }) 
     </div>
   );
 
-  // TAMPILAN FORM SURVEI
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "0 0 60px 0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       
