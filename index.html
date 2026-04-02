@@ -10,6 +10,30 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        screens: {
+          'xs': '375px',
+        },
+        colors: {
+          brand: {
+            amber: '#f59e0b',
+            red:   '#ef4444',
+            dark:  '#0f172a',
+            navy:  '#1e293b',
+          }
+        },
+        fontFamily: {
+          display: ["'Playfair Display'", 'Georgia', 'serif'],
+          body:    ["'DM Sans'", "'Segoe UI'", 'sans-serif'],
+        }
+      }
+    }
+  }
+</script>
   </head>
   <body>
     <div id="root"></div>
