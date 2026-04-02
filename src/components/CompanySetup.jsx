@@ -140,10 +140,12 @@ const [hasEditedSalaryCliff, setHasEditedSalaryCliff] = useState(
         zIndex: 1000, padding: 16,
       }}>
       <div style={{
-        background: "#fff", borderRadius: 22, padding: "36px 40px",
+        background: "#fff", borderRadius: 22,
+        padding: "clamp(20px, 5vw, 36px) clamp(16px, 5vw, 40px)",
         width: "100%", maxWidth: 460,
         boxShadow: "0 32px 80px rgba(15,23,42,0.2)",
         border: "1px solid #f1f5f9",
+        maxHeight: "90vh", overflowY: "auto",
       }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
