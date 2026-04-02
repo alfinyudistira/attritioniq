@@ -156,8 +156,14 @@ export function BarChart({
           const y         = padT + chartH - bh;
           const color     = colorFn ? colorFn(d) : "#f59e0b";
           const displayVal = formatValue ? formatValue(rawVal) : rawVal < 1 && rawVal > 0 ? (rawVal * 100).toFixed(0) + "%" : String(rawVal);
-          const label      = String(d[labelKey] ?? "");
-          const shortLabel = label.length > 9 ? label.slice(0, 8) + "…" : label;
+          const label = String(d[labelKey] ?? "");
+let shortLabel = label;
+if (count > 4) {
+  shortLabel = label.split(" ")[0]; 
+  if (shortLabel.length > 11) shortLabel = shortLabel.slice(0, 10) + "…";
+} else {
+  if (shortLabel.length > 15) shortLabel = shortLabel.slice(0, 14) + "…";
+}
           const labelY = Math.max(padT - 6, y - 6);
 
           return (
