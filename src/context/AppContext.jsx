@@ -494,7 +494,6 @@ export function AppProvider({ children }) {
         if (salary > 5000) salaryLevel = "High";
         else if (salary >= 3000) salaryLevel = "Medium";
       }
-      d.SalaryLevel = salaryLevel; 
       
       let riskScore = 0;
       if (d.OvertimeStatus === "Yes") riskScore += 2;
