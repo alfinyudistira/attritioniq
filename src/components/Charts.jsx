@@ -117,7 +117,7 @@ export function BarChart({
   const count   = sliced.length;
   const totalW  = 300;
   const padB    = 32; 
-  const padT    = 20; 
+  const padT    = 24; 
   const chartH  = height - padB - padT;
 
   const slotW   = totalW / count;
@@ -125,137 +125,119 @@ export function BarChart({
   const values  = sliced.map(d => Number(d[valueKey]) || 0);
   const max     = Math.max(...values, 0.01);
 
-    return (
+  return (
     <>
-    <ChartTooltip tooltip={tooltip} />
-    <svg
-  width="100%"
-  height="auto"
-  viewBox={`0 0 ${totalW} ${height}`}
-  role="img"
-  aria-label="Bar chart"
-  style={{ overflow: "visible", display: "block" }}
->
-      {[0.25, 0.5, 0.75, 1].map(ratio => {
-        const gy = padT + chartH - ratio * chartH;
-        return (
-          <line
-            key={ratio}
-            x1={0} y1={gy} x2={totalW} y2={gy}
-            stroke="#f1f5f9" strokeWidth={1}
-          />
-        );
-      })}
+      <ChartTooltip tooltip={tooltip} />
+      <svg
+        width="100%"
+        height="auto"
+        viewBox={`0 0 ${totalW} ${height}`}
+        role="img"
+        aria-label="Bar chart"
+        style={{ overflow: "visible", display: "block" }}
+      >
+        <defs>
+          <filter id="bar-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#0f172a" floodOpacity="0.08" />
+          </filter>
+        </defs>
+        {[0.25, 0.5, 0.75, 1].map(ratio => {
+          const gy = padT + chartH - ratio * chartH;
+          return (
+            <line key={ratio} x1={0} y1={gy} x2={totalW} y2={gy} stroke="#f1f5f9" strokeWidth={1} strokeDasharray="4,4" />
+          );
+        })}
 
-      {sliced.map((d, i) => {
-        const rawVal    = Number(d[valueKey]) || 0;
-        const bh        = Math.max(4, (rawVal / max) * chartH);
-        const slotStart = i * slotW;
-        const x         = slotStart + (slotW - barW) / 2;
-        const y         = padT + chartH - bh;
-        const color     = colorFn ? colorFn(d) : "#f59e0b";
-        const displayVal = formatValue
-          ? formatValue(rawVal)
-          : rawVal < 1 && rawVal > 0
-            ? (rawVal * 100).toFixed(0) + "%"
-            : String(rawVal);
-        const label      = String(d[labelKey] ?? "");
-        const shortLabel = label.length > 9 ? label.slice(0, 8) + "…" : label;
+        {sliced.map((d, i) => {
+          const rawVal    = Number(d[valueKey]) || 0;
+          const bh        = Math.max(4, (rawVal / max) * chartH);
+          const slotStart = i * slotW;
+          const x         = slotStart + (slotW - barW) / 2;
+          const y         = padT + chartH - bh;
+          const color     = colorFn ? colorFn(d) : "#f59e0b";
+          const displayVal = formatValue ? formatValue(rawVal) : rawVal < 1 && rawVal > 0 ? (rawVal * 100).toFixed(0) + "%" : String(rawVal);
+          const label      = String(d[labelKey] ?? "");
+          const shortLabel = label.length > 9 ? label.slice(0, 8) + "…" : label;
+          const labelY = Math.max(padT - 6, y - 6);
 
-        // Clamp value label Y so it never goes above the SVG
-        const labelY = Math.max(padT - 2, y - 5);
+          return (
+            <g key={`bar-${i}`} className="group" style={{ transformOrigin: `${x + barW/2}px ${padT + chartH}px`, transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
+              <rect x={slotStart} y={0} width={slotW} height={height} fill="transparent" 
+                onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{label}<br/><span style={{color: color, fontSize: '14px', fontWeight: 800}}>{displayVal}</span></div>)}
+                onMouseMove={move}
+                onMouseLeave={hide}
+              />
+              
+              <rect
+                x={x} y={y} width={barW} height={bh} rx={6}
+                fill={color} opacity={0.9}
+                filter="url(#bar-shadow)"
+                style={{ cursor: "crosshair", transition: "all 0.3s ease" }}
+              />
+              
+              <rect x={x} y={y} width={barW} height={bh * 0.3} rx={6} fill="white" opacity={0.15} style={{ pointerEvents: "none" }} />
 
-        return (
-                    <g key={`bar-${i}`}>
-            <rect
-              x={x} y={y} width={barW} height={bh} rx={4}
-              fill={color} opacity={0.88}
-              onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{label}<br/><span style={{color: color, fontSize: '13px'}}>{displayVal}</span></div>)}
-              onMouseMove={move}
-              onMouseLeave={hide}
-              style={{ cursor: "crosshair", transition: "opacity 0.2s" }}
-            />
-            <text
-              x={x + barW / 2} y={labelY}
-              textAnchor="middle" fontSize={9} fill={colors.text} fontWeight="700"
-            >
-              {displayVal}
-            </text>
-            <text
-              x={x + barW / 2} y={height - 8}
-              textAnchor="middle" fontSize={8} fill={colors.textMuted}
-            >
-              {shortLabel}
-            </text>
-          </g>
-        );
-            })}
-    </svg>
+              <text x={x + barW / 2} y={labelY} textAnchor="middle" fontSize={10} fill={color} fontWeight="800">
+                {displayVal}
+              </text>
+              <text x={x + barW / 2} y={height - 8} textAnchor="middle" fontSize={9} fill={colors.textSubtle} fontWeight="600">
+                {shortLabel}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </>
   );
 }
+
 
 export function HorizontalBarChart({
   data,
   formatValue,
   maxItems = 10,
-  barHeight = 20,
-  gap = 8,
+  barHeight = 24,
+  gap = 12,
 }) {
   if (!data || data.length === 0) return <NoData height={120} />;
 
   const sliced  = data.slice(0, maxItems);
   const max     = Math.max(...sliced.map(d => Number(d.value) || 0), 0.01);
   const totalW  = 300;
-  const labelW  = 90;   // left column for labels
-  const barAreaW = totalW - labelW - 40;  // 40px right margin for value labels
+  const labelW  = 75;  
+  const barAreaW = totalW - labelW - 35; 
   const totalH  = sliced.length * (barHeight + gap) + 10;
 
   return (
-    <svg
-      width="100%"
-      viewBox={`0 0 ${totalW} ${totalH}`}
-      role="img"
-      aria-label="Horizontal bar chart"
-      style={{ overflow: "visible" }}
-    >
+    <svg width="100%" viewBox={`0 0 ${totalW} ${totalH}`} role="img" aria-label="Horizontal bar chart" style={{ overflow: "visible" }}>
+      <defs>
+        <filter id="hbar-shadow" x="-10%" y="-20%" width="120%" height="150%">
+          <feDropShadow dx="2" dy="4" stdDeviation="4" floodColor="#0f172a" floodOpacity="0.06" />
+        </filter>
+      </defs>
+
       {sliced.map((d, i) => {
         const val      = Number(d.value) || 0;
-        const bw       = Math.max(4, (val / max) * barAreaW);
+        const bw       = Math.max(6, (val / max) * barAreaW);
         const y        = i * (barHeight + gap) + 5;
         const color    = d.color || "#f59e0b";
         const label    = String(d.label ?? "");
-        const shortLbl = label.length > 14 ? label.slice(0, 13) + "…" : label;
+        const shortLbl = label.length > 12 ? label.slice(0, 11) + "…" : label;
         const display  = formatValue ? formatValue(val) : String(val);
 
         return (
           <g key={`hbar-${i}`}>
-            {/* Label */}
-            <text
-              x={labelW - 6} y={y + barHeight / 2 + 4}
-              textAnchor="end" fontSize={9} fill="#475569"
-            >
+            <text x={labelW - 8} y={y + barHeight / 2 + 3} textAnchor="end" fontSize={10} fill="#475569" fontWeight="600">
               {shortLbl}
             </text>
-            {/* Track */}
-            <rect
-              x={labelW} y={y}
-              width={barAreaW} height={barHeight}
-              rx={4} fill="#f1f5f9"
-            />
-            {/* Bar */}
-            <rect
-              x={labelW} y={y}
-              width={bw} height={barHeight}
-              rx={4} fill={color} opacity={0.88}
-            >
+            
+            <rect x={labelW} y={y} width={barAreaW} height={barHeight} rx={barHeight/2} fill="#f8fafc" stroke="#f1f5f9" strokeWidth="1" />
+            
+            <rect x={labelW} y={y} width={bw} height={barHeight} rx={barHeight/2} fill={color} filter="url(#hbar-shadow)" opacity={0.9} style={{ transition: "width 1s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
               <title>{label}: {display}</title>
             </rect>
-            {/* Value */}
-            <text
-              x={labelW + bw + 5} y={y + barHeight / 2 + 4}
-              fontSize={9} fill="#1e293b" fontWeight="700"
-            >
+
+            <text x={labelW + bw + 6} y={y + barHeight / 2 + 3} fontSize={10} fill={color} fontWeight="800">
               {display}
             </text>
           </g>
@@ -277,8 +259,8 @@ export function DonutChart({
 
   const total = data.reduce((s, d) => s + (d.value || 0), 0);
   if (total === 0) return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="No data">
-      <circle cx={size/2} cy={size/2} r={size*0.38} fill="none" stroke="#f1f5f9" strokeWidth={size*0.15} />
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size/2} cy={size/2} r={size*0.35} fill="none" stroke="#f1f5f9" strokeWidth={size*0.12} />
       <text x={size/2} y={size/2+4} textAnchor="middle" fontSize={size*0.1} fill="#cbd5e1">No data</text>
     </svg>
   );
@@ -286,76 +268,63 @@ export function DonutChart({
   let cumAngle = -Math.PI / 2;
   const cx = size / 2;
   const cy = size / 2;
-  const r  = size * 0.38;
-  const ir = size * 0.23;
+  const r  = size * 0.42;
+  const ir = size * 0.28;
 
   const slices = data
     .filter(d => (d.value || 0) > 0)
     .map(d => {
       const angle = (d.value / total) * 2 * Math.PI;
-      const x1    = cx + r * Math.cos(cumAngle);
-      const y1    = cy + r * Math.sin(cumAngle);
-      cumAngle   += angle;
-      const x2    = cx + r * Math.cos(cumAngle);
-      const y2    = cy + r * Math.sin(cumAngle);
-      const ix1   = cx + ir * Math.cos(cumAngle);
-      const iy1   = cy + ir * Math.sin(cumAngle);
-      const ix2   = cx + ir * Math.cos(cumAngle - angle);
-      const iy2   = cy + ir * Math.sin(cumAngle - angle);
+      const x1 = cx + r * Math.cos(cumAngle); const y1 = cy + r * Math.sin(cumAngle);
+      cumAngle += angle;
+      const x2 = cx + r * Math.cos(cumAngle); const y2 = cy + r * Math.sin(cumAngle);
+      const ix1 = cx + ir * Math.cos(cumAngle); const iy1 = cy + ir * Math.sin(cumAngle);
+      const ix2 = cx + ir * Math.cos(cumAngle - angle); const iy2 = cy + ir * Math.sin(cumAngle - angle);
       const lg = angle > Math.PI ? 1 : 0;
+      const isFullCircle = Math.abs(angle - 2 * Math.PI) < 0.001;
+      
+      const path = isFullCircle
+        ? `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy} A${r},${r} 0 0 1 ${cx - r},${cy} M${cx - ir},${cy} A${ir},${ir} 0 0 0 ${cx + ir},${cy} A${ir},${ir} 0 0 0 ${cx - ir},${cy} Z`
+        : `M${x1},${y1} A${r},${r} 0 ${lg} 1 ${x2},${y2} L${ix1},${iy1} A${ir},${ir} 0 ${lg} 0 ${ix2},${iy2} Z`;
 
-const isFullCircle = Math.abs(angle - 2 * Math.PI) < 0.001;
-const path = isFullCircle
-  ? `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}
-     A${r},${r} 0 0 1 ${cx - r},${cy}
-     M${cx - ir},${cy} A${ir},${ir} 0 0 0 ${cx + ir},${cy}
-     A${ir},${ir} 0 0 0 ${cx - ir},${cy} Z`
-  : `M${x1},${y1} A${r},${r} 0 ${lg} 1 ${x2},${y2} L${ix1},${iy1} A${ir},${ir} 0 ${lg} 0 ${ix2},${iy2} Z`;
-
-return { path, color: d.color, label: d.label, value: d.value };
+      return { path, color: d.color, label: d.label, value: d.value };
     });
 
   const displayCenter = centerLabel ?? String(total);
-    return (
+  
+  return (
     <>
-    <ChartTooltip tooltip={tooltip} />
-    <svg
-  width="100%"
-  height="100%"
-  viewBox={`0 0 ${size} ${size}`}
-  role="img" aria-label="Donut chart"
-  style={{ 
-    display: "block", 
-    margin: "0 auto", 
-    maxWidth: size * 1.3,
-    maxHeight: size * 1.3,
-    overflow: "visible" 
-  }}
->
-      {slices.map((s, i) => (
-        <path 
-          key={i} d={s.path} fill={s.color} opacity={0.9}
-          onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{s.label}<br/><span style={{fontSize: '12px'}}>{s.value} ({((s.value/total)*100).toFixed(1)}%)</span></div>)}
-          onMouseMove={move}
-          onMouseLeave={hide}
-          style={{ cursor: "crosshair", transition: "opacity 0.2s" }}
-        />
-      ))}
-      <text
-        x={cx} y={cy + 2}
-        textAnchor="middle" fontSize={size * 0.13}
-        fontWeight="800" fill="#0f172a"
+      <ChartTooltip tooltip={tooltip} />
+      <svg
+        width="100%" height="100%" viewBox={`0 0 ${size} ${size}`}
+        role="img" aria-label="Donut chart"
+        style={{ display: "block", margin: "0 auto", maxWidth: size * 1.3, maxHeight: size * 1.3, overflow: "visible" }}
       >
-        {displayCenter}
-      </text>
-      <text
-        x={cx} y={cy + size * 0.13}
-        textAnchor="middle" fontSize={size * 0.08}
-        fill={colors.textSubtle}
-      >
-        {centerSub}
-           </text>
-    </svg>
+        <defs>
+          <filter id="donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#0f172a" floodOpacity="0.12" />
+          </filter>
+        </defs>
+
+        <g filter="url(#donut-shadow)">
+          {slices.map((s, i) => (
+            <path 
+              key={i} d={s.path} fill={s.color} 
+              stroke="#ffffff" strokeWidth="2.5" strokeLinejoin="round" 
+              onMouseEnter={(e) => show(e, <div style={{fontWeight:700}}>{s.label}<br/><span style={{fontSize: '14px', fontWeight: 800, color: s.color}}>{s.value} ({((s.value/total)*100).toFixed(1)}%)</span></div>)}
+              onMouseMove={move} onMouseLeave={hide}
+              style={{ cursor: "crosshair", transition: "opacity 0.2s" }}
+            />
+          ))}
+        </g>
+        
+        <text x={cx} y={cy + size * 0.04} textAnchor="middle" fontSize={size * 0.18} fontWeight="800" fill="#0f172a">
+          {displayCenter}
+        </text>
+        <text x={cx} y={cy + size * 0.14} textAnchor="middle" fontSize={size * 0.07} fill={colors.textSubtle} fontWeight="700" letterSpacing="0.05em" textTransform="uppercase">
+          {centerSub}
+        </text>
+      </svg>
     </>
   );
 }
