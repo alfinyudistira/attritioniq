@@ -186,7 +186,15 @@ if (count > 4) {
               <text x={x + barW / 2} y={labelY} textAnchor="middle" fontSize={10} fill={color} fontWeight="800">
                 {displayVal}
               </text>
-              <text x={x + barW / 2} y={height - 8} textAnchor="middle" fontSize={9} fill={colors.textSubtle} fontWeight="600">
+              <text 
+                x={count > 4 ? x + barW / 2 + 4 : x + barW / 2} 
+                y={height - 4} 
+                textAnchor={count > 4 ? "end" : "middle"} 
+                fontSize={count > 4 ? 8 : 9} 
+                fill={colors.textSubtle} 
+                fontWeight="600"
+                transform={count > 4 ? `rotate(-40, ${x + barW / 2 + 4}, ${height - 4})` : ""}
+              >
                 {shortLabel}
               </text>
             </g>
