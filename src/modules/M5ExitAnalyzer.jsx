@@ -316,15 +316,13 @@ function AddInterviewForm({ onAdd, deptOptions = [], currSymbol = "$" }) {
 export default function M5ExitAnalyzer() {
   const { company } = useApp();
   const { data } = useHRData();
-  const { fmt, config: cfg } = useCurrency();
+  const { config: cfg } = useCurrency();
   const currSymbol = cfg?.symbol || "$";
   const { state: m5State, update: updateM5 } = useModuleData("m5");
 
 const userInterviews = m5State.interviews || [];
 const hasUserData    = userInterviews.length > 0;
-// showSample: false by default — user harus explicitly minta lihat sample
 const showSample     = m5State.showSample ?? false;
-// interviews yg dipakai untuk analisis: kalau ada user data → user data. Kalau gak ada tapi showSample → SAMPLE. Kalau gak ada dan gak showSample → [] (kosong)
 const interviews     = hasUserData ? userInterviews : (showSample ? SAMPLE_INTERVIEWS : []);
 const isUsingSample  = !hasUserData && showSample;
 const isEmpty        = !hasUserData && !showSample;
