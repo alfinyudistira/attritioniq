@@ -25,9 +25,10 @@ const CATEGORIES = {
 // ── AI analysis ──
 async function analyzeWithAI(interviews, company) {
   const summaries = interviews.map(i => {
-  const preview = i.text.length > 200 ? i.text.slice(0, 200) + "..." : i.text;
-  return `[${i.dept}] "${preview}"`;
-}).join("\n\n");
+    const preview = i.text.length > 200 ? i.text.slice(0, 200) + "..." : i.text;
+    return `[${i.dept}] "${preview}"`;
+  }).join("\n\n");
+  
   const prompt = `You are an HR analyst at ${company?.name || "a company"}. Analyze these ${interviews.length} exit interviews and provide: ${summaries}
 
 Respond in this exact JSON format (no markdown, no backticks):
@@ -118,7 +119,7 @@ function WordCloud({ words }) {
     const placed = [];
     const result = [];
     words.slice(0, 30).forEach(([word, count]) => {
-      const fontSize = Math.max(10, Math.min(28, (count / max) * 28));
+      const fontSize = Math.max(12, Math.min(32, (count / max) * 32));
       const color = Object.values(CATEGORIES).find(c => c.keywords.includes(word))?.color || "#94a3b8";
       let x, y, attempts = 0;
       do {
@@ -133,11 +134,15 @@ function WordCloud({ words }) {
   }, [words]);
 
   return (
-    <svg width="100%" viewBox="0 0 400 180" style={{ overflow: "visible" }}>
+    <svg width="100%" viewBox="0 0 400 180" className="overflow-visible">
       {positions.map((p, i) => (
-        <text key={i} x={p.x} y={p.y} fontSize={p.fontSize} fill={p.color}
-          fontWeight={p.count > 2 ? "700" : "500"} opacity={0.85}
-          style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <text 
+          key={i} x={p.x} y={p.y} 
+          fontSize={p.fontSize} fill={p.color}
+          className={`font-body transition-all duration-300 hover:opacity-100 hover:scale-110 cursor-default ${p.count > 2 ? 'font-bold' : 'font-medium'}`}
+          opacity={0.85}
+          style={{ transformOrigin: `${p.x}px ${p.y}px` }}
+        >
           {p.word}
         </text>
       ))}
@@ -155,28 +160,43 @@ function TimelineChart({ interviews }) {
     const { primary } = categorizeInterview(iv.text);
     byMonth[m].cats[primary] = (byMonth[m].cats[primary] || 0) + 1;
   });
+  
   const months = Object.entries(byMonth).sort((a, b) => a[0].localeCompare(b[0]));
   if (months.length === 0) return null;
   const max = Math.max(...months.map(m => m[1].total), 1);
-  const W = 400, H = 120, pad = { l: 28, r: 8, t: 14, b: 28 };
-  const bW = Math.min(40, Math.floor((W - pad.l - pad.r) / months.length) - 4);
+  const W = 400, H = 140, pad = { l: 28, r: 8, t: 20, b: 28 };
+  const bW = Math.min(40, Math.floor((W - pad.l - pad.r) / months.length) - 8);
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible block">
+      <defs>
+        <filter id="timeline-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#0f172a" floodOpacity="0.08" />
+        </filter>
+      </defs>
+      
       {months.map(([month, data], i) => {
-        const x = pad.l + i * ((W - pad.l - pad.r) / months.length) + 2;
-        const bh = (data.total / max) * (H - pad.t - pad.b);
+        const x = pad.l + i * ((W - pad.l - pad.r) / months.length) + 4;
+        const bh = Math.max(4, (data.total / max) * (H - pad.t - pad.b));
         const topCat = Object.entries(data.cats).sort((a, b) => b[1] - a[1])[0]?.[0] || "Culture";
         const color = CATEGORIES[topCat]?.color || "#94a3b8";
+        
         return (
-          <g key={month}>
-            <rect x={x} y={H - pad.b - bh} width={bW} height={bh} rx={3} fill={color} opacity={0.85} />
-            <text x={x + bW / 2} y={H - pad.b - bh - 4} textAnchor="middle" fontSize={9} fill="#1e293b" fontWeight="700">{data.total}</text>
-            <text x={x + bW / 2} y={H - 8} textAnchor="middle" fontSize={7.5} fill="#94a3b8">{month.slice(5)}</text>
+          <g key={month} className="group">
+            <rect 
+              x={x} y={H - pad.b - bh} width={bW} height={bh} rx={4} 
+              fill={color} opacity={0.9} filter="url(#timeline-shadow)"
+              className="transition-all duration-300 group-hover:opacity-100 cursor-crosshair"
+            />
+            {/* Highlight tipis */}
+            <rect x={x} y={H - pad.b - bh} width={bW} height={bh * 0.3} rx={4} fill="white" opacity={0.15} className="pointer-events-none" />
+            
+            <text x={x + bW / 2} y={H - pad.b - bh - 6} textAnchor="middle" fontSize={10} fill="#1e293b" fontWeight="800">{data.total}</text>
+            <text x={x + bW / 2} y={H - 10} textAnchor="middle" fontSize={9} fill="#64748b" fontWeight="600">{month.slice(5)}</text>
           </g>
         );
       })}
-      <line x1={pad.l} y1={H - pad.b} x2={W - pad.r} y2={H - pad.b} stroke="#e2e8f0" strokeWidth={1} />
+      <line x1={pad.l} y1={H - pad.b} x2={W - pad.r} y2={H - pad.b} stroke="#e2e8f0" strokeWidth={1.5} strokeLinecap="round" />
     </svg>
   );
 }
@@ -188,69 +208,69 @@ function InterviewCard({ iv, analysis, idx }) {
   const secCat = analysis.secondary ? CATEGORIES[analysis.secondary] : null;
 
   return (
-    <div style={{ background: "#fff", borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${cat.border}`, marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+    <div className="bg-white rounded-[14px] p-[16px_18px] mb-3 shadow-sm" style={{ border: `1.5px solid ${cat.border}` }}>
+      <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0" style={{ background: cat.bg }}>
             {cat.icon}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>{iv.name || `Anonymous #${idx + 1}`}</div>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>{iv.dept} · {iv.date} · {iv.tenure}y tenure</div>
+            <div className="font-bold text-[13px] text-brand-dark leading-tight">{iv.name || `Anonymous #${idx + 1}`}</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{iv.dept} · {iv.date} · {iv.tenure}y tenure</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <span style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}`, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700 }}>
+        <div className="flex gap-1.5 items-center flex-wrap justify-end">
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border" style={{ background: cat.bg, color: cat.color, borderColor: cat.border }}>
             {cat.icon} {analysis.primary}
           </span>
           {secCat && (
-            <span style={{ background: secCat.bg, color: secCat.color, border: `1px solid ${secCat.border}`, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 600 }}>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold border" style={{ background: secCat.bg, color: secCat.color, borderColor: secCat.border }}>
               {secCat.icon} {analysis.secondary}
             </span>
           )}
-          <span style={{ background: analysis.sentiment.score >= 60 ? "#f0fdf4" : analysis.sentiment.score >= 35 ? "#fffbeb" : "#fef2f2", color: analysis.sentiment.color, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700 }}>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: analysis.sentiment.score >= 60 ? "#f0fdf4" : analysis.sentiment.score >= 35 ? "#fffbeb" : "#fef2f2", color: analysis.sentiment.color }}>
             {analysis.sentiment.label}
           </span>
         </div>
       </div>
 
       {/* Dual bars: Sentiment + Retention Probability */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 9, color: "#94a3b8", width: 80, flexShrink: 0 }}>Sentiment</span>
-          <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ width: `${analysis.sentiment.score}%`, height: "100%", background: analysis.sentiment.color, borderRadius: 2 }} />
+      <div className="flex flex-col gap-1.5 mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-400 w-20 shrink-0 font-semibold">Sentiment</span>
+          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${analysis.sentiment.score}%`, background: analysis.sentiment.color }} />
           </div>
-          <span style={{ fontSize: 10, fontWeight: 700, color: analysis.sentiment.color, width: 28 }}>{analysis.sentiment.score}</span>
+          <span className="text-[10px] font-bold w-7 text-right" style={{ color: analysis.sentiment.color }}>{analysis.sentiment.score}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 9, color: "#94a3b8", width: 80, flexShrink: 0 }}>Retainable</span>
-          <div style={{ flex: 1, height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ width: `${analysis.retentionProbability}%`, height: "100%", background: analysis.retentionProbability >= 60 ? "#22c55e" : analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444", borderRadius: 2 }} />
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-400 w-20 shrink-0 font-semibold">Retainable</span>
+          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${analysis.retentionProbability}%`, background: analysis.retentionProbability >= 60 ? "#22c55e" : analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444" }} />
           </div>
-          <span style={{ fontSize: 10, fontWeight: 700, color: analysis.retentionProbability >= 60 ? "#22c55e" : analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444", width: 28 }}>{analysis.retentionProbability}%</span>
+          <span className="text-[10px] font-bold w-7 text-right" style={{ color: analysis.retentionProbability >= 60 ? "#22c55e" : analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444" }}>{analysis.retentionProbability}%</span>
         </div>
       </div>
 
       {/* Text preview */}
-      <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, fontStyle: "italic" }}>
+      <div className="text-[13px] text-slate-600 leading-relaxed italic border-l-2 pl-3 border-slate-200">
         "{expanded ? iv.text : iv.text.slice(0, 120) + (iv.text.length > 120 ? "..." : "")}"
       </div>
       {iv.text.length > 120 && (
         <button onClick={() => setExpanded(e => !e)}
-          style={{ background: "none", border: "none", color: "#f59e0b", fontSize: 11, fontWeight: 700, cursor: "pointer", marginTop: 4, padding: 0 }}>
+          className="bg-transparent border-none text-brand-amber text-[11px] font-bold cursor-pointer mt-1.5 p-0 hover:text-amber-600 transition-colors">
           {expanded ? "Show less ↑" : "Read full interview ↓"}
         </button>
       )}
 
       {/* Category keyword hits */}
-      <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {Object.entries(CATEGORIES).map(([cat, cfg]) => {
+      <div className="mt-3 flex gap-1.5 flex-wrap">
+        {Object.entries(CATEGORIES).map(([catName, cfg]) => {
           const hits = cfg.keywords.filter(kw => iv.text.toLowerCase().includes(kw));
           if (hits.length === 0) return null;
           return hits.slice(0, 2).map(kw => (
-            <span key={kw} style={{ background: cfg.bg, color: cfg.color, padding: "1px 7px", borderRadius: 10, fontSize: 9, fontWeight: 600 }}>
-              {kw}
+            <span key={kw} className="px-2 py-0.5 rounded-[10px] text-[9px] font-bold tracking-wide" style={{ background: cfg.bg, color: cfg.color }}>
+              #{kw}
             </span>
           ));
         })}
@@ -262,17 +282,18 @@ function InterviewCard({ iv, analysis, idx }) {
 // ── Input form for new interview ──
 function AddInterviewForm({ onAdd, deptOptions = [], currSymbol = "$" }) {
   const [form, setForm] = useState(() => {
-  const d = new Date();
-  const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  return { name: "", dept: deptOptions[0] || "Sales", date: localDate, tenure: 1, salary: 0, age: 27, text: "" };
-});
+    const d = new Date();
+    const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { name: "", dept: deptOptions[0] || "Sales", date: localDate, tenure: 1, salary: 0, age: 27, text: "" };
+  });
+  
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const depts = deptOptions.length > 0 ? deptOptions : ["Sales", "Technical Support", "IT", "HR", "Digital Marketing", "Operations", "Finance", "Other"];
 
   return (
-    <div style={{ background: "#f8fafc", borderRadius: 13, padding: "16px 18px", border: "1.5px solid #e2e8f0", marginBottom: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 12 }}>➕ Add Exit Interview</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+    <div className="bg-slate-50 rounded-[14px] p-[18px_20px] border-[1.5px] border-slate-200 mb-4">
+      <div className="font-bold text-[13px] text-brand-dark mb-3">➕ Add Exit Interview</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         {[
           { label: "Name", key: "name", type: "text", placeholder: "Anonymous" },
           { label: "Dept", key: "dept", type: "select" },
@@ -282,30 +303,30 @@ function AddInterviewForm({ onAdd, deptOptions = [], currSymbol = "$" }) {
           { label: "Age", key: "age", type: "number" },
         ].map(f => (
           <div key={f.key}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{f.label}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{f.label}</div>
             {f.type === "select" ? (
               <select value={form[f.key]} onChange={e => set(f.key, e.target.value)}
-                style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, background: "#fff", color: "#1e293b" }}>
+                className="w-full p-[8px_12px] rounded-[10px] border-[1.5px] border-slate-200 text-[13px] bg-white text-brand-navy outline-none focus:border-brand-amber transition-colors">
                 {depts.map(d => <option key={d}>{d}</option>)}
               </select>
             ) : (
               <input type={f.type} value={form[f.key]} placeholder={f.placeholder}
                 onChange={e => set(f.key, f.type === "number" ? Number(e.target.value) : e.target.value)}
-                style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, background: "#fff", color: "#1e293b", boxSizing: "border-box" }} />
+                className="w-full p-[8px_12px] rounded-[10px] border-[1.5px] border-slate-200 text-[13px] bg-white text-brand-navy outline-none box-border focus:border-brand-amber transition-colors" />
             )}
           </div>
         ))}
       </div>
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Exit Interview Text</div>
+      <div className="mb-3">
+        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Exit Interview Text</div>
         <textarea value={form.text} onChange={e => set("text", e.target.value)}
           placeholder="Paste or type the exit interview response here..."
           rows={4}
-          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#fff", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+          className="w-full p-[12px_14px] rounded-[10px] border-[1.5px] border-slate-200 text-[13px] text-brand-navy bg-white resize-y box-border outline-none font-inherit focus:border-brand-amber transition-colors leading-relaxed" />
       </div>
       <button onClick={() => { if (form.text.trim()) { onAdd({ ...form, id: Date.now() }); setForm(p => ({ ...p, name: "", text: "" })); }}}
         disabled={!form.text.trim()}
-        style={{ padding: "9px 20px", background: form.text.trim() ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#e2e8f0", color: form.text.trim() ? "#fff" : "#94a3b8", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: form.text.trim() ? "pointer" : "not-allowed" }}>
+        className={`px-5 py-2.5 rounded-[10px] text-[13px] font-bold transition-all duration-300 border-none ${form.text.trim() ? "bg-gradient-to-br from-brand-amber to-brand-red text-white cursor-pointer hover:shadow-md hover:-translate-y-px" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}>
         Analyze Interview →
       </button>
     </div>
@@ -320,34 +341,36 @@ export default function M5ExitAnalyzer() {
   const currSymbol = cfg?.symbol || "$";
   const { state: m5State, update: updateM5 } = useModuleData("m5");
 
-const userInterviews = m5State.interviews || [];
-const hasUserData    = userInterviews.length > 0;
-const showSample     = m5State.showSample ?? false;
-const interviews     = hasUserData ? userInterviews : (showSample ? SAMPLE_INTERVIEWS : []);
-const isUsingSample  = !hasUserData && showSample;
-const isEmpty        = !hasUserData && !showSample;
-const activeTab    = m5State.activeTab    || "dashboard";
-const filterCat    = m5State.filterCat    || "All";
-const filterDept   = m5State.filterDept   || "All";
-const search       = m5State.search       || "";
-const setInterviews  = useCallback((updaterOrArr) => {
-  const next = typeof updaterOrArr === "function" ? updaterOrArr(userInterviews) : updaterOrArr;
-  updateM5({ interviews: next });
-}, [userInterviews, updateM5]);
-const setActiveTab   = useCallback((v) => updateM5({ activeTab: v }),   [updateM5]);
-const setFilterCat   = useCallback((v) => updateM5({ filterCat: v }),   [updateM5]);
-const setFilterDept  = useCallback((v) => updateM5({ filterDept: v }),  [updateM5]);
-const setSearch      = useCallback((v) => updateM5({ search: v }),      [updateM5]);
-const [aiInsights, setAiInsights]   = useState(null);
-const [aiLoading, setAiLoading]     = useState(false);
-const [compareA, setCompareA]       = useState(null);
-const [compareB, setCompareB]       = useState(null);
-const [showCompare, setShowCompare] = useState(false);
+  const userInterviews = m5State.interviews || [];
+  const hasUserData    = userInterviews.length > 0;
+  const showSample     = m5State.showSample ?? false;
+  const interviews     = hasUserData ? userInterviews : (showSample ? SAMPLE_INTERVIEWS : []);
+  const isUsingSample  = !hasUserData && showSample;
+  const isEmpty        = !hasUserData && !showSample;
+  const activeTab    = m5State.activeTab    || "dashboard";
+  const filterCat    = m5State.filterCat    || "All";
+  const filterDept   = m5State.filterDept   || "All";
+  const search       = m5State.search       || "";
+  
+  const setInterviews  = useCallback((updaterOrArr) => {
+    const next = typeof updaterOrArr === "function" ? updaterOrArr(userInterviews) : updaterOrArr;
+    updateM5({ interviews: next });
+  }, [userInterviews, updateM5]);
+  const setActiveTab   = useCallback((v) => updateM5({ activeTab: v }),   [updateM5]);
+  const setFilterCat   = useCallback((v) => updateM5({ filterCat: v }),   [updateM5]);
+  const setFilterDept  = useCallback((v) => updateM5({ filterDept: v }),  [updateM5]);
+  const setSearch      = useCallback((v) => updateM5({ search: v }),      [updateM5]);
+  
+  const [aiInsights, setAiInsights]   = useState(null);
+  const [aiLoading, setAiLoading]     = useState(false);
+  const [compareA, setCompareA]       = useState(null);
+  const [compareB, setCompareB]       = useState(null);
   
   const deptOptions = useMemo(() => {
     const fromData = [...new Set(data.map(d => d.Department).filter(Boolean))];
     return fromData.length > 0 ? fromData : ["Sales","Technical Support","IT","HR","Digital Marketing","Operations","Finance","Other"];
   }, [data]);
+  
   const analyzed = useMemo(() => interviews.map(iv => ({
     ...iv, analysis: categorizeInterview(iv.text)
   })), [interviews]);
@@ -435,7 +458,8 @@ const [showCompare, setShowCompare] = useState(false);
   }, [analyzed]);
 
   const keywords = useMemo(() => extractKeywords(interviews), [interviews]);
-// Persona clustering
+
+  // Persona clustering
   const personaClusters = useMemo(() => {
     const clusters = {
       "💸 The Underpaid Performer": analyzed.filter(iv => iv.analysis.primary === "Compensation" && iv.analysis.sentiment.score >= 35),
@@ -567,24 +591,26 @@ const [showCompare, setShowCompare] = useState(false);
     { id: "wordcloud",  label: "☁️ Keywords" },
     { id: "export",     label: "📤 Export" },
   ];
+  
   const severityColor = s => s === "critical" ? "#ef4444" : s === "high" ? "#f59e0b" : "#3b82f6";
   const severityBg = s => s === "critical" ? "#fef2f2" : s === "high" ? "#fffbeb" : "#eff6ff";
   const severityBorder = s => s === "critical" ? "#fecaca" : s === "high" ? "#fde68a" : "#bfdbfe";
+
   return (
     <div>
       {/* ── IMPORT PANEL: always visible at top ── */}
-      <div style={{ background: "#fff", borderRadius: 14, padding: "16px 20px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+      <div className="bg-white rounded-[14px] p-[16px_20px] border-[1.5px] border-slate-100 mb-4">
+        <div className="flex justify-between items-center flex-wrap gap-3">
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 7 }}>
+            <div className="font-bold text-[13px] text-brand-dark flex items-center gap-2">
               🚪 Exit Interview Data
               {isUsingSample && (
-                <span style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 20, padding: "1px 8px", fontSize: 9, color: "#92400e", fontWeight: 700 }}>
+                <span className="bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 text-[9px] text-amber-800 font-bold">
                   SAMPLE
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+            <div className="text-[11px] text-slate-400 mt-1">
               {hasUserData
                 ? `${userInterviews.length} interview${userInterviews.length > 1 ? "s" : ""} loaded · analyzed automatically`
                 : isUsingSample
@@ -592,143 +618,140 @@ const [showCompare, setShowCompare] = useState(false);
                   : "No interviews available — add manually below or import via CSV"}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            {/* Download template */}
+          <div className="flex gap-2 flex-wrap items-center">
             <button onClick={downloadInterviewTemplate}
-              style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 12, color: "#475569", cursor: "pointer", fontWeight: 600 }}>
+              className="p-[7px_13px] rounded-lg border-[1.5px] border-slate-200 bg-slate-50 text-xs text-slate-600 cursor-pointer font-semibold hover:bg-slate-100 transition-colors">
               ⬇ Template CSV
             </button>
-            {/* Import CSV */}
-            <label style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #f59e0b", background: "#fffbeb", fontSize: 12, color: "#b45309", cursor: "pointer", fontWeight: 700 }}>
+            <label className="p-[7px_13px] rounded-lg border-[1.5px] border-brand-amber bg-amber-50 text-xs text-amber-700 cursor-pointer font-bold hover:bg-amber-100 transition-colors">
               📂 Import CSV
-              <input type="file" accept=".csv,.txt" style={{ display: "none" }}
+              <input type="file" accept=".csv,.txt" className="hidden"
                 onChange={e => { handleImportCSV(e.target.files[0]); e.target.value = ""; }} />
             </label>
-            {/* Toggle sample */}
             {!hasUserData && (
               <button
                 onClick={() => updateM5({ showSample: !showSample })}
-                style={{ padding: "7px 13px", borderRadius: 8, border: `1.5px solid ${showSample ? "#fecaca" : "#e2e8f0"}`, background: showSample ? "#fef2f2" : "#f8fafc", fontSize: 12, color: showSample ? "#dc2626" : "#475569", cursor: "pointer", fontWeight: 600 }}>
+                className={`p-[7px_13px] rounded-lg border-[1.5px] text-xs cursor-pointer font-semibold transition-colors ${showSample ? "border-red-200 bg-red-50 text-brand-red hover:bg-red-100" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"}`}>
                 {showSample ? "🙈 Hide Samples" : "👁 View Sample Interviews"}
               </button>
             )}
-            {/* Clear user data */}
             {hasUserData && (
               <button onClick={() => updateM5({ interviews: [], showSample: false })}
-                style={{ padding: "7px 13px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fef2f2", fontSize: 12, color: "#dc2626", cursor: "pointer", fontWeight: 600 }}>
+                className="p-[7px_13px] rounded-lg border-[1.5px] border-red-200 bg-red-50 text-xs text-brand-red cursor-pointer font-semibold hover:bg-red-100 transition-colors">
                 ✕ Clear Interviews
               </button>
             )}
           </div>
         </div>
 
-        {/* CSV Format Guide — collapsible, shown saat klik Import */}
-        <div style={{ marginTop: 12, background: "#f8fafc", borderRadius: 10, padding: "12px 14px", border: "1px solid #e2e8f0" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>📋 Correct CSV Format:</div>
-          <div style={{ fontSize: 10, color: "#64748b", lineHeight: 1.7, fontFamily: "monospace", background: "#f1f5f9", borderRadius: 8, padding: "8px 10px", marginBottom: 6, overflowX: "auto", whiteSpace: "nowrap" }}>
+        {/* CSV Format Guide */}
+        <div className="mt-3 bg-slate-50 rounded-[10px] p-[12px_14px] border border-slate-200">
+          <div className="text-[11px] font-bold text-slate-600 mb-1.5">📋 Correct CSV Format:</div>
+          <div className="text-[10px] text-slate-500 leading-relaxed font-mono bg-slate-100 rounded-lg p-[8px_10px] mb-2 overflow-x-auto whitespace-nowrap">
             Name, Department, Date (YYYY-MM), Tenure (years), Monthly Salary, Age, Exit Interview Text
           </div>
-          <div style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.6 }}>
-            💡 <strong>Interview text can be any length </strong> — wrap with quotation marks <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: 3 }}>"..."</code> in  CSV.<br />
-            💡 If there are quotation marks in the text, write them twice.: <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: 3 }}>""like this ""</code><br />
+          <div className="text-[10px] text-slate-400 leading-relaxed">
+            💡 <strong>Interview text can be any length </strong> — wrap with quotation marks <code className="bg-slate-200 px-1 py-0.5 rounded-[3px]">"..."</code> in  CSV.<br />
+            💡 If there are quotation marks in the text, write them twice.: <code className="bg-slate-200 px-1 py-0.5 rounded-[3px]">""like this ""</code><br />
             💡 Klik <strong>⬇ Template CSV</strong> to download a ready-to-fill example in Excel/Google Sheets. 
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            style={{
-              padding: "9px 18px", borderRadius: 10, cursor: "pointer",
-              background: activeTab === t.id ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "#fff",
-              color: activeTab === t.id ? "#fff" : "#64748b",
-              fontWeight: activeTab === t.id ? 700 : 500, fontSize: 13,
-              border: `1.5px solid ${activeTab === t.id ? "transparent" : "#e2e8f0"}`,
-              transition: "all 0.15s",
-            }}>
-            {t.label}
-          </button>
-        ))}
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {TABS.map(t => {
+          const isActive = activeTab === t.id;
+          return (
+            <button 
+              key={t.id} 
+              onClick={() => setActiveTab(t.id)}
+              className={`px-[18px] py-[9px] rounded-[10px] cursor-pointer text-[13px] font-medium transition-all duration-150 border-[1.5px] ${isActive ? "bg-gradient-to-br from-brand-amber to-brand-red text-white border-transparent font-bold shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
+            >
+              {t.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── TAB: DASHBOARD ── */}
       {activeTab === "dashboard" && (
         <div>
-          {/* Empty state — no data, sample hidden */}
+          {/* Empty state */}
           {isEmpty && (
-            <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🚪</div>
-              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>No Exit Interviews Yet</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 20, maxWidth: 400, margin: "0 auto 20px" }}>
+            <div className="text-center py-16 px-5 bg-white rounded-[14px] border-[1.5px] border-slate-100 mb-4">
+              <div className="text-[40px] mb-3">🚪</div>
+              <div className="font-display text-lg font-bold text-brand-dark mb-2">No Exit Interviews Yet</div>
+              <div className="text-[13px] text-slate-400 mb-5 max-w-[400px] mx-auto leading-relaxed">
                 Add interviews one by one via tab <strong>All Interviews</strong>, or import them all at once via CSV. Click the button below to see an example of the data format first. 
               </div>
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <div className="flex gap-2.5 justify-center flex-wrap">
                 <button onClick={() => updateM5({ showSample: true })}
-                  style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 13, color: "#475569", cursor: "pointer", fontWeight: 600 }}>
+                  className="p-[10px_20px] rounded-[10px] border-[1.5px] border-slate-200 bg-slate-50 text-[13px] text-slate-600 cursor-pointer font-bold hover:bg-slate-100 transition-colors">
                   👁 View Interview Sample 
                 </button>
                 <button onClick={() => { updateM5({ activeTab: "interviews" }); }}
-                  style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", fontSize: 13, color: "#fff", cursor: "pointer", fontWeight: 700 }}>
+                  className="p-[10px_20px] rounded-[10px] border-none bg-gradient-to-br from-brand-amber to-brand-red text-[13px] text-white cursor-pointer font-bold shadow-sm hover:opacity-90 transition-opacity">
                   ➕ Add Interview Now 
                 </button>
               </div>
             </div>
           )}
-          {/* Sample banner — only show when sample is active */}
+          
+          {/* Sample banner */}
           {isUsingSample && (
-            <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 18 }}>📋</span>
+            <div className="bg-amber-50 border-[1.5px] border-amber-200 rounded-[10px] p-[10px_16px] mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">📋</span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>These are 8 examples of interviews — not your data </div>
-                  <div style={{ fontSize: 11, color: "#b45309" }}>The analysis below is based on demo data. Add your own interviews for real-world results.</div>
+                  <div className="text-xs font-bold text-amber-800">These are 8 examples of interviews — not your data </div>
+                  <div className="text-[11px] text-amber-700">The analysis below is based on demo data. Add your own interviews for real-world results.</div>
                 </div>
               </div>
               <button onClick={() => updateM5({ showSample: false })}
-                style={{ background: "none", border: "1px solid #fde68a", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "#92400e", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                className="bg-transparent border border-amber-200 rounded-lg p-[4px_10px] text-[11px] text-amber-800 cursor-pointer font-bold whitespace-nowrap shrink-0 hover:bg-amber-100 transition-colors">
                 Hide ✕
               </button>
             </div>
           )}
+
           {/* KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 mb-[18px]">
             {[
               { label: "Total Interviews", value: interviews.length, sub: "Exit interviews analyzed", color: "#3b82f6", icon: "📋", bg: "#eff6ff" },
-            { label: "Top Exit Reason", value: catDist[0]?.[0] || "—", sub: `${catDist[0]?.[1] || 0} mentions`, color: CATEGORIES[catDist[0]?.[0]]?.color || "#94a3b8", icon: CATEGORIES[catDist[0]?.[0]]?.icon || "❓", bg: CATEGORIES[catDist[0]?.[0]]?.bg || "#f8fafc" },
-            { label: "Avg Sentiment", value: sentimentStats.avg, sub: `${sentimentStats.pct}% highly negative`, color: sentimentStats.avg < 35 ? "#ef4444" : sentimentStats.avg < 60 ? "#f59e0b" : "#22c55e", icon: "😔", bg: sentimentStats.avg < 35 ? "#fef2f2" : "#fffbeb" },
-            { label: "Patterns Found", value: patterns.length, sub: "Actionable systemic issues", color: "#8b5cf6", icon: "🔍", bg: "#f5f3ff" },
-            { label: "Avg Retainable", value: `${avgRetentionProbability}%`, sub: "Could have been prevented", color: avgRetentionProbability >= 60 ? "#22c55e" : avgRetentionProbability >= 35 ? "#f59e0b" : "#ef4444", icon: "💔", bg: avgRetentionProbability >= 60 ? "#f0fdf4" : "#fef2f2" },
+              { label: "Top Exit Reason", value: catDist[0]?.[0] || "—", sub: `${catDist[0]?.[1] || 0} mentions`, color: CATEGORIES[catDist[0]?.[0]]?.color || "#94a3b8", icon: CATEGORIES[catDist[0]?.[0]]?.icon || "❓", bg: CATEGORIES[catDist[0]?.[0]]?.bg || "#f8fafc" },
+              { label: "Avg Sentiment", value: sentimentStats.avg, sub: `${sentimentStats.pct}% highly negative`, color: sentimentStats.avg < 35 ? "#ef4444" : sentimentStats.avg < 60 ? "#f59e0b" : "#22c55e", icon: "😔", bg: sentimentStats.avg < 35 ? "#fef2f2" : "#fffbeb" },
+              { label: "Patterns Found", value: patterns.length, sub: "Actionable systemic issues", color: "#8b5cf6", icon: "🔍", bg: "#f5f3ff" },
+              { label: "Avg Retainable", value: `${avgRetentionProbability}%`, sub: "Could have been prevented", color: avgRetentionProbability >= 60 ? "#22c55e" : avgRetentionProbability >= 35 ? "#f59e0b" : "#ef4444", icon: "💔", bg: avgRetentionProbability >= 60 ? "#f0fdf4" : "#fef2f2" },
             ].map((k) => (
-              <div key={k.label} style={{ background: k.bg, borderRadius: 13, padding: "14px 16px", border: `1.5px solid ${k.color}22`, position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", right: 10, top: 8, fontSize: 18, opacity: 0.2 }}>{k.icon}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{k.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Playfair Display',Georgia,serif", lineHeight: 1.1 }}>{k.value}</div>
-                <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>{k.sub}</div>
+              <div key={k.label} className="relative overflow-hidden rounded-[13px] p-[14px_16px]" style={{ background: k.bg, border: `1.5px solid ${k.color}22` }}>
+                <div className="absolute right-2.5 top-2 text-lg opacity-20">{k.icon}</div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{k.label}</div>
+                <div className="text-[22px] font-extrabold leading-tight font-display" style={{ color: k.color }}>{k.value}</div>
+                <div className="text-[10px] text-slate-500 mt-1">{k.sub}</div>
               </div>
             ))}
           </div>
 
           {/* Category Distribution + Timeline */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {/* Category bars */}
-            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Exit Reasons Distribution</div>
+            <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
+              <div className="font-bold text-[13px] text-brand-dark mb-3.5">Exit Reasons Distribution</div>
               {catDist.map(([cat, count]) => {
                 const cfg = CATEGORIES[cat];
                 const pct = interviews.length > 0 ? ((count / interviews.length) * 100).toFixed(0) : 0;
                 return (
-                  <div key={cat} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontSize: 14 }}>{cfg.icon}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{cat}</span>
+                  <div key={cat} className="mb-2.5">
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{cfg.icon}</span>
+                        <span className="text-xs font-semibold text-brand-navy">{cat}</span>
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>{pct}% ({count})</span>
+                      <span className="text-xs font-bold" style={{ color: cfg.color }}>{pct}% ({count})</span>
                     </div>
-                    <div style={{ height: 7, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${pct}%`, height: "100%", background: cfg.color, borderRadius: 4, transition: "width 0.5s" }} />
+                    <div className="h-[7px] bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: cfg.color }} />
                     </div>
                   </div>
                 );
@@ -736,15 +759,15 @@ const [showCompare, setShowCompare] = useState(false);
             </div>
 
             {/* Timeline */}
-            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 4 }}>Exit Timeline</div>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 12 }}>Departures by month — color = top exit reason</div>
+            <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
+              <div className="font-bold text-[13px] text-brand-dark mb-1">Exit Timeline</div>
+              <div className="text-[10px] text-slate-400 mb-3">Departures by month — color = top exit reason</div>
               <TimelineChart interviews={interviews} />
-              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              <div className="flex gap-2 mt-2 flex-wrap">
                 {Object.entries(CATEGORIES).map(([cat, cfg]) => (
-                  <div key={cat} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: cfg.color }} />
-                    <span style={{ fontSize: 9, color: "#94a3b8" }}>{cat}</span>
+                  <div key={cat} className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.color }} />
+                    <span className="text-[9px] text-slate-400">{cat}</span>
                   </div>
                 ))}
               </div>
@@ -752,13 +775,14 @@ const [showCompare, setShowCompare] = useState(false);
           </div>
 
           {/* AI Insights */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
+          <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
             <button onClick={handleAI} disabled={aiLoading}
-              style={{ width: "100%", padding: "12px", background: aiLoading ? "#f1f5f9" : "#0f172a", color: aiLoading ? "#94a3b8" : "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: aiLoading ? "not-allowed" : "pointer", marginBottom: aiInsights ? 14 : 0 }}>
+              className={`w-full p-3 border-none rounded-[10px] text-[13px] font-bold transition-colors ${aiLoading ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-brand-dark text-white cursor-pointer hover:bg-slate-800"} ${aiInsights ? "mb-3.5" : "mb-0"}`}>
               {aiLoading ? "⏳ Analyzing Exit Patterns with AI..." : "🤖 Generate AI Exit Pattern Analysis"}
             </button>
+            
             {aiInsights && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {[
                   { key: "topTheme", label: "Top Theme", icon: "🎯", color: "#ef4444", bg: "#fef2f2" },
                   { key: "urgentAction", label: "Urgent Action", icon: "⚡", color: "#f97316", bg: "#fff7ed" },
@@ -766,9 +790,9 @@ const [showCompare, setShowCompare] = useState(false);
                   { key: "retentionOpportunity", label: "Retention Opportunity", icon: "💡", color: "#22c55e", bg: "#f0fdf4" },
                   { key: "riskForecast", label: "60-Day Risk Forecast", icon: "📅", color: "#3b82f6", bg: "#eff6ff" },
                 ].map(item => aiInsights[item.key] && (
-                  <div key={item.key} style={{ background: item.bg, borderRadius: 10, padding: "12px 14px", border: `1px solid ${item.color}22`, gridColumn: item.key === "riskForecast" ? "1 / -1" : "auto" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: item.color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{item.icon} {item.label}</div>
-                    <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.6 }}>{aiInsights[item.key]}</div>
+                  <div key={item.key} className={`rounded-[10px] p-[12px_14px] border ${item.key === "riskForecast" ? "md:col-span-2" : ""}`} style={{ background: item.bg, borderColor: `${item.color}22` }}>
+                    <div className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: item.color }}>{item.icon} {item.label}</div>
+                    <div className="text-xs text-brand-navy leading-relaxed">{aiInsights[item.key]}</div>
                   </div>
                 ))}
               </div>
@@ -780,68 +804,73 @@ const [showCompare, setShowCompare] = useState(false);
       {/* ── TAB: ALL INTERVIEWS ── */}
       {activeTab === "interviews" && (
         <div>
-          {/* Sample banner di tab ini */}
           {isUsingSample && (
-            <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 18 }}>📋</span>
+            <div className="bg-amber-50 border-[1.5px] border-amber-200 rounded-[10px] p-[10px_16px] mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">📋</span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>These are 8 sample interviews — demo data</div>
-                  <div style={{ fontSize: 11, color: "#b45309" }}>Add your interviews using the form below to automatically replace these samples.</div>
+                  <div className="text-xs font-bold text-amber-800">These are 8 sample interviews — demo data</div>
+                  <div className="text-[11px] text-amber-700">Add your interviews using the form below to automatically replace these samples.</div>
                 </div>
               </div>
               <button onClick={() => updateM5({ showSample: false })}
-                style={{ background: "none", border: "1px solid #fde68a", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "#92400e", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                className="bg-transparent border border-amber-200 rounded-lg p-[4px_10px] text-[11px] text-amber-800 cursor-pointer font-bold whitespace-nowrap shrink-0 hover:bg-amber-100 transition-colors">
                 Hide ✕
               </button>
             </div>
           )}
+          
           <AddInterviewForm onAdd={iv => { setInterviews(p => [...p, iv]); updateM5({ showSample: false }); }} deptOptions={deptOptions} currSymbol={currSymbol} />
+          
           {hasUserData && (
             <button onClick={() => updateM5({ interviews: [], showSample: false })}
-              style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fef2f2", fontSize: 11, color: "#dc2626", cursor: "pointer", fontWeight: 600, marginBottom: 12 }}>
+              className="p-[6px_14px] rounded-lg border-[1.5px] border-red-200 bg-red-50 text-[11px] text-brand-red cursor-pointer font-semibold hover:bg-red-100 transition-colors mb-3">
               🗑️ Clear All My Interviews
             </button>
           )}
-          {/* Empty state di tab interviews */}
+          
           {isEmpty && (
-            <div style={{ textAlign: "center", padding: "40px 20px", background: "#f8fafc", borderRadius: 13, border: "1.5px dashed #e2e8f0", marginBottom: 12 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#475569", marginBottom: 4 }}>No interviews found</div>
-              <div style={{ fontSize: 12, color: "#94a3b8" }}>Fill out the form above or import a CSV to begin analysis.</div>
+            <div className="text-center p-[40px_20px] bg-slate-50 rounded-[13px] border-[1.5px] border-dashed border-slate-200 mb-3">
+              <div className="text-3xl mb-2">📝</div>
+              <div className="text-sm font-bold text-slate-600 mb-1">No interviews found</div>
+              <div className="text-xs text-slate-400">Fill out the form above or import a CSV to begin analysis.</div>
             </div>
           )}
 
           {/* Search */}
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-2.5">
             <input
               type="text"
               placeholder="🔍 Search by name, department, or keyword in interview text..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", padding: "9px 14px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc", outline: "none", boxSizing: "border-box" }}
+              className="w-full p-[9px_14px] rounded-[9px] border-[1.5px] border-slate-200 text-xs text-brand-navy bg-slate-50 outline-none box-border focus:border-brand-amber transition-colors"
             />
           </div>                 
 
           {/* Filters */}
-          <div style={{ background: "#fff", borderRadius: 12, padding: "12px 16px", border: "1.5px solid #f1f5f9", marginBottom: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
+          <div className="bg-white rounded-xl p-[12px_16px] border-[1.5px] border-slate-100 mb-3.5 flex gap-3.5 flex-wrap">
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 5 }}>Category</div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {["All", ...Object.keys(CATEGORIES)].map(c => (
-                  <button key={c} onClick={() => setFilterCat(c)}
-                    style={{ padding: "4px 10px", borderRadius: 16, border: "none", cursor: "pointer", fontSize: 11, background: filterCat === c ? (CATEGORIES[c]?.color || "#f59e0b") : "#f1f5f9", color: filterCat === c ? "#fff" : "#64748b", fontWeight: filterCat === c ? 700 : 500 }}>
-                    {c}
-                  </button>
-                ))}
+              <div className="text-[9px] font-bold text-slate-400 uppercase mb-1.5">Category</div>
+              <div className="flex gap-1.5 flex-wrap">
+                {["All", ...Object.keys(CATEGORIES)].map(c => {
+                  const isActive = filterCat === c;
+                  return (
+                    <button key={c} onClick={() => setFilterCat(c)}
+                      className={`p-[4px_10px] rounded-full border-none cursor-pointer text-[11px] transition-colors ${isActive ? "text-white font-bold" : "bg-slate-100 text-slate-500 font-medium hover:bg-slate-200"}`}
+                      style={{ background: isActive ? (CATEGORIES[c]?.color || "#f59e0b") : "" }}>
+                      {c}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", marginBottom: 5 }}>Department</div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              <div className="text-[9px] font-bold text-slate-400 uppercase mb-1.5">Department</div>
+              <div className="flex gap-1.5 flex-wrap">
                 {depts.map(d => (
                   <button key={d} onClick={() => setFilterDept(d)}
-                    style={{ padding: "4px 10px", borderRadius: 16, border: "none", cursor: "pointer", fontSize: 11, background: filterDept === d ? "#f59e0b" : "#f1f5f9", color: filterDept === d ? "#fff" : "#64748b", fontWeight: filterDept === d ? 700 : 500 }}>
+                    className={`p-[4px_10px] rounded-full border-none cursor-pointer text-[11px] transition-colors ${filterDept === d ? "bg-brand-amber text-white font-bold" : "bg-slate-100 text-slate-500 font-medium hover:bg-slate-200"}`}>
                     {d}
                   </button>
                 ))}
@@ -849,72 +878,76 @@ const [showCompare, setShowCompare] = useState(false);
             </div>
           </div>
 
-          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>Showing {filtered.length} of {analyzed.length} interviews</div>
+          <div className="text-[11px] text-slate-400 mb-3">Showing {filtered.length} of {analyzed.length} interviews</div>
           {filtered.map((iv, i) => <InterviewCard key={iv.id} iv={iv} analysis={iv.analysis} idx={i} />)}
         </div>
       )}
 
-      {/* ── TAB: PATTERN ANALYSIS ── */}
+      {/* ── TAB: PATTERNS ── */}
       {activeTab === "patterns" && (
         <div>
           {/* Patterns */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🔍 Detected Patterns</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>Auto-detected systemic issues across all interviews</div>
+          <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 mb-4">
+            <div className="font-bold text-sm text-brand-dark mb-1">🔍 Detected Patterns</div>
+            <div className="text-[11px] text-slate-400 mb-4">Auto-detected systemic issues across all interviews</div>
+            
             {patterns.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>No significant patterns detected yet</div>
+              <div className="text-center p-[30px] text-slate-400">No significant patterns detected yet</div>
             ) : patterns.map((p, i) => (
-              <div key={`${p.severity}-${i}`} style={{ background: severityBg(p.severity), border: `1px solid ${severityBorder(p.severity)}`, borderRadius: 10, padding: "10px 14px", marginBottom: 8, display: "flex", alignItems: "flex-start", gap: 10 }}>
-    <span style={{ fontSize: 18, flexShrink: 0 }}>{p.icon}</span>
+              <div key={`${p.severity}-${i}`} className="rounded-[10px] p-[10px_14px] mb-2 flex items-start gap-2.5 border" style={{ background: severityBg(p.severity), borderColor: severityBorder(p.severity) }}>
+                <span className="text-lg shrink-0">{p.icon}</span>
                 <div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: severityColor(p.severity), textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 8 }}>
-                    {p.severity.toUpperCase()}
+                  <span className="text-[10px] font-bold uppercase tracking-widest mr-2" style={{ color: severityColor(p.severity) }}>
+                    {p.severity}
                   </span>
-                  <span style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.6 }}>{p.text}</span>
+                  <span className="text-xs text-brand-navy leading-relaxed">{p.text}</span>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Sentiment breakdown */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>😔 Sentiment Analysis</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14 }}>
+          <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100 mb-4">
+            <div className="font-bold text-[13px] text-brand-dark mb-3.5">😔 Sentiment Analysis</div>
+            <div className="grid grid-cols-3 gap-2.5 mb-3.5">
               {[
                 { label: "Negative", count: analyzed.filter(iv => iv.analysis.sentiment.score < 35).length, color: "#ef4444", bg: "#fef2f2" },
                 { label: "Mixed", count: analyzed.filter(iv => iv.analysis.sentiment.score >= 35 && iv.analysis.sentiment.score < 60).length, color: "#f59e0b", bg: "#fffbeb" },
                 { label: "Positive", count: analyzed.filter(iv => iv.analysis.sentiment.score >= 60).length, color: "#22c55e", bg: "#f0fdf4" },
               ].map(s => (
-                <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "12px", textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.count}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{s.label}</div>
+                <div key={s.label} className="rounded-[10px] p-3 text-center" style={{ background: s.bg }}>
+                  <div className="text-[22px] font-extrabold" style={{ color: s.color }}>{s.count}</div>
+                  <div className="text-[11px] text-slate-500">{s.label}</div>
                 </div>
               ))}
             </div>
-            {analyzed.map((iv, i) => (
-              <div key={iv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                <span style={{ fontSize: 11, color: "#475569", width: 110, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{iv.name || `#${i + 1}`}</span>
-                <div style={{ flex: 1, height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: `${iv.analysis.sentiment.score}%`, height: "100%", background: iv.analysis.sentiment.color, borderRadius: 3 }} />
+            
+            <div className="flex flex-col gap-1.5">
+              {analyzed.map((iv, i) => (
+                <div key={iv.id} className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-600 w-[110px] shrink-0 truncate">{iv.name || `#${i + 1}`}</span>
+                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${iv.analysis.sentiment.score}%`, background: iv.analysis.sentiment.color }} />
+                  </div>
+                  <span className="text-[10px] font-bold w-6 text-right" style={{ color: iv.analysis.sentiment.color }}>{iv.analysis.sentiment.score}</span>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: iv.analysis.sentiment.color, width: 24 }}>{iv.analysis.sentiment.score}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Cross-module links */}
-          <div style={{ background: "#fff8f0", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #fed7aa" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#9a3412", marginBottom: 10 }}>🔗 Cross-Module Actions</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="bg-orange-50 rounded-[14px] p-[16px_18px] border-[1.5px] border-orange-200">
+            <div className="font-bold text-[13px] text-orange-800 mb-2.5">🔗 Cross-Module Actions</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {[
                 { icon: "💰", label: "Compensation issues detected", action: "→ Go to M3: Salary Benchmarking to see exact gap per dept", color: "#ef4444" },
                 { icon: "⏱️", label: "Workload/burnout patterns", action: "→ Go to M4: Dept Health to check Human Buffer & Burnout Index", color: "#f97316" },
                 { icon: "🔕", label: "Gen Z silent drift signals", action: "→ Go to M2: Risk Scorer, enter age <26 + low satisfaction to see alert", color: "#f59e0b" },
                 { icon: "📈", label: "Retention intervention needed", action: "→ Go to M6: ROI Calculator to justify investment to leadership", color: "#8b5cf6" },
               ].map((item, i) => (
-                <div key={i} style={{ background: "#fff", borderRadius: 9, padding: "10px 12px", border: "1px solid #fed7aa" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: item.color, marginBottom: 3 }}>{item.icon} {item.label}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{item.action}</div>
+                <div key={i} className="bg-white rounded-[9px] p-[10px_12px] border border-orange-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                  <div className="text-xs font-bold mb-1" style={{ color: item.color }}>{item.icon} {item.label}</div>
+                  <div className="text-[11px] text-slate-500">{item.action}</div>
                 </div>
               ))}
             </div>
@@ -926,56 +959,60 @@ const [showCompare, setShowCompare] = useState(false);
       {activeTab === "wordcloud" && (
         <div>
           {isEmpty && (
-            <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 14, border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>☁️</div>
-              <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 16, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Empty Keyword Cloud</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Keywords are generated from interview text. Please add an interview first to view results.</div>
+            <div className="text-center py-[60px] px-5 bg-white rounded-[14px] border-[1.5px] border-slate-100 mb-4">
+              <div className="text-[40px] mb-3">☁️</div>
+              <div className="font-display text-base font-bold text-brand-dark mb-2">Empty Keyword Cloud</div>
+              <div className="text-xs text-slate-400 mb-4">Keywords are generated from interview text. Please add an interview first to view results.</div>
               <button onClick={() => updateM5({ showSample: true })}
-                style={{ padding: "9px 20px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 13, color: "#475569", cursor: "pointer", fontWeight: 600 }}>
+                className="p-[9px_20px] rounded-[10px] border-[1.5px] border-slate-200 bg-slate-50 text-[13px] text-slate-600 cursor-pointer font-bold hover:bg-slate-100 transition-colors">
                 👁 View Sample
               </button>
             </div>
           )}
+          
           {isUsingSample && (
-            <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 10, padding: "8px 14px", marginBottom: 12, fontSize: 11, color: "#92400e", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="bg-amber-50 border-[1.5px] border-amber-200 rounded-[10px] p-[8px_14px] mb-3 text-[11px] text-amber-800 font-bold flex justify-between items-center">
               <span>📋 These keywords are from 8 sample interviews — demo data</span>
-              <button onClick={() => updateM5({ showSample: false })} style={{ background: "none", border: "none", color: "#92400e", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>✕</button>
+              <button onClick={() => updateM5({ showSample: false })} className="bg-transparent border-none text-amber-800 cursor-pointer text-[13px] font-extrabold hover:text-amber-900 transition-colors">✕</button>
             </div>
           )}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>☁️ Keyword Frequency Cloud</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>
+          
+          <div className="bg-white rounded-[14px] p-[20px_22px] border-[1.5px] border-slate-100 mb-4">
+            <div className="font-bold text-sm text-brand-dark mb-1">☁️ Keyword Frequency Cloud</div>
+            <div className="text-[11px] text-slate-400 mb-4">
               Word size = frequency · Color = category · Generated from {interviews.length} exit interviews{isUsingSample ? " (contoh)" : ""}
             </div>
-            <div style={{ background: "#f8fafc", borderRadius: 12, padding: "20px", border: "1.5px solid #f1f5f9" }}>
+            
+            <div className="bg-slate-50 rounded-xl p-5 border-[1.5px] border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
               <WordCloud words={keywords} />
             </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+            
+            <div className="flex gap-2.5 mt-3.5 flex-wrap">
               {Object.entries(CATEGORIES).map(([cat, cfg]) => (
-                <div key={cat} style={{ display: "flex", alignItems: "center", gap: 5, background: cfg.bg, borderRadius: 8, padding: "4px 10px", border: `1px solid ${cfg.border}` }}>
-                  <span>{cfg.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color }}>{cat}</span>
+                <div key={cat} className="flex items-center gap-1.5 rounded-lg p-[4px_10px] border" style={{ background: cfg.bg, borderColor: cfg.border }}>
+                  <span className="text-sm">{cfg.icon}</span>
+                  <span className="text-[11px] font-bold" style={{ color: cfg.color }}>{cat}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Top keywords table */}
-          <div style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", border: "1.5px solid #f1f5f9" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 14 }}>Top 20 Keywords Ranked</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <div className="bg-white rounded-[14px] p-[16px_18px] border-[1.5px] border-slate-100">
+            <div className="font-bold text-[13px] text-brand-dark mb-3.5">Top 20 Keywords Ranked</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {keywords.slice(0, 20).map(([word, count], i) => {
                 const cat = Object.entries(CATEGORIES).find(([, cfg]) => cfg.keywords.includes(word));
                 const color = cat ? cat[1].color : "#94a3b8";
                 const bg = cat ? cat[1].bg : "#f8fafc";
                 return (
-                  <div key={word} style={{ display: "flex", alignItems: "center", gap: 8, background: bg, borderRadius: 8, padding: "6px 10px" }}>
-                    <span style={{ fontSize: 11, color: "#94a3b8", width: 20, textAlign: "right" }}>#{i + 1}</span>
-                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{word}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <div style={{ width: Math.max(12, (count / keywords[0][1]) * 40), height: 4, background: color, borderRadius: 2 }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color }}>{count}x</span>
-                       </div>
+                  <div key={word} className="flex items-center gap-2 rounded-lg p-[6px_10px]" style={{ background: bg }}>
+                    <span className="text-[11px] text-slate-400 w-5 text-right">#{i + 1}</span>
+                    <span className="flex-1 text-xs font-bold text-brand-navy">{word}</span>
+                    <div className="flex items-center gap-1">
+                      <div className="h-1 rounded-full" style={{ width: Math.max(12, (count / keywords[0][1]) * 40), background: color }} />
+                      <span className="text-[11px] font-extrabold" style={{ color }}>{count}x</span>
+                    </div>
                   </div>
                 );
               })}
@@ -984,32 +1021,33 @@ const [showCompare, setShowCompare] = useState(false);
         </div>
       )}
 
-          {/* ── TAB: PERSONAS ── */}
+      {/* ── TAB: PERSONAS ── */}
       {activeTab === "personas" && (
         <div>
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>🎭 Exit Persona Clusters</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 20 }}>
+          <div className="bg-white rounded-[14px] p-[20px_22px] border-[1.5px] border-slate-100 mb-4">
+            <div className="font-bold text-sm text-brand-dark mb-1">🎭 Exit Persona Clusters</div>
+            <div className="text-[11px] text-slate-400 mb-5">
               Auto-grouped by behavioral patterns — each persona needs a different intervention strategy
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>
+            
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3.5">
               {personaClusters.map(([persona, members]) => {
                 const topCat = members[0]?.analysis?.primary || "Culture";
                 const cfg = CATEGORIES[topCat] || CATEGORIES["Culture"];
                 const avgRetain = Math.round(members.reduce((s, iv) => s + iv.analysis.retentionProbability, 0) / members.length);
                 return (
-                  <div key={persona} style={{ background: cfg.bg, borderRadius: 13, padding: "16px 18px", border: `1.5px solid ${cfg.border}` }}>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: cfg.color, marginBottom: 6 }}>{persona}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12 }}>{members.length} employee(s) match this profile</div>
+                  <div key={persona} className="rounded-[13px] p-[16px_18px] border-[1.5px] shadow-sm transition-transform hover:-translate-y-1" style={{ background: cfg.bg, borderColor: cfg.border }}>
+                    <div className="font-extrabold text-sm mb-1.5" style={{ color: cfg.color }}>{persona}</div>
+                    <div className="text-[11px] text-slate-500 mb-3">{members.length} employee(s) match this profile</div>
 
                     {/* Members */}
-                    <div style={{ marginBottom: 12 }}>
+                    <div className="mb-3 flex flex-col gap-1.5">
                       {members.map((iv, i) => (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: i < members.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                          <span style={{ fontSize: 12, color: "#1e293b", fontWeight: 500 }}>{iv.name || "Anonymous"}</span>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <span style={{ fontSize: 10, color: "#94a3b8" }}>{iv.dept}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: iv.analysis.retentionProbability >= 60 ? "#22c55e" : iv.analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444" }}>
+                        <div key={i} className={`flex justify-between items-center py-1 ${i < members.length - 1 ? 'border-b border-white/40' : ''}`}>
+                          <span className="text-xs text-brand-navy font-semibold">{iv.name || "Anonymous"}</span>
+                          <div className="flex gap-1.5 items-center">
+                            <span className="text-[10px] text-slate-500">{iv.dept}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-white/50 rounded-md" style={{ color: iv.analysis.retentionProbability >= 60 ? "#16a34a" : iv.analysis.retentionProbability >= 35 ? "#d97706" : "#dc2626" }}>
                               {iv.analysis.retentionProbability}% retainable
                             </span>
                           </div>
@@ -1018,12 +1056,12 @@ const [showCompare, setShowCompare] = useState(false);
                     </div>
 
                     {/* Retention avg */}
-                    <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px" }}>
-                      <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Avg Retention Probability</div>
-                      <div style={{ height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
-                        <div style={{ width: `${avgRetain}%`, height: "100%", background: avgRetain >= 60 ? "#22c55e" : avgRetain >= 35 ? "#f59e0b" : "#ef4444", borderRadius: 3 }} />
+                    <div className="bg-white/80 rounded-lg p-[8px_12px] backdrop-blur-sm shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+                      <div className="text-[10px] text-slate-500 mb-1 font-semibold">Avg Retention Probability</div>
+                      <div className="h-1.5 bg-slate-200/50 rounded-full overflow-hidden mb-1">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${avgRetain}%`, background: avgRetain >= 60 ? "#22c55e" : avgRetain >= 35 ? "#f59e0b" : "#ef4444" }} />
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: avgRetain >= 60 ? "#22c55e" : avgRetain >= 35 ? "#f59e0b" : "#ef4444" }}>
+                      <div className="text-xs font-bold" style={{ color: avgRetain >= 60 ? "#16a34a" : avgRetain >= 35 ? "#d97706" : "#dc2626" }}>
                         {avgRetain}% — {avgRetain >= 60 ? "Most were preventable" : avgRetain >= 35 ? "Some were preventable" : "Hard to retain"}
                       </div>
                     </div>
@@ -1038,17 +1076,17 @@ const [showCompare, setShowCompare] = useState(false);
       {/* ── TAB: COMPARE ── */}
       {activeTab === "compare" && (
         <div>
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>⚖️ Interview Comparison</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>Select two interviews to compare side-by-side</div>
+          <div className="bg-white rounded-[14px] p-[20px_22px] border-[1.5px] border-slate-100 mb-4">
+            <div className="font-bold text-sm text-brand-dark mb-1">⚖️ Interview Comparison</div>
+            <div className="text-[11px] text-slate-400 mb-4">Select two interviews to compare side-by-side</div>
 
             {/* Selectors */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               {[{ label: "Interview A", val: compareA, setter: setCompareA }, { label: "Interview B", val: compareB, setter: setCompareB }].map(({ label, val, setter }) => (
                 <div key={label}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">{label}</div>
                   <select value={val || ""} onChange={e => setter(Number(e.target.value) || null)}
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#1e293b", background: "#f8fafc" }}>
+                    className="w-full p-[9px_12px] rounded-[9px] border-[1.5px] border-slate-200 text-xs text-brand-navy bg-slate-50 outline-none focus:border-brand-amber transition-colors cursor-pointer">
                     <option value="">— Select interview —</option>
                     {analyzed.map((iv, i) => (
                       <option key={i} value={i}>{iv.name || `Anonymous #${i+1}`} · {iv.dept}</option>
@@ -1072,32 +1110,32 @@ const [showCompare, setShowCompare] = useState(false);
                 { label: "Retention Probability", va: `${a.analysis.retentionProbability}%`, vb: `${b.analysis.retentionProbability}%` },
               ];
               return (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
                     <thead>
-                      <tr style={{ background: "#f8fafc" }}>
+                      <tr className="bg-slate-50">
                         {["Metric", a.name || "Interview A", b.name || "Interview B"].map(h => (
-                          <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9" }}>{h}</th>
+                          <th key={h} className="p-[8px_12px] text-left text-slate-500 font-bold text-[10px] uppercase tracking-wider border-b-2 border-slate-100">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row, i) => (
-                        <tr key={row.label} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 600, color: "#475569" }}>{row.label}</td>
-                          <td style={{ padding: "8px 12px", color: "#1e293b" }}>{row.va}</td>
-                          <td style={{ padding: "8px 12px", color: "#1e293b" }}>{row.vb}</td>
+                        <tr key={row.label} className={`border-b border-slate-50 ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                          <td className="p-[8px_12px] font-semibold text-slate-600">{row.label}</td>
+                          <td className="p-[8px_12px] text-brand-navy font-medium">{row.va}</td>
+                          <td className="p-[8px_12px] text-brand-navy font-medium">{row.vb}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
 
                   {/* Text comparison */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                     {[a, b].map((iv, i) => (
-                      <div key={i} style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", border: "1px solid #e2e8f0" }}>
-                        <div style={{ fontWeight: 700, fontSize: 12, color: "#0f172a", marginBottom: 8 }}>{iv.name || `Interview ${i === 0 ? "A" : "B"}`}</div>
-                        <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, fontStyle: "italic" }}>"{iv.text.slice(0, 200)}..."</div>
+                      <div key={i} className="bg-slate-50 rounded-[10px] p-[14px_16px] border border-slate-200">
+                        <div className="font-bold text-xs text-brand-dark mb-2">{iv.name || `Interview ${i === 0 ? "A" : "B"}`}</div>
+                        <div className="text-[11px] text-slate-600 leading-relaxed italic border-l-2 border-brand-amber/30 pl-2">"{iv.text.slice(0, 200)}..."</div>
                       </div>
                     ))}
                   </div>
@@ -1111,39 +1149,39 @@ const [showCompare, setShowCompare] = useState(false);
       {/* ── TAB: EXPORT ── */}
       {activeTab === "export" && (
         <div>
-          <div style={{ background: "#fff", borderRadius: 14, padding: "20px 22px", border: "1.5px solid #f1f5f9", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>📤 Export Exit Interview Data</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 20 }}>
+          <div className="bg-white rounded-[14px] p-[20px_22px] border-[1.5px] border-slate-100 mb-4">
+            <div className="font-bold text-sm text-brand-dark mb-1">📤 Export Exit Interview Data</div>
+            <div className="text-[11px] text-slate-400 mb-5">
               Full dataset with AI categorization, sentiment scores, and retention probability
             </div>
 
             {/* Preview */}
-            <div style={{ overflowX: "auto", marginBottom: 20 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <div className="overflow-x-auto mb-5 rounded-xl border border-slate-100">
+              <table className="w-full border-collapse text-[11px]">
                 <thead>
-                  <tr style={{ background: "#f8fafc" }}>
+                  <tr className="bg-slate-50">
                     {["Name","Dept","Date","Tenure","Primary Reason","Sentiment","Retainable"].map(h => (
-                      <th key={h} style={{ padding: "7px 10px", textAlign: "left", color: "#64748b", fontWeight: 700, fontSize: 10, textTransform: "uppercase", borderBottom: "2px solid #f1f5f9", whiteSpace: "nowrap" }}>{h}</th>
+                      <th key={h} className="p-[8px_10px] text-left text-slate-500 font-bold text-[10px] uppercase tracking-wider border-b-2 border-slate-100 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {analyzed.map((iv) => (
-                    <tr key={iv.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                      <td style={{ padding: "7px 10px", fontWeight: 600, color: "#1e293b" }}>{iv.name || "Anonymous"}</td>
-                      <td style={{ padding: "7px 10px", color: "#475569" }}>{iv.dept}</td>
-                      <td style={{ padding: "7px 10px", color: "#94a3b8" }}>{iv.date}</td>
-                      <td style={{ padding: "7px 10px", color: "#64748b" }}>{iv.tenure}y</td>
-                      <td style={{ padding: "7px 10px" }}>
-                        <span style={{ background: CATEGORIES[iv.analysis.primary]?.bg, color: CATEGORIES[iv.analysis.primary]?.color, padding: "2px 7px", borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
+                    <tr key={iv.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td className="p-[7px_10px] font-semibold text-brand-navy whitespace-nowrap">{iv.name || "Anonymous"}</td>
+                      <td className="p-[7px_10px] text-slate-600">{iv.dept}</td>
+                      <td className="p-[7px_10px] text-slate-400">{iv.date}</td>
+                      <td className="p-[7px_10px] text-slate-500">{iv.tenure}y</td>
+                      <td className="p-[7px_10px]">
+                        <span className="px-2 py-0.5 rounded-[10px] text-[9px] font-bold border" style={{ background: CATEGORIES[iv.analysis.primary]?.bg, color: CATEGORIES[iv.analysis.primary]?.color, borderColor: CATEGORIES[iv.analysis.primary]?.border }}>
                           {CATEGORIES[iv.analysis.primary]?.icon} {iv.analysis.primary}
                         </span>
                       </td>
-                      <td style={{ padding: "7px 10px" }}>
-                        <span style={{ fontWeight: 700, color: iv.analysis.sentiment.color }}>{iv.analysis.sentiment.score}</span>
+                      <td className="p-[7px_10px]">
+                        <span className="font-bold text-[10px]" style={{ color: iv.analysis.sentiment.color }}>{iv.analysis.sentiment.score}</span>
                       </td>
-                      <td style={{ padding: "7px 10px" }}>
-                        <span style={{ fontWeight: 700, color: iv.analysis.retentionProbability >= 60 ? "#22c55e" : iv.analysis.retentionProbability >= 35 ? "#f59e0b" : "#ef4444" }}>
+                      <td className="p-[7px_10px]">
+                        <span className="font-bold text-[10px]" style={{ color: iv.analysis.retentionProbability >= 60 ? "#16a34a" : iv.analysis.retentionProbability >= 35 ? "#d97706" : "#dc2626" }}>
                           {iv.analysis.retentionProbability}%
                         </span>
                       </td>
@@ -1153,24 +1191,24 @@ const [showCompare, setShowCompare] = useState(false);
               </table>
             </div>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div className="flex gap-3 flex-wrap items-center">
               <button onClick={exportCSV}
-                style={{ padding: "12px 24px", borderRadius: 11, border: "none", background: "linear-gradient(135deg,#f59e0b,#ef4444)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                className="p-[12px_24px] rounded-[11px] border-none bg-gradient-to-br from-brand-amber to-brand-red text-white font-bold text-[13px] cursor-pointer shadow-sm hover:opacity-90 transition-opacity">
                 ⬇ Export Full CSV ({analyzed.length} interviews)
               </button>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0fdf4", borderRadius: 10, padding: "10px 16px", border: "1px solid #bbf7d0" }}>
-                <span style={{ fontSize: 16 }}>💔</span>
+              <div className="flex items-center gap-2 bg-green-50 rounded-[10px] p-[10px_16px] border border-green-200">
+                <span className="text-xl">💔</span>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#166534" }}>Preventable Exits</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#15803d" }}>
+                  <div className="text-[10px] font-bold text-green-800 uppercase tracking-widest mb-0.5">Preventable Exits</div>
+                  <div className="text-[13px] font-extrabold text-green-700">
                     {analyzed.filter(iv => iv.analysis.retentionProbability >= 60).length} of {analyzed.length} were retainable
-                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
 }
