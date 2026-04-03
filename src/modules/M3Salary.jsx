@@ -198,7 +198,7 @@ function SalaryHealthBar({ salary, cliff, currSymbol }) {
   );
 }
 
-// ── Dept Salary Radar ──
+// ── Dept Salary Radar (MODERN & RESPONSIVE) ──
 function DeptSalaryRadar({ depts, cliff, currSymbol }) {
   const { tooltip, show, hide, move } = useChartTooltip();
   
@@ -206,9 +206,10 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
   const n = Math.min(depts.length, 6);
   const sliced = depts.slice(0, n);
   
-  const size = 220;
+  const size = 220; 
   const cx = size / 2, cy = size / 2;
-  const r = size * 0.32;
+  const r = size * 0.32; 
+
   const getAngle = (i) => (Math.PI * 2 * i) / n - Math.PI / 2;
 
   const points = sliced.map((_, i) => {
@@ -226,14 +227,16 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
   const grid = points.map(p => `${p.x},${p.y}`).join(" ");
 
   const formatShort = (val) => {
-    if (val >= 1000000) return `${currSymbol}${(val / 1000000).toFixed(1)}M`;
-    if (val >= 1000) return `${currSymbol}${(val / 1000).toFixed(0)}k`;
-    return `${currSymbol}${val}`;
+    const num = Number(val);
+    if (num >= 1000000) return `${currSymbol}${(num / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (num >= 1000) return `${currSymbol}${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return `${currSymbol}${num}`;
   };
 
-    return (
+  return (
     <>
       <ChartTooltip tooltip={tooltip} />
+      {/* Wrapper biar gak melar jadi raksasa di desktop */}
       <div className="w-full flex justify-center py-2">
         <div className="w-full max-w-[260px] aspect-square"> 
           <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
@@ -243,10 +246,10 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
               </filter>
             </defs>
 
-            {/* Cincin Luar (Batas Cliff) */}
+            {/* Grid Belakang */}
             <polygon points={grid} fill="#f8fafc" stroke="#e2e8f0" strokeWidth={1.5} strokeDasharray="4,4" />
             
-            {/* Area Radar */}
+            {/* Area Radar Utama */}
             <polygon points={polygon} fill="#f59e0b" fillOpacity={0.15} stroke="#f59e0b" strokeWidth={2.5} strokeLinejoin="round" filter="url(#radar-glow)" style={{ transition: "all 0.5s ease" }} />
             
             {sliced.map((d, i) => {
@@ -264,10 +267,12 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
                     {d.dept.split(" ")[0]}
                   </text>
                   
+                  {/* Angka Gaji */}
                   <text x={dataPoints[i].x} y={dataPoints[i].y - 8} textAnchor="middle" fontSize={9} fill="#d97706" fontWeight="800" pointerEvents="none">
                     {formatShort(d.avgSal)}
                   </text>
                   
+                  {/* Titik Interaktif Tooltip */}
                   <circle cx={dataPoints[i].x} cy={dataPoints[i].y} r={8} fill="transparent" 
                     onMouseEnter={(e) => show(e, <div><strong>{d.dept}</strong><br/>Avg: {currSymbol}{Number(d.avgSal || 0).toLocaleString()}</div>)}
                     onMouseMove={move} onMouseLeave={hide}
@@ -278,13 +283,15 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
               );
             })}
             
+            {/* Titik Tengah */}
             <circle cx={cx} cy={cy} r={4} fill="#f59e0b" />
             <text x={cx} y={cy - 12} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight="700">cliff: {formatShort(cliff)}</text>
           </svg>
         </div>
       </div>
     </>
-    );
+  );
+}
 
 // ── AI Insight ──
 async function fetchSalaryAI(stats, company) {
