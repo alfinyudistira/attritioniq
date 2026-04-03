@@ -238,7 +238,7 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
       <ChartTooltip tooltip={tooltip} />
       {/* Wrapper biar gak melar jadi raksasa di desktop */}
       <div className="w-full flex justify-center py-2">
-        <div className="w-full max-w-[260px] aspect-square"> 
+        <div className="w-full max-w-[360px] aspect-square"> 
           <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
             <defs>
               <filter id="radar-glow" x="-20%" y="-20%" width="140%" height="140%">
