@@ -39,9 +39,6 @@ function SalaryScatter({ data, cliff, highlightBelow = true, currSymbol = "$" })
   const maxS = Math.max(...salaries, cliff + 1000);
   const minS = Math.min(...salaries, cliff - 1500);
   
-  // Legend SVG dihapus, jadi padding bawah (b) kita pangkas dari 45 jadi 20.
-  // Tinggi SVG (H_SVG) kita naikkan jadi 240. 
-  // Hasilnya: Area dalam chart akan JAUH lebih panjang ke bawah!
   const W_SVG = 340, H_SVG = 240;
   const pad = { l: 30, r: 15, t: 30, b: 20 }; 
   const W = W_SVG - pad.l - pad.r;
@@ -209,11 +206,9 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
   const n = Math.min(depts.length, 6);
   const sliced = depts.slice(0, n);
   
-  const size = 220; // Canvas diperbesar sedikit biar gak nabrak tepi
+  const size = 220;
   const cx = size / 2, cy = size / 2;
-  const r = size * 0.32; // Jaring diperkecil sedikit ke dalam biar teks leluasa
-
-  // Hitung sudut tiap axis
+  const r = size * 0.32;
   const getAngle = (i) => (Math.PI * 2 * i) / n - Math.PI / 2;
 
   const points = sliced.map((_, i) => {
@@ -223,7 +218,7 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
 
   const dataPoints = sliced.map((d, i) => {
     const angle = getAngle(i);
-    const ratio = Math.min(1.2, (d.avgSal || 0) / cliff); // Biar menembus batas cliff kalau di atasnya
+    const ratio = Math.min(1.2, (d.avgSal || 0) / cliff); 
     return { x: cx + Math.cos(angle) * r * ratio, y: cy + Math.sin(angle) * r * ratio, val: d.avgSal };
   });
 
@@ -236,65 +231,60 @@ function DeptSalaryRadar({ depts, cliff, currSymbol }) {
     return `${currSymbol}${val}`;
   };
 
-  return (
+    return (
     <>
       <ChartTooltip tooltip={tooltip} />
-      <svg width="100%" viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
-        <defs>
-          <filter id="radar-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#f59e0b" floodOpacity="0.3" />
-          </filter>
-        </defs>
+      <div className="w-full flex justify-center py-2">
+        <div className="w-full max-w-[260px] aspect-square"> 
+          <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible" }}>
+            <defs>
+              <filter id="radar-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#f59e0b" floodOpacity="0.3" />
+              </filter>
+            </defs>
 
-        {/* Cincin Luar (Batas Cliff) */}
-        <polygon points={grid} fill="#f8fafc" stroke="#e2e8f0" strokeWidth={1.5} strokeDasharray="4,4" />
-        
-        {/* Fill Area Radar */}
-        <polygon points={polygon} fill="#f59e0b" fillOpacity={0.15} stroke="#f59e0b" strokeWidth={2.5} strokeLinejoin="round" filter="url(#radar-glow)" style={{ transition: "all 0.5s ease" }} />
-        
-        {/* Jari-jari, Label Departemen, & Titik Interaktif */}
-        {sliced.map((d, i) => {
-          const angle = getAngle(i);
-          
-          // Posisi Teks Departemen didorong jauh keluar (r * 1.25)
-          const lblR = r * 1.25;
-          const lx = cx + Math.cos(angle) * lblR;
-          const ly = cy + Math.sin(angle) * lblR;
-          const anchor = Math.abs(Math.cos(angle)) < 0.1 ? "middle" : Math.cos(angle) > 0 ? "start" : "end";
+            {/* Cincin Luar (Batas Cliff) */}
+            <polygon points={grid} fill="#f8fafc" stroke="#e2e8f0" strokeWidth={1.5} strokeDasharray="4,4" />
+            
+            {/* Area Radar */}
+            <polygon points={polygon} fill="#f59e0b" fillOpacity={0.15} stroke="#f59e0b" strokeWidth={2.5} strokeLinejoin="round" filter="url(#radar-glow)" style={{ transition: "all 0.5s ease" }} />
+            
+            {sliced.map((d, i) => {
+              const angle = getAngle(i);
+              const lblR = r * 1.35; 
+              const lx = cx + Math.cos(angle) * lblR;
+              const ly = cy + Math.sin(angle) * lblR;
+              const anchor = Math.abs(Math.cos(angle)) < 0.1 ? "middle" : Math.cos(angle) > 0 ? "start" : "end";
 
-          return (
-            <g key={i}>
-              {/* Garis Jari-jari dari tengah ke luar */}
-              <line x1={cx} y1={cy} x2={points[i].x} y2={points[i].y} stroke="#f1f5f9" strokeWidth={1.5} />
-              
-              {/* Nama Departemen (Anti Numpuk) */}
-              <text x={lx} y={ly + (Math.sin(angle) > 0 ? 6 : 0)} textAnchor={anchor} fontSize={10} fill="#475569" fontWeight="800">
-                {d.dept.split(" ")[0]}
-              </text>
-              
-              {/* Nilai Gaji di pinggir titik */}
-              <text x={dataPoints[i].x} y={dataPoints[i].y - 6} textAnchor="middle" fontSize={9} fill="#d97706" fontWeight="800" pointerEvents="none">
-                {formatShort(d.avgSal)}
-              </text>
-              
-              {/* Titik Interaktif (Hover) */}
-              <circle cx={dataPoints[i].x} cy={dataPoints[i].y} r={6} fill="transparent" 
-                onMouseEnter={(e) => show(e, <div><strong>{d.dept}</strong><br/>Avg: {currSymbol}{Number(d.avgSal || 0).toLocaleString()}</div>)}
-                onMouseMove={move} onMouseLeave={hide}
-                style={{ cursor: "pointer" }}
-              />
-              <circle cx={dataPoints[i].x} cy={dataPoints[i].y} r={3.5} fill="#f59e0b" pointerEvents="none" />
-            </g>
-          );
-        })}
-        
-        {/* Titik Tengah Cliff */}
-        <circle cx={cx} cy={cy} r={4} fill="#f59e0b" />
-        <text x={cx} y={cy - 10} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight="700">cliff: {formatShort(cliff)}</text>
-      </svg>
+              return (
+                <g key={i}>
+                  <line x1={cx} y1={cy} x2={points[i].x} y2={points[i].y} stroke="#f1f5f9" strokeWidth={1.5} />
+                  
+                  <text x={lx} y={ly + (Math.sin(angle) > 0 ? 4 : -2)} textAnchor={anchor} fontSize={10} fill="#475569" fontWeight="800">
+                    {d.dept.split(" ")[0]}
+                  </text>
+                  
+                  <text x={dataPoints[i].x} y={dataPoints[i].y - 8} textAnchor="middle" fontSize={9} fill="#d97706" fontWeight="800" pointerEvents="none">
+                    {formatShort(d.avgSal)}
+                  </text>
+                  
+                  <circle cx={dataPoints[i].x} cy={dataPoints[i].y} r={8} fill="transparent" 
+                    onMouseEnter={(e) => show(e, <div><strong>{d.dept}</strong><br/>Avg: {currSymbol}{Number(d.avgSal || 0).toLocaleString()}</div>)}
+                    onMouseMove={move} onMouseLeave={hide}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <circle cx={dataPoints[i].x} cy={dataPoints[i].y} r={3.5} fill="#f59e0b" pointerEvents="none" />
+                </g>
+              );
+            })}
+            
+            <circle cx={cx} cy={cy} r={4} fill="#f59e0b" />
+            <text x={cx} y={cy - 12} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight="700">cliff: {formatShort(cliff)}</text>
+          </svg>
+        </div>
+      </div>
     </>
-  );
-}
+    );
 
 // ── AI Insight ──
 async function fetchSalaryAI(stats, company) {
